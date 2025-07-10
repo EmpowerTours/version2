@@ -20,6 +20,7 @@ OWNER_ADDRESS = os.getenv("OWNER_ADDRESS")
 LEGACY_ADDRESS = os.getenv("LEGACY_ADDRESS")
 API_BASE_URL = os.getenv("API_BASE_URL")
 CHAT_HANDLE = os.getenv("CHAT_HANDLE", "@empowertourschat")
+EXPIRY_SECONDS = 1800  # 30 minutes for session expiry
 
 # Initialize Web3 with retry logic
 w3 = None
@@ -34,7 +35,7 @@ def initialize_web3():
             w3 = Web3(Web3.HTTPProvider(MONAD_RPC_URL, request_kwargs={'timeout': 10}))
             if w3.is_connected():
                 logger.info("Successfully connected to Monad testnet")
-                # EmpowerTours contract ABI
+                # EmpowerTours contract ABI (as provided)
                 CONTRACT_ABI = [
     {
         "inputs": [
@@ -892,25 +893,7 @@ def initialize_web3():
                     }
                 ]
 
-                # Initialize contracts
-                contract = w3.eth.contract(address=Web3.to_checksum_address(CONTRACT_ADDRESS), abi=CONTRACT_ABI)
-                tours_contract = w3.eth.contract(address=Web3.to_checksum_address(TOURS_TOKEN_ADDRESS), abi=TOURS_ABI)
-                logger.info("Contracts initialized successfully")
-                return True
-            else:
-                logger.warning(f"Web3 connection failed on attempt {attempt}/{retries}")
-                time.sleep(5)
-        except Exception as e:
-            logger.error(f"Error connecting to Web3 on attempt {attempt}/{retries}: {str(e)}")
-            if attempt < retries:
-                time.sleep(5)
-    logger.error("All Web3 connection attempts failed. Proceeding without blockchain functionality.")
-    w3 = None
-    contract = None
-    tours_contract = None
-    return False
-
-# Initialize Web3 and contracts
+                # Initialize Web3 and contracts
 initialize_web3()
 
 # Initialize SQLite database
@@ -920,13 +903,14 @@ cursor.execute('''
     CREATE TABLE IF NOT EXISTS sessions (
         user_id TEXT PRIMARY KEY,
         session_id TEXT,
-        wallet_address TEXT
+        wallet_address TEXT,
+        connected_at INTEGER  -- For expiry
     )
 ''')
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS pending_txs (
         user_id TEXT,
-        tx_type TEXT,
+        tx_type TEXT UNIQUE,  -- Prevent duplicates per type
         tx_data TEXT,
         name TEXT,
         difficulty TEXT,
@@ -938,6 +922,14 @@ cursor.execute('''
     )
 ''')
 conn.commit()
+
+# Simple encryption (XOR; replace with better in prod)
+ENCRYPT_KEY = b'secret_key'  # Use env var
+def encrypt(data: str) -> str:
+    return ''.join(chr(ord(c) ^ ENCRYPT_KEY[i % len(ENCRYPT_KEY)]) for i, c in enumerate(data))
+
+def decrypt(data: str) -> str:
+    return encrypt(data)  # Symmetric
 
 async def get_gas_fees(wallet_address):
     if not w3:
@@ -965,6 +957,12 @@ async def create_profile_tx(wallet_address, user):
     if not w3 or not contract:
         return {'status': 'error', 'message': "Blockchain connection unavailable. Try again later! 😅"}
     try:
+        # Check session expiry
+        cursor.execute("SELECT connected_at FROM sessions WHERE user_id = ?", (str(user.id),))
+        row = cursor.fetchone()
+        if not row or time.time() - row[0] > EXPIRY_SECONDS:
+            return {'status': 'error', 'message': "Session expired; please reconnect your wallet! 🔄"}
+
         profile = contract.functions.profiles(wallet_address).call()
         if profile[0]:
             return {'status': 'error', 'message': f"Profile already exists for {wallet_address}! Try /journal or /buildaclimb. 🪨"}
@@ -1021,15 +1019,19 @@ async def create_profile_tx(wallet_address, user):
             'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
         }
         
-        cursor.execute(
-            "INSERT INTO pending_txs (user_id, tx_type, tx_data) VALUES (?, ?, ?)",
-            (str(user.id), 'create_profile', json.dumps(create_tx))
-        )
-        cursor.execute(
-            "INSERT INTO pending_txs (user_id, tx_type, tx_data) VALUES (?, ?, ?)",
-            (str(user.id), 'payment_to_owner', json.dumps(payment_tx))
-        )
-        conn.commit()
+        try:
+            cursor.execute(
+                "INSERT INTO pending_txs (user_id, tx_type, tx_data) VALUES (?, ?, ?)",
+                (str(user.id), 'create_profile', json.dumps(create_tx))
+            )
+            cursor.execute(
+                "INSERT INTO pending_txs (user_id, tx_type, tx_data) VALUES (?, ?, ?)",
+                (str(user.id), 'payment_to_owner', json.dumps(payment_tx))
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            return {'status': 'error', 'message': "Transaction already pending for this type! Complete it first. 🔄"}
+
         return {
             'status': 'success',
             'tx_type': 'create_profile',
@@ -1047,6 +1049,12 @@ async def add_journal_entry_tx(wallet_address, content_hash, user):
     if not w3 or not contract:
         return {'status': 'error', 'message': "Blockchain connection unavailable. Try again later! 😅"}
     try:
+        # Check expiry
+        cursor.execute("SELECT connected_at FROM sessions WHERE user_id = ?", (str(user.id),))
+        row = cursor.fetchone()
+        if not row or time.time() - row[0] > EXPIRY_SECONDS:
+            return {'status': 'error', 'message': "Session expired; please reconnect your wallet! 🔄"}
+
         profile = contract.functions.profiles(wallet_address).call()
         if not profile[0]:
             return {'status': 'error', 'message': "You need to create a profile first with /createprofile! 🪙"}
@@ -1073,11 +1081,15 @@ async def add_journal_entry_tx(wallet_address, content_hash, user):
             'maxFeePerGas': gas_fees['maxFeePerGas'],
             'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
         })
-        cursor.execute(
-            "INSERT INTO pending_txs (user_id, tx_type, tx_data) VALUES (?, ?, ?)",
-            (str(user.id), 'journal_entry', json.dumps(tx))
-        )
-        conn.commit()
+        try:
+            cursor.execute(
+                "INSERT INTO pending_txs (user_id, tx_type, tx_data) VALUES (?, ?, ?)",
+                (str(user.id), 'journal_entry', json.dumps(tx))
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            return {'status': 'error', 'message': "Journal entry transaction already pending! Complete it first. 🔄"}
+
         return {'status': 'success', 'tx_type': 'journal_entry', 'tx_data': tx}
     except ContractLogicError as e:
         logger.error(f"Contract error in addJournalEntry: {str(e)}")
@@ -1090,6 +1102,12 @@ async def add_comment_tx(wallet_address, entry_id, comment, user):
     if not w3 or not contract:
         return {'status': 'error', 'message': "Blockchain connection unavailable. Try again later! 😅"}
     try:
+        # Check expiry
+        cursor.execute("SELECT connected_at FROM sessions WHERE user_id = ?", (str(user.id),))
+        row = cursor.fetchone()
+        if not row or time.time() - row[0] > EXPIRY_SECONDS:
+            return {'status': 'error', 'message': "Session expired; please reconnect your wallet! 🔄"}
+
         profile = contract.functions.profiles(wallet_address).call()
         if not profile[0]:
             return {'status': 'error', 'message': "You need to create a profile first with /createprofile! 🪙"}
@@ -1136,11 +1154,15 @@ async def add_comment_tx(wallet_address, entry_id, comment, user):
             'maxFeePerGas': gas_fees['maxFeePerGas'],
             'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
         })
-        cursor.execute(
-            "INSERT INTO pending_txs (user_id, tx_type, tx_data, location_id) VALUES (?, ?, ?, ?)",
-            (str(user.id), 'add_comment', json.dumps(tx), entry_id)
-        )
-        conn.commit()
+        try:
+            cursor.execute(
+                "INSERT INTO pending_txs (user_id, tx_type, tx_data, location_id) VALUES (?, ?, ?, ?)",
+                (str(user.id), 'add_comment', json.dumps(tx), entry_id)
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            return {'status': 'error', 'message': "Comment transaction already pending! Complete it first. 🔄"}
+
         return {'status': 'success', 'tx_type': 'add_comment', 'tx_data': tx}
     except ContractLogicError as e:
         logger.error(f"Contract error in addComment: {str(e)}")
@@ -1153,6 +1175,12 @@ async def create_climbing_location_tx(wallet_address, name, difficulty, latitude
     if not w3 or not contract or not tours_contract:
         return {'status': 'error', 'message': "Blockchain connection unavailable. Try again later! 😅"}
     try:
+        # Check expiry
+        cursor.execute("SELECT connected_at FROM sessions WHERE user_id = ?", (str(user.id),))
+        row = cursor.fetchone()
+        if not row or time.time() - row[0] > EXPIRY_SECONDS:
+            return {'status': 'error', 'message': "Session expired; please reconnect your wallet! 🔄"}
+
         profile = contract.functions.profiles(wallet_address).call()
         if not profile[0]:
             return {'status': 'error', 'message': "You need to create a profile first with /createprofile! 🪙"}
@@ -1182,11 +1210,15 @@ async def create_climbing_location_tx(wallet_address, name, difficulty, latitude
                 'maxFeePerGas': gas_fees['maxFeePerGas'],
                 'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
             })
-            cursor.execute(
-                "INSERT INTO pending_txs (user_id, tx_type, tx_data, name, difficulty, latitude, longitude, photo_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (str(user.id), 'approve_tours', json.dumps(approve_tx), name, difficulty, latitude, longitude, photo_hash)
-            )
-            conn.commit()
+            try:
+                cursor.execute(
+                    "INSERT INTO pending_txs (user_id, tx_type, tx_data, name, difficulty, latitude, longitude, photo_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (str(user.id), 'approve_tours', json.dumps(approve_tx), name, difficulty, latitude, longitude, photo_hash)
+                )
+                conn.commit()
+            except sqlite3.IntegrityError:
+                return {'status': 'error', 'message': "Approval transaction already pending! Complete it first. 🔄"}
+
             return {
                 'status': 'success',
                 'tx_type': 'approve_tours',
@@ -1230,11 +1262,15 @@ async def create_climbing_location_tx(wallet_address, name, difficulty, latitude
             'maxFeePerGas': gas_fees['maxFeePerGas'],
             'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
         })
-        cursor.execute(
-            "INSERT INTO pending_txs (user_id, tx_type, tx_data, name, difficulty, latitude, longitude, photo_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (str(user.id), 'create_climbing_location', json.dumps(tx), name, difficulty, latitude, longitude, photo_hash)
-        )
-        conn.commit()
+        try:
+            cursor.execute(
+                "INSERT INTO pending_txs (user_id, tx_type, tx_data, name, difficulty, latitude, longitude, photo_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (str(user.id), 'create_climbing_location', json.dumps(tx), name, difficulty, latitude, longitude, photo_hash)
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            return {'status': 'error', 'message': "Climb creation transaction already pending! Complete it first. 🔄"}
+
         return {'status': 'success', 'tx_type': 'create_climbing_location', 'tx_data': tx}
     except ContractLogicError as e:
         logger.error(f"Contract error in createClimbingLocation: {str(e)}")
@@ -1247,6 +1283,12 @@ async def purchase_climbing_location_tx(wallet_address, location_id, user):
     if not w3 or not contract or not tours_contract:
         return {'status': 'error', 'message': "Blockchain connection unavailable. Try again later! 😅"}
     try:
+        # Check expiry
+        cursor.execute("SELECT connected_at FROM sessions WHERE user_id = ?", (str(user.id),))
+        row = cursor.fetchone()
+        if not row or time.time() - row[0] > EXPIRY_SECONDS:
+            return {'status': 'error', 'message': "Session expired; please reconnect your wallet! 🔄"}
+
         profile = contract.functions.profiles(wallet_address).call()
         if not profile[0]:
             return {'status': 'error', 'message': "You need to create a profile first with /createprofile! 🪙"}
@@ -1273,11 +1315,15 @@ async def purchase_climbing_location_tx(wallet_address, location_id, user):
                 'maxFeePerGas': gas_fees['maxFeePerGas'],
                 'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
             })
-            cursor.execute(
-                "INSERT INTO pending_txs (user_id, tx_type, tx_data, location_id) VALUES (?, ?, ?, ?)",
-                (str(user.id), 'approve_tours', json.dumps(approve_tx), location_id)
-            )
-            conn.commit()
+            try:
+                cursor.execute(
+                    "INSERT INTO pending_txs (user_id, tx_type, tx_data, location_id) VALUES (?, ?, ?, ?)",
+                    (str(user.id), 'approve_tours', json.dumps(approve_tx), location_id)
+                )
+                conn.commit()
+            except sqlite3.IntegrityError:
+                return {'status': 'error', 'message': "Approval transaction already pending! Complete it first. 🔄"}
+
             return {
                 'status': 'success',
                 'tx_type': 'approve_tours',
@@ -1313,11 +1359,15 @@ async def purchase_climbing_location_tx(wallet_address, location_id, user):
             'maxFeePerGas': gas_fees['maxFeePerGas'],
             'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
         })
-        cursor.execute(
-            "INSERT INTO pending_txs (user_id, tx_type, tx_data, location_id) VALUES (?, ?, ?, ?)",
-            (str(user.id), 'purchase_climbing_location', json.dumps(tx), location_id)
-        )
-        conn.commit()
+        try:
+            cursor.execute(
+                "INSERT INTO pending_txs (user_id, tx_type, tx_data, location_id) VALUES (?, ?, ?, ?)",
+                (str(user.id), 'purchase_climbing_location', json.dumps(tx), location_id)
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            return {'status': 'error', 'message': "Purchase transaction already pending! Complete it first. 🔄"}
+
         return {'status': 'success', 'tx_type': 'purchase_climbing_location', 'tx_data': tx}
     except ContractLogicError as e:
         logger.error(f"Contract error in purchaseClimbingLocation: {str(e)}")
@@ -1330,6 +1380,12 @@ async def create_tournament_tx(wallet_address, entry_fee, user):
     if not w3 or not contract:
         return {'status': 'error', 'message': "Blockchain connection unavailable. Try again later! 😅"}
     try:
+        # Check expiry
+        cursor.execute("SELECT connected_at FROM sessions WHERE user_id = ?", (str(user.id),))
+        row = cursor.fetchone()
+        if not row or time.time() - row[0] > EXPIRY_SECONDS:
+            return {'status': 'error', 'message': "Session expired; please reconnect your wallet! 🔄"}
+
         profile = contract.functions.profiles(wallet_address).call()
         if not profile[0]:
             return {'status': 'error', 'message': "You need to create a profile first with /createprofile! 🪙"}
@@ -1359,11 +1415,15 @@ async def create_tournament_tx(wallet_address, entry_fee, user):
             'maxFeePerGas': gas_fees['maxFeePerGas'],
             'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
         })
-        cursor.execute(
-            "INSERT INTO pending_txs (user_id, tx_type, tx_data) VALUES (?, ?, ?)",
-            (str(user.id), 'create_tournament', json.dumps(tx))
-        )
-        conn.commit()
+        try:
+            cursor.execute(
+                "INSERT INTO pending_txs (user_id, tx_type, tx_data) VALUES (?, ?, ?)",
+                (str(user.id), 'create_tournament', json.dumps(tx))
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            return {'status': 'error', 'message': "Tournament creation transaction already pending! Complete it first. 🔄"}
+
         return {'status': 'success', 'tx_type': 'create_tournament', 'tx_data': tx}
     except ContractLogicError as e:
         logger.error(f"Contract error in createTournament: {str(e)}")
@@ -1376,6 +1436,12 @@ async def join_tournament_tx(wallet_address, tournament_id, user):
     if not w3 or not contract or not tours_contract:
         return {'status': 'error', 'message': "Blockchain connection unavailable. Try again later! 😅"}
     try:
+        # Check expiry
+        cursor.execute("SELECT connected_at FROM sessions WHERE user_id = ?", (str(user.id),))
+        row = cursor.fetchone()
+        if not row or time.time() - row[0] > EXPIRY_SECONDS:
+            return {'status': 'error', 'message': "Session expired; please reconnect your wallet! 🔄"}
+
         profile = contract.functions.profiles(wallet_address).call()
         if not profile[0]:
             return {'status': 'error', 'message': "You need to create a profile first with /createprofile! 🪙"}
@@ -1403,11 +1469,15 @@ async def join_tournament_tx(wallet_address, tournament_id, user):
                 'maxFeePerGas': gas_fees['maxFeePerGas'],
                 'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
             })
-            cursor.execute(
-                "INSERT INTO pending_txs (user_id, tx_type, tx_data, tournament_id) VALUES (?, ?, ?, ?)",
-                (str(user.id), 'approve_tours', json.dumps(approve_tx), tournament_id)
-            )
-            conn.commit()
+            try:
+                cursor.execute(
+                    "INSERT INTO pending_txs (user_id, tx_type, tx_data, tournament_id) VALUES (?, ?, ?, ?)",
+                    (str(user.id), 'approve_tours', json.dumps(approve_tx), tournament_id)
+                )
+                conn.commit()
+            except sqlite3.IntegrityError:
+                return {'status': 'error', 'message': "Approval transaction already pending! Complete it first. 🔄"}
+
             return {
                 'status': 'success',
                 'tx_type': 'approve_tours',
@@ -1443,11 +1513,15 @@ async def join_tournament_tx(wallet_address, tournament_id, user):
             'maxFeePerGas': gas_fees['maxFeePerGas'],
             'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
         })
-        cursor.execute(
-            "INSERT INTO pending_txs (user_id, tx_type, tx_data, tournament_id) VALUES (?, ?, ?, ?)",
-            (str(user.id), 'join_tournament', json.dumps(tx), tournament_id)
-        )
-        conn.commit()
+        try:
+            cursor.execute(
+                "INSERT INTO pending_txs (user_id, tx_type, tx_data, tournament_id) VALUES (?, ?, ?, ?)",
+                (str(user.id), 'join_tournament', json.dumps(tx), tournament_id)
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            return {'status': 'error', 'message': "Join tournament transaction already pending! Complete it first. 🔄"}
+
         return {'status': 'success', 'tx_type': 'join_tournament', 'tx_data': tx}
     except ContractLogicError as e:
         logger.error(f"Contract error in joinTournament: {str(e)}")
@@ -1460,6 +1534,12 @@ async def end_tournament_tx(wallet_address, tournament_id, winner_address, user)
     if not w3 or not contract:
         return {'status': 'error', 'message': "Blockchain connection unavailable. Try again later! 😅"}
     try:
+        # Check expiry
+        cursor.execute("SELECT connected_at FROM sessions WHERE user_id = ?", (str(user.id),))
+        row = cursor.fetchone()
+        if not row or time.time() - row[0] > EXPIRY_SECONDS:
+            return {'status': 'error', 'message': "Session expired; please reconnect your wallet! 🔄"}
+
         if wallet_address.lower() != OWNER_ADDRESS.lower():
             return {'status': 'error', 'message': "Only the owner can end tournaments! 🚫"}
         if not w3.is_address(winner_address):
@@ -1490,11 +1570,15 @@ async def end_tournament_tx(wallet_address, tournament_id, winner_address, user)
             'maxFeePerGas': gas_fees['maxFeePerGas'],
             'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
         })
-        cursor.execute(
-            "INSERT INTO pending_txs (user_id, tx_type, tx_data, tournament_id) VALUES (?, ?, ?, ?)",
-            (str(user.id), 'end_tournament', json.dumps(tx), tournament_id)
-        )
-        conn.commit()
+        try:
+            cursor.execute(
+                "INSERT INTO pending_txs (user_id, tx_type, tx_data, tournament_id) VALUES (?, ?, ?, ?)",
+                (str(user.id), 'end_tournament', json.dumps(tx), tournament_id)
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            return {'status': 'error', 'message': "End tournament transaction already pending! Complete it first. 🔄"}
+
         return {'status': 'success', 'tx_type': 'end_tournament', 'tx_data': tx}
     except ContractLogicError as e:
         logger.error(f"Contract error in endTournament: {str(e)}")
@@ -1531,6 +1615,8 @@ async def broadcast_transaction(signed_tx_hex, pending_tx, user, context):
         cursor.execute("DELETE FROM pending_txs WHERE user_id = ? AND tx_type = ?", (str(user.id), pending_tx['tx_type']))
         conn.commit()
         
+        explorer_url = f"https://testnet.monadexplorer.com/tx/{tx_hash.hex()}"
+        
         if receipt.status == 1:
             if pending_tx['tx_type'] == 'create_profile':
                 cursor.execute("UPDATE sessions SET wallet_address = ? WHERE user_id = ?", (pending_tx['wallet_address'], str(user.id)))
@@ -1538,22 +1624,22 @@ async def broadcast_transaction(signed_tx_hex, pending_tx, user, context):
                 return {
                     'status': 'success',
                     'message': (
-                        f"Welcome aboard, {user.first_name}! Your profile is live! 🎉 Tx: {tx_hash.hex()}\n"
+                        f"Welcome aboard, {user.first_name}! Your profile is live! 🎉 <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>\n"
                         "Try /journal to log your first climb or /buildaclimb to share a spot! 🪨"
                     ),
-                    'group_message': f"New climber {user.username or user.first_name} joined EmpowerTours! 🧗 Tx: {tx_hash.hex()}"
+                    'group_message': f"New climber {user.username or user.first_name} joined EmpowerTours! 🧗 <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>"
                 }
             elif pending_tx['tx_type'] == 'payment_to_owner':
                 return {
                     'status': 'success',
-                    'message': f"Payment to owner successful! Your profile is fully activated! 🎉 Tx: {tx_hash.hex()}",
-                    'group_message': f"{user.username or user.first_name} completed profile payment! 🪙 Tx: {tx_hash.hex()}"
+                    'message': f"Payment to owner successful! Your profile is fully activated! 🎉 <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>",
+                    'group_message': f"{user.username or user.first_name} completed profile payment! 🪙 <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>"
                 }
             elif pending_tx['tx_type'] == 'journal_entry':
                 return {
                     'status': 'success',
-                    'message': f"Journal entry logged, {user.first_name}! You earned 5 $TOURS! 🎉 Tx: {tx_hash.hex()}",
-                    'group_message': f"{user.username or user.first_name} shared a climb journal! 🪨 Check it out! Tx: {tx_hash.hex()}"
+                    'message': f"Journal entry logged, {user.first_name}! You earned 5 $TOURS! 🎉 <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>",
+                    'group_message': f"{user.username or user.first_name} shared a climb journal! 🪨 Check it out! <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>"
                 }
             elif pending_tx['tx_type'] == 'approve_tours' and 'next_tx' in pending_tx:
                 next_tx_type = pending_tx['next_tx']['type']
@@ -1574,14 +1660,18 @@ async def broadcast_transaction(signed_tx_hex, pending_tx, user, context):
                         'maxFeePerGas': gas_fees['maxFeePerGas'],
                         'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
                     })
-                    cursor.execute(
-                        "INSERT INTO pending_txs (user_id, tx_type, tx_data, name, difficulty, latitude, longitude, photo_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                        (str(user.id), 'create_climbing_location', json.dumps(next_tx), 
-                         pending_tx['next_tx']['name'], pending_tx['next_tx']['difficulty'],
-                         pending_tx['next_tx']['latitude'], pending_tx['next_tx']['longitude'],
-                         pending_tx['next_tx']['photo_hash'])
-                    )
-                    conn.commit()
+                    try:
+                        cursor.execute(
+                            "INSERT INTO pending_txs (user_id, tx_type, tx_data, name, difficulty, latitude, longitude, photo_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                            (str(user.id), 'create_climbing_location', json.dumps(next_tx), 
+                             pending_tx['next_tx']['name'], pending_tx['next_tx']['difficulty'],
+                             pending_tx['next_tx']['latitude'], pending_tx['next_tx']['longitude'],
+                             pending_tx['next_tx']['photo_hash'])
+                        )
+                        conn.commit()
+                    except sqlite3.IntegrityError:
+                        return {'status': 'error', 'message': "Next transaction already pending! Complete it first. 🔄"}
+
                     return {
                         'status': 'success',
                         'message': (
@@ -1601,11 +1691,15 @@ async def broadcast_transaction(signed_tx_hex, pending_tx, user, context):
                         'maxFeePerGas': gas_fees['maxFeePerGas'],
                         'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
                     })
-                    cursor.execute(
-                        "INSERT INTO pending_txs (user_id, tx_type, tx_data, location_id) VALUES (?, ?, ?, ?)",
-                        (str(user.id), 'purchase_climbing_location', json.dumps(next_tx), pending_tx['next_tx']['location_id'])
-                    )
-                    conn.commit()
+                    try:
+                        cursor.execute(
+                            "INSERT INTO pending_txs (user_id, tx_type, tx_data, location_id) VALUES (?, ?, ?, ?)",
+                            (str(user.id), 'purchase_climbing_location', json.dumps(next_tx), pending_tx['next_tx']['location_id'])
+                        )
+                        conn.commit()
+                    except sqlite3.IntegrityError:
+                        return {'status': 'error', 'message': "Next transaction already pending! Complete it first. 🔄"}
+
                     return {
                         'status': 'success',
                         'message': (
@@ -1625,11 +1719,15 @@ async def broadcast_transaction(signed_tx_hex, pending_tx, user, context):
                         'maxFeePerGas': gas_fees['maxFeePerGas'],
                         'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
                     })
-                    cursor.execute(
-                        "INSERT INTO pending_txs (user_id, tx_type, tx_data, tournament_id) VALUES (?, ?, ?, ?)",
-                        (str(user.id), 'join_tournament', json.dumps(next_tx), pending_tx['next_tx']['tournament_id'])
-                    )
-                    conn.commit()
+                    try:
+                        cursor.execute(
+                            "INSERT INTO pending_txs (user_id, tx_type, tx_data, tournament_id) VALUES (?, ?, ?, ?)",
+                            (str(user.id), 'join_tournament', json.dumps(next_tx), pending_tx['next_tx']['tournament_id'])
+                        )
+                        conn.commit()
+                    except sqlite3.IntegrityError:
+                        return {'status': 'error', 'message': "Next transaction already pending! Complete it first. 🔄"}
+
                     return {
                         'status': 'success',
                         'message': (
@@ -1645,49 +1743,49 @@ async def broadcast_transaction(signed_tx_hex, pending_tx, user, context):
                     'status': 'success',
                     'message': (
                         f"Climb created, {user.first_name}! 🪨 {pending_tx['name']} ({pending_tx['difficulty']}) "
-                        f"at ({location[3]/10**6:.4f}, {location[4]/10**6:.4f}). Tx: {tx_hash.hex()}"
+                        f"at ({location[3]/10**6:.4f}, {location[4]/10**6:.4f}). <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>"
                     ),
                     'group_message': (
                         f"New climb by {user.username or user.first_name}! 🧗\n"
                         f"Name: {pending_tx['name']} ({pending_tx['difficulty']})\n"
                         f"Location: ({location[3]/10**6:.4f}, {location[4]/10**6:.4f})\n"
-                        f"Tx: {tx_hash.hex()}"
+                        f"<a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>"
                     )
                 }
             elif pending_tx['tx_type'] == 'purchase_climbing_location':
                 return {
                     'status': 'success',
-                    'message': f"Climb #{pending_tx['location_id']} purchased, {user.first_name}! 🎉 Tx: {tx_hash.hex()}",
-                    'group_message': f"{user.username or user.first_name} purchased climb #{pending_tx['location_id']}! 🪨 Tx: {tx_hash.hex()}"
+                    'message': f"Climb #{pending_tx['location_id']} purchased, {user.first_name}! 🎉 <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>",
+                    'group_message': f"{user.username or user.first_name} purchased climb #{pending_tx['location_id']}! 🪨 <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>"
                 }
             elif pending_tx['tx_type'] == 'add_comment':
                 return {
                     'status': 'success',
-                    'message': f"Comment added to entry #{pending_tx['location_id']}, {user.first_name}! 🎉 Tx: {tx_hash.hex()}",
-                    'group_message': f"{user.username or user.first_name} commented on journal entry #{pending_tx['location_id']}! 🗣️ Tx: {tx_hash.hex()}"
+                    'message': f"Comment added to entry #{pending_tx['location_id']}, {user.first_name}! 🎉 <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>",
+                    'group_message': f"{user.username or user.first_name} commented on journal entry #{pending_tx['location_id']}! 🗣️ <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>"
                 }
             elif pending_tx['tx_type'] == 'create_tournament':
                 tournament_id = contract.functions.getTournamentCount().call() - 1
                 return {
                     'status': 'success',
-                    'message': f"Tournament #{tournament_id} created, {user.first_name}! 🏆 Tx: {tx_hash.hex()}",
+                    'message': f"Tournament #{tournament_id} created, {user.first_name}! 🏆 <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>",
                     'group_message': (
                         f"New tournament #{tournament_id} by {user.username or user.first_name}! 🏆\n"
                         f"Join with /jointournament {tournament_id}\n"
-                        f"Tx: {tx_hash.hex()}"
+                        f"<a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>"
                     )
                 }
             elif pending_tx['tx_type'] == 'join_tournament':
                 return {
                     'status': 'success',
-                    'message': f"Joined tournament #{pending_tx['tournament_id']}, {user.first_name}! 🏆 Tx: {tx_hash.hex()}",
-                    'group_message': f"{user.username or user.first_name} joined tournament #{pending_tx['tournament_id']}! 🏆 Tx: {tx_hash.hex()}"
+                    'message': f"Joined tournament #{pending_tx['tournament_id']}, {user.first_name}! 🏆 <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>",
+                    'group_message': f"{user.username or user.first_name} joined tournament #{pending_tx['tournament_id']}! 🏆 <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>"
                 }
             elif pending_tx['tx_type'] == 'end_tournament':
                 return {
                     'status': 'success',
-                    'message': f"Tournament #{pending_tx['tournament_id']} ended, {user.first_name}! 🏆 Tx: {tx_hash.hex()}",
-                    'group_message': f"Tournament #{pending_tx['tournament_id']} ended by {user.username or user.first_name}! 🏆 Tx: {tx_hash.hex()}"
+                    'message': f"Tournament #{pending_tx['tournament_id']} ended, {user.first_name}! 🏆 <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>",
+                    'group_message': f"Tournament #{pending_tx['tournament_id']} ended by {user.username or user.first_name}! 🏆 <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>"
                 }
         else:
             return {'status': 'error', 'message': "Transaction failed. Ensure the signed transaction is valid and try again! 💪"}
