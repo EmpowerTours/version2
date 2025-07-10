@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmpowerTours Wallet Connect</title>
+    <link rel="icon" type="image/x-icon" href="/public/favicon.ico">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+        }
+        #error {
+            color: #dc3545;
+            margin-top: 10px;
+        }
+        #txHash {
+            word-break: break-all;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        #instructions {
+            margin-top: 15px;
+            font-size: 16px;
+            color: #555;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>EmpowerTours Wallet Connect</h1>
+    <button id="connectButton">Connect Wallet</button>
+    <div id="status">Please connect your wallet to Monad Testnet (chainId: 10143).</div>
+    <div id="instructions">On mobile, open this link in the MetaMask app's browser (Menu > Browser) to connect. If you see a chain ID mismatch, go to MetaMask Settings > Networks, remove all Monad Testnet entries, and reconnect. Network details: Chain ID: 10143, RPC: https://testnet-rpc.monad.xyz, Explorer: https://testnet.monadexplorer.com. After connecting, use /createprofile, /buildaclimb, or /buyTours in Telegram.</div>
+    <div id="error"></div>
+    <div id="txHash"></div>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+    <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
+    <script>
+        const userId = new URLSearchParams(window.location.search).get('userId');
+        const apiBaseUrl = 'https://version1-production.up.railway.app';
+        const statusDiv = document.getElementById('status');
+        const errorDiv = document.getElementById('error');
+        const txHashDiv = document.getElementById('txHash');
+        let web3;
+        let provider;
+        let pollingInterval = null;
+        const MONAD_TESTNET_CHAIN_ID = '0x27af'; // 10143 in hex
+        const MONAD_TESTNET_CHAIN_ID_DECIMAL = 10143;
+
+        async function initializeWeb3() {
+            try {
+                if (typeof Web3 === 'undefined') {
+                    throw new Error('Web3.js library failed to load. Please refresh the page.');
+                }
+                if (window.ethereum) {
+                    provider = window.ethereum;
+                    web3 = new Web3(provider);
+                } else if (window.Web3Provider) {
+                    provider = new window.Web3Provider({
+                        rpc: { 10143: 'https://testnet-rpc.monad.xyz' },
+                        chainId: 10143
+                    });
+                    web3 = new Web3(provider);
+                } else {
+                    throw new Error('No wallet provider detected. Install MetaMask or use a Web3-compatible browser.');
+                }
+            } catch (error) {
+                errorDiv.textContent = `Error initializing Web3: ${error.message}. On mobile, open this link in MetaMask’s browser (Menu > Browser). On desktop, install MetaMask.`;
+                console.error('Web3 initialization error:', error);
+                statusDiv.textContent = 'Please connect your wallet to Monad Testnet (chainId: 10143).';
+                return false;
+            }
+            return true;
+        }
+
+        async function connectWallet() {
+            errorDiv.textContent = '';
+            statusDiv.textContent = 'Connecting...';
+            console.log('Attempting to connect wallet for userId:', userId);
+            if (!await initializeWeb3()) return;
+            try {
+                const chainId = await web3.eth.getChainId();
+                console.log('Current chain ID (decimal):', chainId);
+                if (Number(chainId) !== MONAD_TESTNET_CHAIN_ID_DECIMAL) {
+                    errorDiv.textContent = `Chain ID mismatch: expected 10143 (Monad Testnet), got ${chainId}. Please switch to Monad Testnet in MetaMask Settings > Networks.`;
+                    console.warn('Chain ID mismatch detected:', chainId);
+                    try {
+                        await provider.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: MONAD_TESTNET_CHAIN_ID }],
+                        });
+                    } catch (switchError) {
+                        if (switchError.code === 4902) {
+                            await provider.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: MONAD_TESTNET_CHAIN_ID,
+                                    chainName: 'Monad Testnet',
+                                    rpcUrls: ['https://testnet-rpc.monad.xyz'],
+                                    nativeCurrency: { name: 'MON', symbol: 'MON', decimals: 18 },
+                                    blockExplorerUrls: ['https://testnet.monadexplorer.com']
+                                }],
+                            });
+                        } else {
+                            throw new Error(`Failed to switch chain: ${switchError.message}. Ensure Monad Testnet (chainId: 10143) is selected.`);
+                        }
+                    }
+                }
+                const accounts = await provider.request({ method: 'eth_requestAccounts' });
+                const account = accounts[0];
+                statusDiv.textContent = `Connected: ${account.substring(0, 6)}... Use /createprofile, /buildaclimb, or /buyTours in Telegram to continue.`;
+                console.log('Connected account:', account);
+                await submitWallet(account);
+                startPolling();
+            } catch (error) {
+                errorDiv.textContent = `Error connecting wallet: ${error.message}. Ensure Monad Testnet (chainId: 10143) is selected. On mobile, use MetaMask’s browser (Menu > Browser).`;
+                console.error('Error connecting wallet:', error);
+                statusDiv.textContent = 'Please connect your wallet to Monad Testnet (chainId: 10143).';
+            }
+        }
+
+        async function submitWallet(account) {
+            try {
+                console.log('Submitting wallet for userId:', userId, 'address:', account);
+                const response = await fetch(`${apiBaseUrl}/submit_wallet`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, walletAddress: account })
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+                statusDiv.textContent += ' Wallet submitted! Use /createprofile, /buildaclimb, or /buyTours in Telegram to continue.';
+                console.log('Wallet submitted successfully');
+            } catch (error) {
+                errorDiv.textContent = `Error submitting wallet: ${error.message}. Try again or contact support at https://t.me/empowertourschat.`;
+                console.error('Error submitting wallet:', error);
+            }
+        }
+
+        async function pollTransaction() {
+            if (!web3) {
+                errorDiv.textContent = 'Web3 provider not initialized. Please reconnect your wallet.';
+                console.error('Web3 not initialized');
+                stopPolling();
+                return;
+            }
+            try {
+                console.log('Polling transaction for userId:', userId);
+                const response = await fetch(`${apiBaseUrl}/get_transaction?userId=${userId}`);
+                if (response.status === 404) {
+                    statusDiv.textContent = 'No pending transaction. Initiate an action via Telegram (e.g., /buildaclimb).';
+                    console.log('No pending transaction found');
+                    stopPolling();
+                    return;
+                }
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+                const data = await response.json();
+                if (data.transaction) {
+                    statusDiv.textContent = 'Transaction ready! Waiting for wallet to sign...';
+                    console.log('Transaction data received:', data.transaction);
+                    try {
+                        const txHash = await web3.eth.sendTransaction(data.transaction);
+                        statusDiv.textContent = `Transaction signed: ${txHash.substring(0, 6)}...`;
+                        txHashDiv.textContent = `Transaction Hash: ${txHash}\nCopy this and send it to the Telegram bot.`;
+                        console.log('Transaction signed, hash:', txHash);
+                        await submitTransaction(txHash);
+                        statusDiv.textContent = `Transaction submitted: ${txHash.substring(0, 6)}...`;
+                        console.log('Transaction submitted to server');
+                        stopPolling();
+                    } catch (error) {
+                        errorDiv.textContent = `Error signing transaction: ${error.message}. Check parameters or contact support at https://t.me/empowertourschat.`;
+                        console.error('Error signing transaction:', error);
+                        stopPolling();
+                    }
+                } else {
+                    statusDiv.textContent = 'Waiting for transaction...';
+                    console.log('No transaction data available yet');
+                }
+            } catch (error) {
+                errorDiv.textContent = `Error polling transaction: ${error.message}. Try refreshing the page or contact support at https://t.me/empowertourschat.`;
+                console.error('Error polling transaction:', error);
+            }
+        }
+
+        async function submitTransaction(txHash) {
+            try {
+                console.log('Submitting transaction hash:', txHash);
+                const response = await fetch(`${apiBaseUrl}/submit_tx`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, txHash })
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+                console.log('Transaction hash submitted successfully');
+            } catch (error) {
+                errorDiv.textContent = `Error submitting transaction: ${error.message}. Please send the transaction hash to the Telegram bot manually.`;
+                console.error('Error submitting transaction:', error);
+            }
+        }
+
+        function startPolling() {
+            if (!pollingInterval) {
+                console.log('Starting transaction polling');
+                pollingInterval = setInterval(pollTransaction, 3000);
+            }
+        }
+
+        function stopPolling() {
+            if (pollingInterval) {
+                console.log('Stopping transaction polling');
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+        }
+
+        document.getElementById('connectButton').addEventListener('click', connectWallet);
+        window.addEventListener('load', async () => {
+            if (userId) {
+                console.log('Page loaded, initializing Web3 for userId:', userId);
+                if (await initializeWeb3()) {
+                    startPolling();
+                }
+            } else {
+                errorDiv.textContent = 'Missing userId in URL. Use the link provided by /connectwallet in Telegram.';
+                console.error('Missing userId in URL');
+            }
+        });
+    </script>
+</body>
+</html>
