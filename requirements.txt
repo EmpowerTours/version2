@@ -1,0 +1,9 @@
+fastapi>=0.100.0
+uvicorn>=0.23.0
+python-telegram-bot[job-queue,webhooks]==22.2
+web3<7.0.0
+aiohttp>=3.8.0
+python-dotenv>=1.0.0
+psutil>=5.9.8
+setuptools>=65.5.0
+python-socketio>=5.7.2
