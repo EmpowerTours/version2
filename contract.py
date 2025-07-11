@@ -1280,48 +1280,6 @@ async def create_climbing_location_tx(wallet_address, name, difficulty, latitude
         logger.error(f"Error in create_climbing_location_tx: {str(e)}")
         return {'status': 'error', 'message': f"Oops, something went wrong: {str(e)}. Try again! 😅"}
 
-        return {'status': 'success', 'tx_type': 'create_climbing_location', 'tx_data': tx}
-    except ContractLogicError as e:
-        logger.error(f"Contract error in createClimbingLocation: {str(e)}")
-        return {'status': 'error', 'message': f"Contract error: {str(e)}. Ensure you have a profile and sufficient $TOURS allowance. 😅"}
-    except Exception as e:
-        logger.error(f"Error in create_climbing_location_tx: {str(e)}")
-        return {'status': 'error', 'message': f"Oops, something went wrong: {str(e)}. Try again! 😅"}
-        
-        gas_estimate = contract.functions.createClimbingLocation(
-            name, difficulty, latitude, longitude, photo_hash
-        ).estimate_gas({'from': wallet_address})
-        # Exact buffer: 1.8x for runtime overhead + 50k fixed for strings/token transfer (prevents OOG at ~300k)
-        gas_limit = int(gas_estimate * 1.8) + 50000  # Typically ~350k-450k for your params
-        gas_fees = await get_gas_fees(wallet_address)
-        nonce = w3.eth.get_transaction_count(wallet_address)
-        tx = contract.functions.createClimbingLocation(
-            name, difficulty, latitude, longitude, photo_hash
-        ).build_transaction({
-            'chainId': 10143,
-            'from': wallet_address,
-            'nonce': nonce,
-            'gas': gas_limit,
-            'maxFeePerGas': gas_fees['maxFeePerGas'],
-            'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
-        })
-        try:
-            cursor.execute(
-                "INSERT INTO pending_txs (user_id, tx_type, tx_data, name, difficulty, latitude, longitude, photo_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (str(user.id), 'create_climbing_location', json.dumps(tx), name, difficulty, latitude, longitude, photo_hash)
-            )
-            conn.commit()
-        except sqlite3.IntegrityError:
-            return {'status': 'error', 'message': "Climb creation transaction already pending! Complete it first. 🔄"}
-
-        return {'status': 'success', 'tx_type': 'create_climbing_location', 'tx_data': tx}
-    except ContractLogicError as e:
-        logger.error(f"Contract error in createClimbingLocation: {str(e)}")
-        return {'status': 'error', 'message': f"Contract error: {str(e)}. Ensure you have a profile and sufficient $TOURS allowance. 😅"}
-    except Exception as e:
-        logger.error(f"Error in create_climbing_location_tx: {str(e)}")
-        return {'status': 'error', 'message': f"Oops, something went wrong: {str(e)}. Try again! 😅"}
-
 async def purchase_climbing_location_tx(wallet_address, location_id, user):
     if not w3 or not contract or not tours_contract:
         return {'status': 'error', 'message': "Blockchain connection unavailable. Try again later! 😅"}
