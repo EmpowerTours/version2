@@ -2766,6 +2766,9 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                                         contract.events.FarcasterProfileUpdated,
                                         lambda e: f"Farcaster profile updated by <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a> on EmpowerTours! 📢"
                                     ),
+                                    w3.keccak(text="TokensPurchased(address,uint256,uint256)").hex(): (contract.events.TokensPurchased,
+                                        lambda e: f"User <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> bought {e.args.amount / 10**18} $TOURS on EmpowerTours! 🪙"
+                                    ),
                                 }
                                 if log.topics[0].hex() in event_map:
                                     event_class, message_fn = event_map[log.topics[0].hex()]
