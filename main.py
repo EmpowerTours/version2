@@ -2770,22 +2770,17 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                                 if log.topics[0].hex() in event_map:
                                     event_class, message_fn = event_map[log.topics[0].hex()]
                                     event = event_class().process_log(log)
-                                                                    # ... (keep your existing event_map dict as-is) ...
-
-                                # After defining message = message_fn(event)
-                                # Auto-announce to group (keep existing)
-                                await send_notification(CHAT_HANDLE, message)
-
-                                # New: PM user if wallet matches an event arg
-                                user_address = e.args.get('user') or e.args.get('creator') or e.args.get('author') or e.args.get('buyer') or e.args.get('commenter') or e.args.get('participant') or e.args.get('winner')
-                                if user_address:
-                                    checksum_user_address = Web3.to_checksum_address(user_address)
-                                    if checksum_user_address in reverse_sessions:
-                                        user_id = reverse_sessions[checksum_user_address]
-                                        user_message = f"Your action succeeded! {message.replace('<a href=', '[Tx: ').replace('</a>', ']')} 🪙 Check details on {EXPLORER_URL}/tx/{receipt.transactionHash.hex()}"
-                                        await application.bot.send_message(user_id, user_message, parse_mode="Markdown")
                                     message = message_fn(event)
+                                    # Auto-announce to group
                                     await send_notification(CHAT_HANDLE, message)
+                                    # New: PM user if wallet matches an event arg
+                                    user_address = event.args.get('user') or event.args.get('creator') or event.args.get('author') or event.args.get('buyer') or event.args.get('commenter') or event.args.get('participant') or event.args.get('winner')
+                                    if user_address:
+                                        checksum_user_address = Web3.to_checksum_address(user_address)
+                                        if checksum_user_address in reverse_sessions:
+                                            user_id = reverse_sessions[checksum_user_address]
+                                            user_message = f"Your action succeeded! {message.replace('<a href=', '[Tx: ').replace('</a>', ']')} 🪙 Check details on {EXPLORER_URL}/tx/{receipt.transactionHash.hex()}"
+                                            await application.bot.send_message(user_id, user_message, parse_mode="Markdown")
                             except Exception as e:
                                 logger.error(f"Error processing event in block {block_number}: {str(e)}")
         last_processed_block = end_block - 1
