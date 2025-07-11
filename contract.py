@@ -1279,6 +1279,14 @@ async def create_climbing_location_tx(wallet_address, name, difficulty, latitude
     except Exception as e:
         logger.error(f"Error in create_climbing_location_tx: {str(e)}")
         return {'status': 'error', 'message': f"Oops, something went wrong: {str(e)}. Try again! 😅"}
+
+        return {'status': 'success', 'tx_type': 'create_climbing_location', 'tx_data': tx}
+    except ContractLogicError as e:
+        logger.error(f"Contract error in createClimbingLocation: {str(e)}")
+        return {'status': 'error', 'message': f"Contract error: {str(e)}. Ensure you have a profile and sufficient $TOURS allowance. 😅"}
+    except Exception as e:
+        logger.error(f"Error in create_climbing_location_tx: {str(e)}")
+        return {'status': 'error', 'message': f"Oops, something went wrong: {str(e)}. Try again! 😅"}
         
         gas_estimate = contract.functions.createClimbingLocation(
             name, difficulty, latitude, longitude, photo_hash
