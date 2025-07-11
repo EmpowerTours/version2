@@ -185,6 +185,7 @@
                 }
                 const data = await response.json();
                 if (data.transaction) {
+                    stopPolling();  // Stop polling immediately after fetching tx to prevent multiples
                     statusDiv.textContent = 'Transaction ready! Waiting for wallet to sign...';
                     console.log('Transaction data received:', data.transaction);
                     try {
@@ -195,11 +196,10 @@
                         await submitTransaction(txHash);
                         statusDiv.textContent = `Transaction submitted: ${txHash.substring(0, 6)}...`;
                         console.log('Transaction submitted to server');
-                        stopPolling();
                     } catch (error) {
                         errorDiv.textContent = `Error signing transaction: ${error.message}. Check parameters or contact support at https://t.me/empowertourschat.`;
                         console.error('Error signing transaction:', error);
-                        stopPolling();
+                        // Optional: Restart polling on failure - startPolling();
                     }
                 } else {
                     statusDiv.textContent = 'Waiting for transaction...';
