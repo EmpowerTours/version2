@@ -939,6 +939,7 @@ journal_data = {}
 sessions = {}
 webhook_failed = False
 last_processed_block = 0
+reverse_sessions = {}  # wallet: user_id mapping for event PMs
 
 def initialize_web3():
     global w3, contract, tours_contract
@@ -1531,7 +1532,7 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception as e:
                 logger.error(f"Error saving pending_wallets: {str(e)}")
             await update.message.reply_text(
-                f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction to buy {args[0]} $TOURS using {w3.from_wei(mon_required, 'ether')} $MON with your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})). Submit the transaction hash here.",
+                f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction to buy {args[0]} $TOURS using {w3.from_wei(mon_required, 'ether')} $MON with your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
                 parse_mode="Markdown"
             )
             logger.info(f"/buyTours transaction built, awaiting signing for user {user_id}, took {time.time() - start_time:.2f} seconds")
@@ -1631,7 +1632,7 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception as e:
                 logger.error(f"Error saving pending_wallets: {str(e)}")
             await update.message.reply_text(
-                f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction to send {args[1]} $TOURS to [{recipient_checksum_address[:6]}...]({EXPLORER_URL}/address/{recipient_checksum_address}) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})). Submit the transaction hash here.",
+                f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction to send {args[1]} $TOURS to [{recipient_checksum_address[:6]}...]({EXPLORER_URL}/address/{recipient_checksum_address}) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
                 parse_mode="Markdown"
             )
             logger.info(f"/sendTours transaction built, awaiting signing for user {user_id}, took {time.time() - start_time:.2f} seconds")
@@ -1815,7 +1816,7 @@ async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception as e:
                 logger.error(f"Error saving pending_wallets: {str(e)}")
             await update.message.reply_text(
-                f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} in your browser to sign the transaction for profile creation (1 $MON). You will receive 1 $TOURS upon confirmation. After signing, submit the transaction hash here."
+                f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} in your browser to sign the transaction for profile creation (1 $MON). You will receive 1 $TOURS upon confirmation. After signing."
             )
             logger.info(f"/createprofile transaction built, awaiting signing for user {user_id}, took {time.time() - start_time:.2f} seconds")
         except Exception as e:
@@ -1856,11 +1857,8 @@ async def journal_entry(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
-    logger.info(f"Received photo from user {update.effective_user.id} in chat {update.effective_chat.id}")
-    if not update.message.photo:
-        logger.info(f"No photo in message, ignoring, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text("No photo received. Please send a valid photo. 😅")
-        return
+    user_id = str(update.effective_user.id)
+    logger.info(f"Received photo from user {user_id} in chat {update.effective_chat.id}")
     if not API_BASE_URL:
         logger.error("API_BASE_URL missing, photo handling disabled")
         await update.message.reply_text("Photo processing unavailable due to configuration issues. Try again later! 😅")
@@ -1872,53 +1870,27 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/handle_photo failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        user_id = str(update.effective_user.id)
+        photo = update.message.photo[-1]
+        file_id = photo.file_id
+        # Hash the file_id to fixed 32-byte hex (reduces gas/storage) for both journal and climb
+        photo_hash = w3.keccak(text=file_id).hex()  # Now ~66 chars fixed
         if user_id in journal_data and journal_data[user_id].get("awaiting_photo"):
-            journal_data[user_id]["photo_id"] = update.message.photo[-1].file_id
-            journal_data[user_id]["awaiting_photo"] = False
-            wallet_address = sessions.get(user_id, {}).get("wallet_address")
-            if not wallet_address:
-                await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
-                logger.info(f"/handle_photo failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
-                return
-            checksum_address = w3.to_checksum_address(wallet_address)
-            journal_reward = contract.functions.journalReward().call()
-            tx = contract.functions.addJournalEntry(journal_data[user_id]["photo_id"]).build_transaction({
-                'from': checksum_address,
-                'nonce': w3.eth.get_transaction_count(checksum_address),
-                'gas': 200000,
-                'gasPrice': w3.eth.gas_price,
-                'value': 0
-            })
-            await update.message.reply_text(
-                f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for journal entry (5 $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})). Submit the transaction hash here.",
-                parse_mode="Markdown"
-            )
-            pending_wallets[user_id] = {
-                "awaiting_tx": True,
-                "tx_data": tx,
-                "wallet_address": checksum_address,
-                "timestamp": time.time()
-            }
-            try:
-                with open("pending_wallets.json", "w") as f:
-                    json.dump(pending_wallets, f, default=str)
-                logger.info(f"Saved pending_wallets for user {user_id}")
-            except Exception as e:
-                logger.error(f"Error saving pending_wallets: {str(e)}")
-            del journal_data[user_id]
-            logger.info(f"/handle_photo processed for journal, transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
+            # Journal entry logic (original, now with hashed photo)
+            journal_data[user_id]["photo_hash"] = photo_hash  # Use hashed version
+            journal_data[user_id]["awaiting_location"] = True  # Assuming you want location for journal too, per new code
+            del journal_data[user_id]["awaiting_photo"]
+            await update.message.reply_text("Photo received (hashed for efficiency)! Now send the location using the paperclip icon > Location.")
+            logger.info(f"/handle_photo processed for journal/climb, awaiting location for user {user_id}, took {time.time() - start_time:.2f} seconds")
         elif 'pending_climb' in context.user_data:
+            # Climb logic (original, now with hashed photo)
             pending_climb = context.user_data['pending_climb']
             if pending_climb['user_id'] != user_id:
                 await update.message.reply_text("Pending climb belongs to another user. Start with /buildaclimb. 😅")
                 logger.info(f"/handle_photo failed: user mismatch for user {user_id}, took {time.time() - start_time:.2f} seconds")
                 return
-            photo = update.message.photo[-1]
-            file_id = photo.file_id
-            pending_climb['photo_hash'] = file_id
+            pending_climb['photo_hash'] = photo_hash  # Use hashed version
             await update.message.reply_text(
-                "Photo received! 📸 Please share the location of the climb (latitude, longitude).",
+                "Photo received (hashed for efficiency)! 📸 Please share the location of the climb (latitude, longitude).",
                 reply_markup=ReplyKeyboardMarkup([[KeyboardButton("Share Location", request_location=True)]], one_time_keyboard=True)
             )
             logger.info(f"/handle_photo processed for climb, awaiting location for user {user_id}, took {time.time() - start_time:.2f} seconds")
@@ -1967,7 +1939,7 @@ async def add_comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'gasPrice': w3.eth.gas_price
         })
         await update.message.reply_text(
-            f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for comment (0.1 $MON) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})). Submit the transaction hash here.",
+            f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for comment (0.1 $MON) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
             parse_mode="Markdown"
         )
         pending_wallets[user_id] = {
@@ -2199,7 +2171,7 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 except Exception as e:
                     logger.error(f"Error saving pending_wallets: {str(e)}")
                 await update.message.reply_text(
-                    f"Please open https://version1-production.up.railway.app/public/connect.html?userId={user_id} in MetaMask’s browser to approve {location_cost / 10**18} $TOURS for climb creation. Submit the transaction hash here."
+                    f"Please open https://version1-production.up.railway.app/public/connect.html?userId={user_id} in MetaMask’s browser to approve {location_cost / 10**18} $TOURS for climb creation."
                 )
                 logger.info(f"/handle_location initiated approval for user {user_id}, took {time.time() - start_time:.2f} seconds")
                 return
@@ -2253,7 +2225,7 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception as e:
                 logger.error(f"Error saving pending_wallets: {str(e)}")
             await update.message.reply_text(
-                f"Please open https://version1-production.up.railway.app/public/connect.html?userId={user_id} in MetaMask’s browser to sign the transaction for climb '{name}' ({difficulty}) using 10 $TOURS. Submit the transaction hash here."
+                f"Please open https://version1-production.up.railway.app/public/connect.html?userId={user_id} in MetaMask’s browser to sign the transaction for climb '{name}' ({difficulty}) using 10 $TOURS."
             )
             logger.info(f"/handle_location processed, transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
         except Exception as e:
@@ -2300,7 +2272,7 @@ async def purchase_climb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'value': 0
         })
         await update.message.reply_text(
-            f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for climb purchase (10 $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})). Submit the transaction hash here.",
+            f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for climb purchase (10 $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
             parse_mode="Markdown"
         )
         pending_wallets[user_id] = {
@@ -2406,7 +2378,7 @@ async def create_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'value': 0
         })
         await update.message.reply_text(
-            f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for tournament creation ({entry_fee / 10**18} $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})). Submit the transaction hash here.",
+            f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for tournament creation ({entry_fee / 10**18} $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
             parse_mode="Markdown"
         )
         pending_wallets[user_id] = {
@@ -2463,7 +2435,7 @@ async def join_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'value': 0
         })
         await update.message.reply_text(
-            f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for joining tournament #{tournament_id} ({entry_fee / 10**18} $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})). Submit the transaction hash here.",
+            f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for joining tournament #{tournament_id} ({entry_fee / 10**18} $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
             parse_mode="Markdown"
         )
         pending_wallets[user_id] = {
@@ -2524,7 +2496,7 @@ async def end_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'value': 0
         })
         await update.message.reply_text(
-            f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for ending tournament #{tournament_id} using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})). Submit the transaction hash here.",
+            f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for ending tournament #{tournament_id} using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
             parse_mode="Markdown"
         )
         pending_wallets[user_id] = {
@@ -2681,7 +2653,7 @@ async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     except Exception as e:
                         logger.error(f"Error saving pending_wallets: {str(e)}")
                     await update.message.reply_text(
-                        f"Approval confirmed! Now open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for climb '{next_tx_data['name']}' ({next_tx_data['difficulty']}) using 10 $TOURS. Submit the transaction hash here."
+                        f"Approval confirmed! Now open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for climb '{next_tx_data['name']}' ({next_tx_data['difficulty']}) using 10 $TOURS."
                     )
                     logger.info(f"/handle_tx_hash processed approval, next transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
                     return
@@ -2798,6 +2770,20 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                                 if log.topics[0].hex() in event_map:
                                     event_class, message_fn = event_map[log.topics[0].hex()]
                                     event = event_class().process_log(log)
+                                                                    # ... (keep your existing event_map dict as-is) ...
+
+                                # After defining message = message_fn(event)
+                                # Auto-announce to group (keep existing)
+                                await send_notification(CHAT_HANDLE, message)
+
+                                # New: PM user if wallet matches an event arg
+                                user_address = e.args.get('user') or e.args.get('creator') or e.args.get('author') or e.args.get('buyer') or e.args.get('commenter') or e.args.get('participant') or e.args.get('winner')
+                                if user_address:
+                                    checksum_user_address = Web3.to_checksum_address(user_address)
+                                    if checksum_user_address in reverse_sessions:
+                                        user_id = reverse_sessions[checksum_user_address]
+                                        user_message = f"Your action succeeded! {message.replace('<a href=', '[Tx: ').replace('</a>', ']')} 🪙 Check details on {EXPLORER_URL}/tx/{receipt.transactionHash.hex()}"
+                                        await application.bot.send_message(user_id, user_message, parse_mode="Markdown")
                                     message = message_fn(event)
                                     await send_notification(CHAT_HANDLE, message)
                             except Exception as e:
@@ -3035,7 +3021,17 @@ async def get_transaction(userId: str):
     logger.info(f"Received /get_transaction request for user {userId}")
     try:
         if userId in pending_wallets and pending_wallets[userId].get("awaiting_tx"):
-            logger.info(f"Transaction found for user {userId}: {pending_wallets[userId]['tx_data']}, took {time.time() - start_time:.2f} seconds")
+            if pending_wallets[userId].get("tx_served", False):
+                # Already served once—prevent repeat
+                logger.info(f"Transaction already served for user {userId}, ignoring repeat poll")
+                return {"transaction": None}
+            pending_wallets[userId]["tx_served"] = True  # Mark as served
+            try:
+                with open("pending_wallets.json", "w") as f:
+                    json.dump(pending_wallets, f, default=str)
+            except Exception as e:
+                logger.error(f"Error saving pending_wallets: {str(e)}")
+            logger.info(f"Transaction served (once) for user {userId}: {pending_wallets[userId]['tx_data']}, took {time.time() - start_time:.2f} seconds")
             return {"transaction": pending_wallets[userId]["tx_data"]}
         logger.info(f"No transaction found for user {userId}, took {time.time() - start_time:.2f} seconds")
         return {"transaction": None}
@@ -3069,6 +3065,7 @@ async def submit_wallet(request: Request):
         try:
             checksum_address = w3.to_checksum_address(wallet_address)
             sessions[user_id] = {"wallet_address": checksum_address}
+            reverse_sessions[checksum_address] = user_id  # Add reverse map for event monitoring
             await application.bot.send_message(
                 user_id,
                 f"Wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}) connected! Use /createprofile to create your profile or /balance to check your status. 🪙",
@@ -3168,7 +3165,7 @@ async def submit_tx(request: Request):
                                 logger.error(f"Error saving pending_wallets: {str(e)}")
                             await application.bot.send_message(
                                 user_id,
-                                f"Approval confirmed! Now open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for climb '{next_tx_data['name']}' ({next_tx_data['difficulty']}) using 10 $TOURS. Submit the transaction hash here."
+                                f"Approval confirmed! Now open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for climb '{next_tx_data['name']}' ({next_tx_data['difficulty']}) using 10 $TOURS."
                             )
                             logger.info(f"/submit_tx processed approval, next transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
                             return {"status": "success"}
