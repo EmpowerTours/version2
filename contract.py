@@ -1249,8 +1249,8 @@ async def create_climbing_location_tx(wallet_address, name, difficulty, latitude
         gas_estimate = contract.functions.createClimbingLocation(
             name, difficulty, latitude, longitude, photo_hash
         ).estimate_gas({'from': wallet_address})
-        # Increased multiplier and buffer for long strings (e.g., photo_hash)
-        gas_limit = int(gas_estimate * 1.5) + (len(photo_hash) * 100)  # Extra ~10k gas for long hash
+        # Exact buffer: 1.8x for runtime overhead + 50k fixed for strings/token transfer (prevents OOG at ~300k)
+        gas_limit = int(gas_estimate * 1.8) + 50000  # Typically ~350k-450k for your params
         gas_fees = await get_gas_fees(wallet_address)
         nonce = w3.eth.get_transaction_count(wallet_address)
         tx = contract.functions.createClimbingLocation(
