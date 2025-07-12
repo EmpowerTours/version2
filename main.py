@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response, FileResponse
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 import aiohttp
 from web3 import Web3
 from dotenv import load_dotenv
@@ -17,6 +17,7 @@ import socket
 import json
 import subprocess
 from datetime import datetime
+import sqlite3
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -42,6 +43,7 @@ LEGACY_ADDRESS = os.getenv("LEGACY_ADDRESS")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 WALLET_CONNECT_PROJECT_ID = os.getenv("WALLET_CONNECT_PROJECT_ID")
 EXPLORER_URL = "https://testnet.monadexplorer.com"
+YOUR_TELEGRAM_ID = os.getenv("YOUR_TELEGRAM_ID")  # Add this to .env for owner notifications
 
 # Log environment variables
 logger.info("Environment variables:")
@@ -55,6 +57,7 @@ logger.info(f"OWNER_ADDRESS: {'Set' if OWNER_ADDRESS else 'Missing'}")
 logger.info(f"LEGACY_ADDRESS: {'Set' if LEGACY_ADDRESS else 'Missing'}")
 logger.info(f"PRIVATE_KEY: {'Set' if PRIVATE_KEY else 'Missing'}")
 logger.info(f"WALLET_CONNECT_PROJECT_ID: {'Set' if WALLET_CONNECT_PROJECT_ID else 'Missing'}")
+logger.info(f"YOUR_TELEGRAM_ID: {'Set' if YOUR_TELEGRAM_ID else 'Missing'}")  # Log owner ID
 missing_vars = []
 if not TELEGRAM_TOKEN: missing_vars.append("TELEGRAM_TOKEN")
 if not API_BASE_URL: missing_vars.append("API_BASE_URL")
@@ -66,6 +69,7 @@ if not OWNER_ADDRESS: missing_vars.append("OWNER_ADDRESS")
 if not LEGACY_ADDRESS: missing_vars.append("LEGACY_ADDRESS")
 if not PRIVATE_KEY: missing_vars.append("PRIVATE_KEY")
 if not WALLET_CONNECT_PROJECT_ID: missing_vars.append("WALLET_CONNECT_PROJECT_ID")
+if not YOUR_TELEGRAM_ID: missing_vars.append("YOUR_TELEGRAM_ID")  # Check owner ID
 if missing_vars:
     logger.error(f"Missing environment variables: {', '.join(missing_vars)}")
     logger.warning("Proceeding with limited functionality")
@@ -941,6 +945,25 @@ webhook_failed = False
 last_processed_block = 0
 reverse_sessions = {}  # wallet: user_id mapping for event PMs
 
+# Initialize SQLite database for applications
+conn = sqlite3.connect('empowertours.db')
+cursor = conn.cursor()
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS applications (
+        user_id TEXT PRIMARY KEY,
+        name TEXT,
+        email TEXT,
+        climb_exp TEXT,
+        web3_interest TEXT,
+        why_join TEXT,
+        status TEXT DEFAULT 'pending'
+    )
+''')
+conn.commit()
+
+# States for conversation
+NAME, EMAIL, CLIMB_EXP, WEB3_INTEREST, WHY_JOIN = range(5)
+
 def initialize_web3():
     global w3, contract, tours_contract
     if not MONAD_RPC_URL or not CONTRACT_ADDRESS or not TOURS_TOKEN_ADDRESS:
@@ -1058,6 +1081,11 @@ async def reset_webhook():
         global webhook_failed
         webhook_failed = True
         return False
+
+async def is_approved(user_id: str) -> bool:
+    cursor.execute("SELECT status FROM applications WHERE user_id = ?", (user_id,))
+    row = cursor.fetchone()
+    return row and row[0] == 'approved'
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1252,6 +1280,9 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/jointournament [id] - Join a tournament by paying the entry fee in $TOURS\n"
             "/endtournament [id] [winner] - End a tournament (owner only) and award the prize pool to the winner’s wallet address (e.g., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725)\n"
             "/balance - Check wallet balance ($MON, $TOURS, profile status)\n"
+            "/apply - Apply for membership (fill out form for approval)\n"
+            "/approve [user_id] - Approve application (owner only)\n"
+            "/reject [user_id] - Reject application (owner only)\n"
             "/debug - Check webhook status\n"
             "/forcewebhook - Force reset webhook\n"
             "/testlink - Test Markdown link\n"
@@ -1351,6 +1382,10 @@ async def handle_wallet_address(user_id: str, wallet_address: str, context: Cont
 async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Received /buyTours command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    user_id = str(update.effective_user.id)
+    if not await is_approved(user_id):
+        await update.message.reply_text("Please apply with /apply and wait for approval!")
+        return
     if not API_BASE_URL:
         logger.error("API_BASE_URL missing, /buyTours command disabled")
         await update.message.reply_text("Buying $TOURS unavailable due to configuration issues. Try again later! 😅")
@@ -1362,7 +1397,6 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/buyTours failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        user_id = str(update.effective_user.id)
         args = context.args
         if len(args) < 1:
             await update.message.reply_text("Use: /buyTours [amount] 🪙 (e.g., /buyTours 10 to buy 10 $TOURS)")
@@ -1548,6 +1582,10 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Received /sendTours command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    user_id = str(update.effective_user.id)
+    if not await is_approved(user_id):
+        await update.message.reply_text("Please apply with /apply and wait for approval!")
+        return
     if not API_BASE_URL:
         logger.error("API_BASE_URL missing, /sendTours command disabled")
         await update.message.reply_text("Sending $TOURS unavailable due to configuration issues. Try again later! 😅")
@@ -1559,7 +1597,6 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/sendTours failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        user_id = str(update.effective_user.id)
         args = context.args
         if len(args) < 2:
             await update.message.reply_text("Use: /sendTours [recipient] [amount] 🪙 (e.g., /sendTours 0x123...456 10 to send 10 $TOURS)")
@@ -1648,6 +1685,10 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Received /createprofile command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    user_id = str(update.effective_user.id)
+    if not await is_approved(user_id):
+        await update.message.reply_text("Please apply with /apply and wait for approval!")
+        return
     if not API_BASE_URL:
         logger.error("API_BASE_URL missing, /createprofile command disabled")
         await update.message.reply_text("Profile creation unavailable due to configuration issues. Try again later! 😅")
@@ -1659,7 +1700,6 @@ async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/createprofile failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        user_id = str(update.effective_user.id)
         wallet_address = sessions.get(user_id, {}).get("wallet_address")
         if not wallet_address:
             logger.warning(f"No wallet found for user {user_id}")
@@ -1831,6 +1871,10 @@ async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def journal_entry(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Received /journal command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    user_id = str(update.effective_user.id)
+    if not await is_approved(user_id):
+        await update.message.reply_text("Please apply with /apply and wait for approval!")
+        return
     if not API_BASE_URL:
         logger.error("API_BASE_URL missing, /journal command disabled")
         await update.message.reply_text("Journal entry unavailable due to configuration issues. Try again later! 😅")
@@ -1842,7 +1886,6 @@ async def journal_entry(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/journal failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        user_id = str(update.effective_user.id)
         content = " ".join(context.args)
         if not content:
             await update.message.reply_text("Use: /journal [your journal entry] Then photo. 📸")
@@ -1905,6 +1948,10 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def add_comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Received /comment command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    user_id = str(update.effective_user.id)
+    if not await is_approved(user_id):
+        await update.message.reply_text("Please apply with /apply and wait for approval!")
+        return
     if not API_BASE_URL:
         logger.error("API_BASE_URL missing, /comment command disabled")
         await update.message.reply_text("Commenting unavailable due to configuration issues. Try again later! 😅")
@@ -1916,7 +1963,6 @@ async def add_comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/comment failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        user_id = str(update.effective_user.id)
         args = context.args
         if len(args) < 2:
             await update.message.reply_text("Use: /comment [id] [your comment] (0.1 $MON) 🗣️")
@@ -1962,6 +2008,10 @@ async def add_comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def buildaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Received /buildaclimb command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    user_id = str(update.effective_user.id)
+    if not await is_approved(user_id):
+        await update.message.reply_text("Please apply with /apply and wait for approval!")
+        return
     if not API_BASE_URL:
         logger.error("API_BASE_URL missing, /buildaclimb command disabled")
         await update.message.reply_text("Climb creation unavailable due to configuration issues. Try again later! 😅")
@@ -1973,7 +2023,6 @@ async def buildaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/buildaclimb failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        user_id = str(update.effective_user.id)
         args = context.args
         if len(args) < 2:
             await update.message.reply_text("Use: /buildaclimb [name] [difficulty] 🪨 (e.g., /buildaclimb TestClimb Easy)")
@@ -2240,6 +2289,10 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def purchase_climb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Received /purchaseclimb command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    user_id = str(update.effective_user.id)
+    if not await is_approved(user_id):
+        await update.message.reply_text("Please apply with /apply and wait for approval!")
+        return
     if not API_BASE_URL:
         logger.error("API_BASE_URL missing, /purchaseclimb command disabled")
         await update.message.reply_text("Climb purchase unavailable due to configuration issues. Try again later! 😅")
@@ -2251,7 +2304,6 @@ async def purchase_climb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/purchaseclimb failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        user_id = str(update.effective_user.id)
         args = context.args
         if len(args) < 1:
             await update.message.reply_text("Use: /purchaseclimb [id] 🪙")
@@ -2346,6 +2398,10 @@ async def findaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def create_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Received /createtournament command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    user_id = str(update.effective_user.id)
+    if not await is_approved(user_id):
+        await update.message.reply_text("Please apply with /apply and wait for approval!")
+        return
     if not API_BASE_URL:
         logger.error("API_BASE_URL missing, /createtournament command disabled")
         await update.message.reply_text("Tournament creation unavailable due to configuration issues. Try again later! 😅")
@@ -2357,7 +2413,6 @@ async def create_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/createtournament failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        user_id = str(update.effective_user.id)
         args = context.args
         if len(args) < 1:
             await update.message.reply_text("Use: /createtournament [fee] 🏆")
@@ -2401,6 +2456,10 @@ async def create_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def join_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Received /jointournament command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    user_id = str(update.effective_user.id)
+    if not await is_approved(user_id):
+        await update.message.reply_text("Please apply with /apply and wait for approval!")
+        return
     if not API_BASE_URL:
         logger.error("API_BASE_URL missing, /jointournament command disabled")
         await update.message.reply_text("Tournament joining unavailable due to configuration issues. Try again later! 😅")
@@ -2412,7 +2471,6 @@ async def join_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/jointournament failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        user_id = str(update.effective_user.id)
         args = context.args
         if len(args) < 1:
             await update.message.reply_text("Use: /jointournament [id] 🏆")
@@ -2458,6 +2516,10 @@ async def join_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def end_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Received /endtournament command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    user_id = str(update.effective_user.id)
+    if not await is_approved(user_id):
+        await update.message.reply_text("Please apply with /apply and wait for approval!")
+        return
     if not API_BASE_URL:
         logger.error("API_BASE_URL missing, /endtournament command disabled")
         await update.message.reply_text("Tournament ending unavailable due to configuration issues. Try again later! 😅")
@@ -2469,7 +2531,6 @@ async def end_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/endtournament failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        user_id = str(update.effective_user.id)
         args = context.args
         if len(args) < 2:
             await update.message.reply_text("Use: /endtournament [id] [winner] 🏆")
@@ -2581,6 +2642,99 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Unexpected error in /balance for user {user_id}: {str(e)}")
         await update.message.reply_text(f"Unexpected error: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
         logger.info(f"/balance failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
+
+async def apply_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    cursor.execute("SELECT * FROM applications WHERE user_id = ?", (user_id,))
+    if cursor.fetchone():
+        await update.message.reply_text("You've already applied! We'll review soon. 😊")
+        return ConversationHandler.END
+    await update.message.reply_text("Let's start your application! What's your full name?")
+    return NAME
+
+async def apply_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['name'] = update.message.text
+    await update.message.reply_text("Great! What's your email?")
+    return EMAIL
+
+async def apply_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['email'] = update.message.text
+    await update.message.reply_text("Tell me about your climbing experience (e.g., beginner, years climbing).")
+    return CLIMB_EXP
+
+async def apply_climb_exp(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['climb_exp'] = update.message.text
+    await update.message.reply_text("What's your interest in Web3/English learning (e.g., building dApps, improving tech English)?")
+    return WEB3_INTEREST
+
+async def apply_web3_interest(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['web3_interest'] = update.message.text
+    await update.message.reply_text("Why do you want to join EmpowerTours (be detailed – this helps us select!)?")
+    return WHY_JOIN
+
+async def apply_why_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['why_join'] = update.message.text
+    user_id = str(update.effective_user.id)
+    cursor.execute('''
+        INSERT INTO applications (user_id, name, email, climb_exp, web3_interest, why_join, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (user_id, context.user_data['name'], context.user_data['email'], context.user_data['climb_exp'], context.user_data['web3_interest'], context.user_data['why_join'], 'pending'))
+    conn.commit()
+    await update.message.reply_text("Application submitted! We'll review and notify you soon. Thanks! 🎉")
+    # Notify owner (replace with your Telegram ID)
+    await context.bot.send_message(YOUR_TELEGRAM_ID, f"New application from @{update.effective_user.username}: \nName: {context.user_data['name']}\nEmail: {context.user_data['email']}\nClimbing Exp: {context.user_data['climb_exp']}\nWeb3 Interest: {context.user_data['web3_interest']}\nWhy Join: {context.user_data['why_join']}")
+    return ConversationHandler.END
+
+async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    start_time = time.time()
+    user_id = str(update.effective_user.id)
+    if user_id != YOUR_TELEGRAM_ID:
+        await update.message.reply_text("Only the owner can approve applications! 😅")
+        return
+    args = context.args
+    if len(args) < 1:
+        await update.message.reply_text("Use: /approve [user_id]")
+        return
+    applicant_id = args[0]
+    cursor.execute("UPDATE applications SET status = ? WHERE user_id = ?", ('approved', applicant_id))
+    conn.commit()
+    if cursor.rowcount > 0:
+        await context.bot.send_message(applicant_id, "Congrats! Your application is approved. Now connect your wallet with /connectwallet and create a profile with /createprofile. Welcome aboard! 🧗")
+        await update.message.reply_text(f"Approved user {applicant_id}.")
+    else:
+        await update.message.reply_text(f"No application found for user {applicant_id}.")
+
+async def reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    start_time = time.time()
+    user_id = str(update.effective_user.id)
+    if user_id != YOUR_TELEGRAM_ID:
+        await update.message.reply_text("Only the owner can reject applications! 😅")
+        return
+    args = context.args
+    if len(args) < 1:
+        await update.message.reply_text("Use: /reject [user_id]")
+        return
+    applicant_id = args[0]
+    cursor.execute("UPDATE applications SET status = ? WHERE user_id = ?", ('rejected', applicant_id))
+    conn.commit()
+    if cursor.rowcount > 0:
+        await context.bot.send_message(applicant_id, "Thanks for applying! Unfortunately, we can't approve at this time. Feel free to reapply or contact support.")
+        await update.message.reply_text(f"Rejected user {applicant_id}.")
+    else:
+        await update.message.reply_text(f"No application found for user {applicant_id}.")
+
+# Add to your application handlers list
+apply_handler = ConversationHandler(
+    entry_points=[CommandHandler('apply', apply_start)],
+    states={
+        NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, apply_name)],
+        EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, apply_email)],
+        CLIMB_EXP: [MessageHandler(filters.TEXT & ~filters.COMMAND, apply_climb_exp)],
+        WEB3_INTEREST: [MessageHandler(filters.TEXT & ~filters.COMMAND, apply_web3_interest)],
+        WHY_JOIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, apply_why_join)],
+    },
+    fallbacks=[]
+)
 
 async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -2896,6 +3050,9 @@ async def startup_event():
         application.add_handler(CommandHandler("buyTours", buy_tours))
         application.add_handler(CommandHandler("sendTours", send_tours))
         application.add_handler(CommandHandler("ping", ping))
+        application.add_handler(CommandHandler("approve", approve))
+        application.add_handler(CommandHandler("reject", reject))
+        application.add_handler(apply_handler)
         application.add_handler(MessageHandler(filters.Regex(r'^0x[a-fA-F0-9]{64}$'), handle_tx_hash))
         application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
         application.add_handler(MessageHandler(filters.LOCATION, handle_location))
@@ -3045,7 +3202,7 @@ async def submit_wallet(request: Request):
         user_id = data.get("userId")
         wallet_address = data.get("walletAddress")
         if not user_id or not wallet_address:
-            logger.error(f"Missing userId or walletAddress in /submit_wallet: {data}")
+            logger.error(f"Missing userId or walletAddress in /submit_wallet:{data}")
             raise HTTPException(status_code=400, detail="Missing userId or walletAddress")
         logger.info(f"Received wallet submission for user {user_id}: {wallet_address}")
         
@@ -3114,13 +3271,13 @@ async def submit_tx(request: Request):
                     tx_data = pending_wallets[user_id]
                     input_data = tx_data.get("tx_data", {}).get("data", "")
                     success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Action completed successfully."
-                    if input_data.startswith('0xa9059cbb'):  # transfer (sendTours)
-                        success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Successfully sent $TOURS to the recipient."
-                    elif input_data.startswith('0x00547664'):  # createProfile
+                    if input_data.startswith('0x00547664'):  # createProfile
                         success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Profile created with 1 $TOURS funded to your wallet."
                     elif input_data.startswith('0x9954e40d'):  # buyTours
                         amount = int.from_bytes(bytes.fromhex(input_data[10:]), byteorder='big') / 10**18
                         success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Successfully purchased {amount} $TOURS."
+                    elif input_data.startswith('0xa9059cbb'):  # transfer (sendTours)
+                        success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Successfully sent $TOURS to the recipient."
                     elif input_data.startswith('0xfe985ae0'):  # createClimbingLocation
                         success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Climb '{tx_data.get('name', 'Unknown')}' ({tx_data.get('difficulty', 'Unknown')}) created!"
                     if CHAT_HANDLE and TELEGRAM_TOKEN:
