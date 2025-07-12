@@ -1070,7 +1070,8 @@ async def add_journal_entry_tx(wallet_address, content_hash, user):
             return {'status': 'error', 'message': f"Contract error: {str(e)}. Ensure you have a profile. 😅"}
         
         gas_estimate = contract.functions.addJournalEntry(content_hash).estimate_gas({'from': wallet_address})
-        gas_limit = int(gas_estimate * 1.2)
+        gas_limit = int(gas_estimate * 1.5)  # Increased buffer for journal entry
+        logger.info(f"Gas estimate for addJournalEntry: {gas_estimate}, set limit: {gas_limit}")
         gas_fees = await get_gas_fees(wallet_address)
         nonce = w3.eth.get_transaction_count(wallet_address)
         tx = contract.functions.addJournalEntry(content_hash).build_transaction({
@@ -1097,7 +1098,7 @@ async def add_journal_entry_tx(wallet_address, content_hash, user):
     except Exception as e:
         logger.error(f"Error in add_journal_entry_tx: {str(e)}")
         return {'status': 'error', 'message': f"Oops, something went wrong: {str(e)}. Try again! 😅"}
-
+        
 async def add_comment_tx(wallet_address, entry_id, comment, user):
     if not w3 or not contract:
         return {'status': 'error', 'message': "Blockchain connection unavailable. Try again later! 😅"}
