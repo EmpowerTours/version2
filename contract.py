@@ -19,7 +19,7 @@ TOURS_TOKEN_ADDRESS = os.getenv("TOURS_TOKEN_ADDRESS")
 OWNER_ADDRESS = os.getenv("OWNER_ADDRESS")
 LEGACY_ADDRESS = os.getenv("LEGACY_ADDRESS")
 API_BASE_URL = os.getenv("API_BASE_URL")
-CHAT_HANDLE = os.getenv("CHAT_HANDLE", "@empowertourschat")
+CHAT_HANDLE = os.getenv("CHAT_HANDLE")
 EXPIRY_SECONDS = 1800  # 30 minutes for session expiry
 
 # Initialize Web3 with retry logic
