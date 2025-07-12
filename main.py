@@ -43,7 +43,7 @@ LEGACY_ADDRESS = os.getenv("LEGACY_ADDRESS")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 WALLET_CONNECT_PROJECT_ID = os.getenv("WALLET_CONNECT_PROJECT_ID")
 EXPLORER_URL = "https://testnet.monadexplorer.com"
-YOUR_TELEGRAM_ID = os.getenv("YOUR_TELEGRAM_ID")  # Add this to .env for owner notifications
+YOUR_TELEGRAM_ID = os.getenv("YOUR_TELEGRAM_ID")
 
 # Log environment variables
 logger.info("Environment variables:")
@@ -2644,6 +2644,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/balance failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
 
 async def apply_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"Received /apply command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     user_id = str(update.effective_user.id)
     cursor.execute("SELECT * FROM applications WHERE user_id = ?", (user_id,))
     if cursor.fetchone():
@@ -3021,8 +3022,8 @@ async def startup_event():
         initialize_web3()
 
         # Initialize Telegram Application
-        application = Application.builder().token(TELEGRAM_TOKEN).build()
-        logger.info("Application initialized")
+        persistence = PicklePersistence(filepath="bot_persistence.pickle")
+        application = Application.builder().token(TELEGRAM_TOKEN).persistence(persistence).concurrent_updates(False).build()
 
         # Register command handlers
         application.add_handler(CommandHandler("start", start))
