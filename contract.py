@@ -1249,8 +1249,9 @@ async def create_climbing_location_tx(wallet_address, name, difficulty, latitude
         gas_estimate = contract.functions.createClimbingLocation(
             name, difficulty, latitude, longitude, photo_hash
         ).estimate_gas({'from': wallet_address})
-        # Exact buffer: 1.8x for runtime overhead + 50k fixed for strings/token transfer (prevents OOG at ~300k)
-        gas_limit = int(gas_estimate * 1.8) + 50000  # Typically ~350k-450k for your params
+        # Fixed gas limit to prevent OOG errors
+        gas_limit = 400000  # Safe fixed amount based on runtime needs
+        logger.info(f"Gas estimate for createClimbingLocation: {gas_estimate}, set limit: {gas_limit}")
         gas_fees = await get_gas_fees(wallet_address)
         nonce = w3.eth.get_transaction_count(wallet_address)
         tx = contract.functions.createClimbingLocation(
@@ -1279,7 +1280,7 @@ async def create_climbing_location_tx(wallet_address, name, difficulty, latitude
     except Exception as e:
         logger.error(f"Error in create_climbing_location_tx: {str(e)}")
         return {'status': 'error', 'message': f"Oops, something went wrong: {str(e)}. Try again! 😅"}
-
+        
 async def purchase_climbing_location_tx(wallet_address, location_id, user):
     if not w3 or not contract or not tours_contract:
         return {'status': 'error', 'message': "Blockchain connection unavailable. Try again later! 😅"}
