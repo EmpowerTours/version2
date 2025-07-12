@@ -893,7 +893,19 @@ def initialize_web3():
                     }
                 ]
 
-                # Initialize Web3 and contracts
+                contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=CONTRACT_ABI)
+                tours_contract = w3.eth.contract(address=TOURS_TOKEN_ADDRESS, abi=TOURS_ABI)
+                break
+            else:
+                logger.warning(f"Connection attempt {attempt} failed. Retrying in 5 seconds...")
+                time.sleep(5)
+        except Exception as e:
+            logger.error(f"Error in initialize_web3 attempt {attempt}: {str(e)}")
+            if attempt < retries:
+                time.sleep(5)
+    if not w3:
+        logger.error("Failed to connect to Monad testnet after retries")
+
 initialize_web3()
 
 # Initialize SQLite database
@@ -919,6 +931,15 @@ cursor.execute('''
         photo_hash TEXT,
         location_id INTEGER,
         tournament_id INTEGER
+    )
+''')
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS pending_actions (
+        user_id TEXT PRIMARY KEY,
+        action_type TEXT,  # 'journal' or 'climb'
+        content_hash TEXT,
+        name TEXT,
+        difficulty TEXT
     )
 ''')
 conn.commit()
@@ -1070,7 +1091,7 @@ async def add_journal_entry_tx(wallet_address, content_hash, user):
             return {'status': 'error', 'message': f"Contract error: {str(e)}. Ensure you have a profile. 😅"}
         
         gas_estimate = contract.functions.addJournalEntry(content_hash).estimate_gas({'from': wallet_address})
-        gas_limit = int(gas_estimate * 1.5)  # Increased buffer for journal entry
+        gas_limit = 500000  # Fixed to prevent OOG
         logger.info(f"Gas estimate for addJournalEntry: {gas_estimate}, set limit: {gas_limit}")
         gas_fees = await get_gas_fees(wallet_address)
         nonce = w3.eth.get_transaction_count(wallet_address)
@@ -1098,7 +1119,7 @@ async def add_journal_entry_tx(wallet_address, content_hash, user):
     except Exception as e:
         logger.error(f"Error in add_journal_entry_tx: {str(e)}")
         return {'status': 'error', 'message': f"Oops, something went wrong: {str(e)}. Try again! 😅"}
-        
+
 async def add_comment_tx(wallet_address, entry_id, comment, user):
     if not w3 or not contract:
         return {'status': 'error', 'message': "Blockchain connection unavailable. Try again later! 😅"}
@@ -1250,116 +1271,6 @@ async def create_climbing_location_tx(wallet_address, name, difficulty, latitude
         gas_estimate = contract.functions.createClimbingLocation(
             name, difficulty, latitude, longitude, photo_hash
         ).estimate_gas({'from': wallet_address})
-        # Fixed gas limit to prevent OOG errors
-        gas_limit = 400000  # Safe fixed amount based on runtime needs
-        logger.info(f"Gas estimate for createClimbingLocation: {gas_estimate}, set limit: {gas_limit}")
-        gas_fees = await get_gas_fees(wallet_address)
-        nonce = w3.eth.get_transaction_count(wallet_address)
-        tx = contract.functions.createClimbingLocation(
-            name, difficulty, latitude, longitude, photo_hash
-        ).build_transaction({
-            'chainId': 10143,
-            'from': wallet_address,
-            'nonce': nonce,
-            'gas': gas_limit,
-            'maxFeePerGas': gas_fees['maxFeePerGas'],
-            'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
-        })
-        try:
-            cursor.execute(
-                "INSERT INTO pending_txs (user_id, tx_type, tx_data, name, difficulty, latitude, longitude, photo_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (str(user.id), 'create_climbing_location', json.dumps(tx), name, difficulty, latitude, longitude, photo_hash)
-            )
-            conn.commit()
-        except sqlite3.IntegrityError:
-            return {'status': 'error', 'message': "Climb creation transaction already pending! Complete it first. 🔄"}
-
-        return {'status': 'success', 'tx_type': 'create_climbing_location', 'tx_data': tx}
-    except ContractLogicError as e:
-        logger.error(f"Contract error in createClimbingLocation: {str(e)}")
-        return {'status': 'error', 'message': f"Contract error: {str(e)}. Ensure you have a profile and sufficient $TOURS allowance. 😅"}
-    except Exception as e:
-        logger.error(f"Error in create_climbing_location_tx: {str(e)}")
-        return {'status': 'error', 'message': f"Oops, something went wrong: {str(e)}. Try again! 😅"}
-        
-async def create_climbing_location_tx(wallet_address, name, difficulty, latitude, longitude, photo_hash, user):
-    if not w3 or not contract or not tours_contract:
-        return {'status': 'error', 'message': "Blockchain connection unavailable. Try again later! 😅"}
-    try:
-        # Check expiry
-        cursor.execute("SELECT connected_at FROM sessions WHERE user_id = ?", (str(user.id),))
-        row = cursor.fetchone()
-        if not row or time.time() - row[0] > EXPIRY_SECONDS:
-            return {'status': 'error', 'message': "Session expired; please reconnect your wallet! 🔄"}
-
-        profile = contract.functions.profiles(wallet_address).call()
-        if not profile[0]:
-            return {'status': 'error', 'message': "You need to create a profile first with /createprofile! 🪙"}
-        
-        if not name or not difficulty:
-            return {'status': 'error', 'message': "Name and difficulty cannot be empty! 😅"}
-        
-        location_cost = contract.functions.locationCreationCost().call()
-        balance = tours_contract.functions.balanceOf(wallet_address).call()
-        allowance = tours_contract.functions.allowance(wallet_address, CONTRACT_ADDRESS).call()
-        if balance < location_cost:
-            return {
-                'status': 'error',
-                'message': (
-                    f"Need {location_cost/10**18} $TOURS to create a climb. "
-                    f"Your balance: {balance/10**18} $TOURS. Top up your wallet! 🪙"
-                )
-            }
-        if allowance < location_cost:
-            gas_fees = await get_gas_fees(wallet_address)
-            nonce = w3.eth.get_transaction_count(wallet_address)
-            approve_tx = tours_contract.functions.approve(CONTRACT_ADDRESS, location_cost).build_transaction({
-                'chainId': 10143,
-                'from': wallet_address,
-                'nonce': nonce,
-                'gas': 100000,
-                'maxFeePerGas': gas_fees['maxFeePerGas'],
-                'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
-            })
-            try:
-                cursor.execute(
-                    "INSERT INTO pending_txs (user_id, tx_type, tx_data, name, difficulty, latitude, longitude, photo_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    (str(user.id), 'approve_tours', json.dumps(approve_tx), name, difficulty, latitude, longitude, photo_hash)
-                )
-                conn.commit()
-            except sqlite3.IntegrityError:
-                return {'status': 'error', 'message': "Approval transaction already pending! Complete it first. 🔄"}
-
-            return {
-                'status': 'success',
-                'tx_type': 'approve_tours',
-                'tx_data': approve_tx,
-                'next_tx': {
-                    'type': 'create_climbing_location',
-                    'name': name,
-                    'difficulty': difficulty,
-                    'latitude': latitude,
-                    'longitude': longitude,
-                    'photo_hash': photo_hash
-                }
-            }
-        
-        try:
-            w3.eth.call({
-                'from': wallet_address,
-                'to': CONTRACT_ADDRESS,
-                'data': contract.encodeABI(
-                    fn_name='createClimbingLocation',
-                    args=[name, difficulty, latitude, longitude, photo_hash]
-                )
-            })
-        except ContractLogicError as e:
-            logger.error(f"Simulation error in createClimbingLocation: {str(e)}")
-            return {'status': 'error', 'message': f"Contract error: {str(e)}. Check parameters or contract state. 😅"}
-        
-        gas_estimate = contract.functions.createClimbingLocation(
-            name, difficulty, latitude, longitude, photo_hash
-        ).estimate_gas({'from': wallet_address})
         gas_limit = 500000  # Fixed to prevent OOG
         logger.info(f"Gas estimate: {gas_estimate}, limit: {gas_limit}")
         gas_fees = await get_gas_fees(wallet_address)
@@ -1389,6 +1300,103 @@ async def create_climbing_location_tx(wallet_address, name, difficulty, latitude
         return {'status': 'error', 'message': f"Contract error: {str(e)}. Ensure you have a profile and sufficient $TOURS allowance. 😅"}
     except Exception as e:
         logger.error(f"Error in create_climbing_location_tx: {str(e)}")
+        return {'status': 'error', 'message': f"Oops, something went wrong: {str(e)}. Try again! 😅"}
+
+async def purchase_climbing_location_tx(wallet_address, location_id, user):
+    if not w3 or not contract or not tours_contract:
+        return {'status': 'error', 'message': "Blockchain connection unavailable. Try again later! 😅"}
+    try:
+        # Check expiry
+        cursor.execute("SELECT connected_at FROM sessions WHERE user_id = ?", (str(user.id),))
+        row = cursor.fetchone()
+        if not row or time.time() - row[0] > EXPIRY_SECONDS:
+            return {'status': 'error', 'message': "Session expired; please reconnect your wallet! 🔄"}
+
+        profile = contract.functions.profiles(wallet_address).call()
+        if not profile[0]:
+            return {'status': 'error', 'message': "You need to create a profile first with /createprofile! 🪙"}
+        
+        location_cost = contract.functions.locationCreationCost().call()
+        balance = tours_contract.functions.balanceOf(wallet_address).call()
+        allowance = tours_contract.functions.allowance(wallet_address, CONTRACT_ADDRESS).call()
+        if balance < location_cost:
+            return {
+                'status': 'error',
+                'message': (
+                    f"Need {location_cost/10**18} $TOURS to purchase a climb. "
+                    f"Your balance: {balance/10**18} $TOURS. Top up your wallet! 🪙"
+                )
+            }
+        if allowance < location_cost:
+            gas_fees = await get_gas_fees(wallet_address)
+            nonce = w3.eth.get_transaction_count(wallet_address)
+            approve_tx = tours_contract.functions.approve(CONTRACT_ADDRESS, location_cost).build_transaction({
+                'chainId': 10143,
+                'from': wallet_address,
+                'nonce': nonce,
+                'gas': 100000,
+                'maxFeePerGas': gas_fees['maxFeePerGas'],
+                'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
+            })
+            try:
+                cursor.execute(
+                    "INSERT INTO pending_txs (user_id, tx_type, tx_data, location_id) VALUES (?, ?, ?, ?)",
+                    (str(user.id), 'approve_tours', json.dumps(approve_tx), location_id)
+                )
+                conn.commit()
+            except sqlite3.IntegrityError:
+                return {'status': 'error', 'message': "Approval transaction already pending! Complete it first. 🔄"}
+
+            return {
+                'status': 'success',
+                'tx_type': 'approve_tours',
+                'tx_data': approve_tx,
+                'next_tx': {
+                    'type': 'purchase_climbing_location',
+                    'location_id': location_id
+                }
+            }
+        
+        try:
+            w3.eth.call({
+                'from': wallet_address,
+                'to': CONTRACT_ADDRESS,
+                'data': contract.encodeABI(
+                    fn_name='purchaseClimbingLocation',
+                    args=[location_id]
+                )
+            })
+        except ContractLogicError as e:
+            logger.error(f"Simulation error in purchaseClimbingLocation: {str(e)}")
+            return {'status': 'error', 'message': f"Contract error: {str(e)}. Ensure the location ID is valid. 😅"}
+        
+        gas_estimate = contract.functions.purchaseClimbingLocation(location_id).estimate_gas({'from': wallet_address})
+        gas_limit = int(gas_estimate * 1.2)
+        gas_fees = await get_gas_fees(wallet_address)
+        nonce = w3.eth.get_transaction_count(wallet_address)
+        tx = contract.functions.purchaseClimbingLocation(location_id).build_transaction({
+            'chainId': 10143,
+            'from': wallet_address,
+            'nonce': nonce,
+            'gas': gas_limit,
+            'maxFeePerGas': gas_fees['maxFeePerGas'],
+            'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
+        })
+        try:
+            cursor.execute(
+                "INSERT INTO pending_txs (user_id, tx_type, tx_data, location_id) VALUES (?, ?, ?, ?)",
+                (str(user.id), 'purchase_climbing_location', json.dumps(tx), location_id)
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            return {'status': 'error', 'message': "Purchase transaction already pending! Complete it first. 🔄"}
+
+        return {'status': 'success', 'tx_type': 'purchase_climbing_location', 'tx_data': tx}
+    except ContractLogicError as e:
+        logger.error(f"Contract error in purchaseClimbingLocation: {str(e)}")
+        return {'status': 'error', 'message': f"Contract error: {str(e)}. Ensure the location ID is valid. 😅"}
+    except Exception as e:
+        logger.error(f"Error in purchase_climbing_location_tx: {str(e)}")
         return {'status': 'error', 'message': f"Oops, something went wrong: {str(e)}. Try again! 😅"}
 
 async def create_tournament_tx(wallet_address, entry_fee, user):
