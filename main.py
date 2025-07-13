@@ -2312,7 +2312,7 @@ async def createtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             entry_fee = int(float(args[0]) * 10**18)
             if entry_fee <= 0:
                 raise ValueError("Fee must be positive")
-        except ValueValue:
+        except ValueError:
             await update.message.reply_text("Invalid fee. Use a positive number (e.g., /createtournament 10). 😅")
             logger.info(f"/createtournament failed due to invalid fee, took {time.time() - start_time:.2f} seconds")
             return
@@ -2815,7 +2815,7 @@ async def apply_climb_exp(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Apply climb_exp received for user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
         return 'WEB3_INTEREST'
     except Exception as e:
-        logger.error(f"Error in apply_climb_exp: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        logger.error(f"Error in apply_climb_exp:{str(e)}, took {time.time() - start_time:.2f} seconds")
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
         return ConversationHandler.END
 
@@ -2887,6 +2887,7 @@ async def apply_education(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def apply_headshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Received apply headshot from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    user_id = str(update.effective_user.id)  # Add this line
     try:
         photo = update.message.photo[-1]
         context.user_data['application']['headshot'] = photo.file_id
@@ -2986,6 +2987,18 @@ async def reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error in /reject: {str(e)}, took {time.time() - start_time:.2f} seconds")
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+
+async def handle_mini_app_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        data = update.message.web_app_data.data
+        command_name = data.lstrip('/')  # Strip '/' to get 'start', etc.
+        if command_name in command_handlers:
+            await command_handlers[command_name](update, context)
+        else:
+            await update.message.reply_text(f"Unknown Mini App command: {data}. Try /help! 😅")
+    except Exception as e:
+        logger.error(f"Error handling Mini App data: {str(e)}")
+        await update.message.reply_text(f"Error processing Mini App command: {str(e)}. Try again! 😅")
 
 async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -3159,6 +3172,33 @@ async def startup_event():
     application.add_handler(CommandHandler("approve", approve))
     application.add_handler(CommandHandler("reject", reject))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, debug_command))
+    
+    command_handlers = {
+        'start': start,
+        'tutorial': tutorial,
+        'connectwallet': connect_wallet,
+        'help': help,
+        'ping': ping,
+        'clearcache': clearcache,
+        'forcewebhook': forcewebhook,
+        'debug': debug,
+        'buyTours': buy_tours,
+        'sendTours': send_tours,
+        'journal': journal,
+        'comment': comment,
+        'buildaclimb': buildaclimb,
+        'purchaseclimb': purchaseclimb,
+        'findaclimb': findaclimb,
+        'createtournament': createtournament,
+        'jointournament': jointournament,
+        'endtournament': endtournament,
+        'balance': balance,
+        'apply': apply,
+        'listpending': listpending,
+        'approve': approve,
+        'reject': reject,
+    }
+    application.add_handler(MessageHandler(filters.WEB_APP_DATA, handle_mini_app_command))
     
     # Add this line to initialize the application
     await application.initialize()
