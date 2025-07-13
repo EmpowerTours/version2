@@ -1182,19 +1182,19 @@ async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"/tutorial failed due to missing config, took {time.time() - start_time:.2f} seconds")
             return
         tutorial_text = (
-            "Tutorial\n"
+            "Tutorial\n\n"
             "1. Wallet:\n"
             "- Get MetaMask, Phantom, or Gnosis Safe.\n"
-            f"- Add Monad testnet (RPC: https://testnet-rpc.monad.xyz, ID: 10143).\n"
+            "- Add Monad testnet (RPC: https://testnet-rpc.monad.xyz, ID: 10143).\n"
             "- If you see a chain ID mismatch (e.g., 10159), go to MetaMask Settings > Networks, remove all Monad Testnet entries, and reconnect.\n"
-            "- Get $MON: https://testnet.monad.xyz/faucet\n"
+            "- Get $MON: https://testnet.monad.xyz/faucet\n\n"
             "2. Connect:\n"
-            "- Use /connectwallet to connect via MetaMask or WalletConnect\n"
+            "- Use /connectwallet to connect via MetaMask or WalletConnect\n\n"
             "3. Profile:\n"
-            "- /createprofile (1 $MON, receive 1 $TOURS)\n"
+            "- /createprofile (1 $MON, receive 1 $TOURS)\n\n"
             "4. Manage Tokens:\n"
             "- /buyTours [amount] - Buy $TOURS tokens with $MON (e.g., /buyTours 10 to buy 10 $TOURS)\n"
-            "- /sendTours [recipient] [amount] - Send $TOURS to another wallet (e.g., /sendTours 0x123...456 10 to send 10 $TOURS)\n"
+            "- /sendTours [recipient] [amount] - Send $TOURS to another wallet (e.g., /sendTours 0x123...456 10 to send 10 $TOURS)\n\n"
             "5. Explore:\n"
             "- /journal [your journal entry] - Log a climb (5 $TOURS)\n"
             "- /comment [id] [your comment] - Comment on a journal (0.1 $MON)\n"
@@ -1205,14 +1205,14 @@ async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "- /jointournament [id] - Join a tournament by paying the entry fee\n"
             "- /endtournament [id] [winner] - End a tournament (owner only) and award the prize to the winner’s wallet address (e.g., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725)\n"
             "- /balance - Check your $MON and $TOURS balance\n"
-            "- /help - List all commands\n"
+            "- /help - List all commands\n\n"
             "Join our community at [EmpowerTours Chat](https://t.me/empowertourschat)! Try /connectwallet!"
         )
         await update.message.reply_text(tutorial_text, parse_mode="Markdown")
         logger.info(f"Sent /tutorial response to user {update.effective_user.id}: {tutorial_text}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /tutorial for user {update.effective_user.id}: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error in tutorial: {str(e)}. Try again or use /help! 😅")
+        await update.message.reply_text(f"Error in tutorial: {str(e)}. Try again...")
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
