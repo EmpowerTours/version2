@@ -3000,6 +3000,15 @@ async def handle_mini_app_command(update: Update, context: ContextTypes.DEFAULT_
         logger.error(f"Error handling Mini App data: {str(e)}")
         await update.message.reply_text(f"Error processing Mini App command: {str(e)}. Try again! 😅")
 
+async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    data = update.message.web_app_data.data
+    logger.info(f"Received web_app_data from mini app: {data}")
+    # Simulate the user sending the command text
+    fake_update = update
+    fake_update.message.text = data
+    # Process as normal message (will trigger command handlers)
+    await application.process_update(fake_update)
+    
 async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Received /handle_tx_hash from user {update.effective_user.id} in chat {update.effective_chat.id}")
@@ -3199,6 +3208,7 @@ async def startup_event():
         'reject': reject,
     }
     application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_mini_app_command))
+    application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))
     
     # Add this line to initialize the application
     await application.initialize()
