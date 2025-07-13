@@ -2676,14 +2676,21 @@ async def apply_web3_interest(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def apply_why_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['why_join'] = update.message.text
     user_id = str(update.effective_user.id)
-    cursor.execute('''
-        INSERT INTO applications (user_id, name, email, climb_exp, web3_interest, why_join, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (user_id, context.user_data['name'], context.user_data['email'], context.user_data['climb_exp'], context.user_data['web3_interest'], context.user_data['why_join'], 'pending'))
-    conn.commit()
-    await update.message.reply_text("Application submitted! We'll review and notify you soon. Thanks! 🎉")
-    # Notify owner (replace with your Telegram ID)
-    await context.bot.send_message(YOUR_TELEGRAM_ID, f"New application from @{update.effective_user.username}: \nName: {context.user_data['name']}\nEmail: {context.user_data['email']}\nClimbing Exp: {context.user_data['climb_exp']}\nWeb3 Interest: {context.user_data['web3_interest']}\nWhy Join: {context.user_data['why_join']}")
+    try:
+        cursor.execute('''
+            INSERT INTO applications (user_id, name, email, climb_exp, web3_interest, why_join, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, context.user_data['name'], context.user_data['email'], context.user_data['climb_exp'], context.user_data['web3_interest'], context.user_data['why_join'], 'pending'))
+        conn.commit()
+        await update.message.reply_text("Application submitted! We'll review and notify you soon. Thanks! 🎉")
+        # Notify owner (replace with your Telegram ID)
+        await context.bot.send_message(YOUR_TELEGRAM_ID, f"New application from @{update.effective_user.username}: \nName: {context.user_data['name']}\nEmail: {context.user_data['email']}\nClimbing Exp: {context.user_data['climb_exp']}\nWeb3 Interest: {context.user_data['web3_interest']}\nWhy Join: {context.user_data['why_join']}")
+    except sqlite3.IntegrityError as e:
+        logger.error(f"Integrity error inserting application for user {user_id}: {str(e)}")
+        await update.message.reply_text("Application already submitted! We'll review soon. 😊")
+    except Exception as e:
+        logger.error(f"Unexpected error inserting application for user {user_id}: {str(e)}")
+        await update.message.reply_text(f"Error submitting application: {str(e)}. Please try again or contact support.")
     return ConversationHandler.END
 
 async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2915,7 +2922,7 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                                     ),
                                     w3.keccak(text="FarcasterCastShared(address,uint256,string,string,uint256,uint256)").hex(): (
                                         contract.events.FarcasterCastShared,
-                                        lambda e: f"New Farcaster cast shared by <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a> for {e.args.contentType} #{e.args.contentId} on EmpowerTours! 📢"
+                                        lambda e: f"New Farcaster cast shared by <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a> for{e.args.contentType} #{e.args.contentId} on EmpowerTours! 📢"
                                     ),
                                     w3.keccak(text="FarcasterProfileUpdated(address,uint256,string,string,uint256)").hex(): (
                                         contract.events.FarcasterProfileUpdated,
