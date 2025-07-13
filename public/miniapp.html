@@ -96,8 +96,20 @@
     <div class="button-container">
         <button onclick="sendCommand('/start')"><svg class="icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="white"/></svg>Start</button>
         <button onclick="sendCommand('/tutorial')"><svg class="icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="white"/></svg>Tutorial</button>
-        <button onclick="sendCommand('/connectwallet')"><svg class="icon" viewBox="0 0 24 24"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-1.25 0-2.25-1-2.25-2.25s1-2.25 2.25-2.25 2.25 1 2.25 2.25-1 2.25-2.25 2.25z" fill="white"/></svg>Connect Wallet</button>
-        <!-- Add more buttons similarly with relevant SVGs for rock climbing theme (e.g., mountain for buildaclimb, trophy for tournament) -->
+        <button onclick="sendCommand('/connectwallet')"><svg class="icon" viewBox="0 0 24 24"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.1 0-2 .9-2 2v8c0 1.1 .9 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-1.25 0-2.25-1-2.25-2.25s1-2.25 2.25-2.25 2.25 1 2.25 2.25-1 2.25-2.25 2.25z" fill="white"/></svg>Connect Wallet</button>
+        <button onclick="sendCommand('/createprofile')"><svg class="icon" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="white"/></svg>Create Profile</button>
+        <button onclick="promptAndSend('/buyTours ')"><svg class="icon" viewBox="0 0 24 24"><path d="M17 18c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2zm-10 0c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2zm0-10h10v2H7V8zm0 4h10v2H7v-2zM3 5v2h18V5H3z" fill="white"/></svg>Buy TOURS</button>
+        <button onclick="promptAndSend('/sendTours ')"><svg class="icon" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="white"/></svg>Send TOURS</button>
+        <button onclick="promptAndSend('/journal ')"><svg class="icon" viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" fill="white"/></svg>Journal</button>
+        <button onclick="promptAndSend('/comment ')"><svg class="icon" viewBox="0 0 24 24"><path d="M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18zM18 14H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" fill="white"/></svg>Comment</button>
+        <button onclick="promptAndSend('/buildaclimb ')"><svg class="icon" viewBox="0 0 24 24"><path d="M12 2L4 8v13h16V8l-8-6zm0 2.62L18 9.24V19H6V9.24L12 4.62zM8 17h8v-2H8v2zm0-4h8v-2H8v2zm0-4h8V7H8v2z" fill="white"/></svg>Build a Climb</button>
+        <button onclick="promptAndSend('/purchaseclimb ')"><svg class="icon" viewBox="0 0 24 24"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM17 18c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2zm-1.2-3h-7.6l1.3-5h4.7l1.3 5zm-9.8-4L3 21h2l1.6-6h-1.2L5 17H4l-.4-2h1.2zm3.8 0l-.7 3h1.2l.7-3H9zm3 0l-.7 3h1.2l.7-3h-1.2zm3 0l-.7 3h1.2l.7-3h-1.2zm3.8 0L18 17h-1l-.4-2h1.2l.7-3h-1.2z" fill="white"/></svg>Purchase Climb</button>
+        <button onclick="sendCommand('/findaclimb')"><svg class="icon" viewBox="0 0 24 24"><path d="M12 11.55C9.64 9.35 6.48 8 3 8v11c3.48 0 6.64 1.35 9 3.55 2.36-2.19 5.52-3.55 9-3.55V8c-3.48 0-6.64 1.35-9 3.55zM12 19.92c-2.92-2.92-6.68-4-9.33-4-.26 0-.52.04-.78.07V9.2C5.12 9.08 8.76 10.18 12 12.65c3.24-2.47 6.88-3.57 10.11-3.45-.26-.03-.52-.07-.78-.07v6.79c-2.65 0-6.41 1.08-9.33 4z" fill="white"/></svg>Find a Climb</button>
+        <button onclick="promptAndSend('/createtournament ')"><svg class="icon" viewBox="0 0 24 24"><path d="M18 3h-5v-2H11v2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H6V5h5v2h2V5h5v16zM9 17h6v-2H9v2zm4-4H9v-2h4v2zm0-4H9V7h4v2z" fill="white"/></svg>Create Tournament</button>
+        <button onclick="promptAndSend('/jointournament ')"><svg class="icon" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" fill="white"/></svg>Join Tournament</button>
+        <button onclick="promptAndSend('/endtournament ')"><svg class="icon" viewBox="0 0 24 24"><path d="M18 3h-5v-2H11v2H6c-1.1 0-2 .9-2 2v16c0 1.1 .9 2 2 2h12c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H6V5h5v2h2V5h5v16zM9 17h6v-2H9v2zm0-4h6v-2H9v2zm0-4h6V7H9v2z" fill="white"/></svg>End Tournament</button>
+        <button onclick="sendCommand('/balance')"><svg class="icon" viewBox="0 0 24 24"><path d="M2 20h20v-4H2v4zm2-3h16v2H4v-2zM2 4v4h20V4H2zm4 3H4V5h2v2zm-4 7h20v-4H2v4zm2-3h16v2H4v-2z" fill="white"/></svg>Balance</button>
+        <button onclick="sendCommand('/apply')"><svg class="icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14zM7 9.5C7 8.67 7.67 8 8.5 8s1.5 .67 1.5 1.5S9.33 11 8.5 11 7 10.33 7 9.5z" fill="white"/></svg>Apply</button>
         <button onclick="sendCommand('/help')"><svg class="icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H9c0-1.65 1.35-3 3-3s3 1.35 3 3c0 .73-.27 1.4-.81 1.89z" fill="white"/></svg>Help</button>
     </div>
     <script>
@@ -105,6 +117,13 @@
         Telegram.WebApp.expand();
         function sendCommand(command) {
             Telegram.WebApp.sendData(command);
+            console.log('Sent command:', command);  // Log to console for debugging
+        }
+        function promptAndSend(baseCommand) {
+            const args = prompt('Enter arguments (e.g., for /buyTours enter amount; for /sendTours enter recipient amount):');
+            if (args !== null) {
+                sendCommand(baseCommand + args);
+            }
         }
     </script>
 </body>
