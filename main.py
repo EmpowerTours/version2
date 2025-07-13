@@ -956,13 +956,17 @@ cursor.execute('''
         climb_exp TEXT,
         web3_interest TEXT,
         why_join TEXT,
+        dob TEXT,
+        address TEXT,
+        education TEXT,
+        headshot TEXT,
         status TEXT DEFAULT 'pending'
     )
 ''')
 conn.commit()
 
 # States for conversation
-NAME, EMAIL, CLIMB_EXP, WEB3_INTEREST, WHY_JOIN = range(5)
+NAME, EMAIL, CLIMB_EXP, WEB3_INTEREST, WHY_JOIN, DOB, ADDRESS, EDUCATION, HEADSHOT = range(9)
 
 def initialize_web3():
     global w3, contract, tours_contract
@@ -1281,6 +1285,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/endtournament [id] [winner] - End a tournament (owner only) and award the prize pool to the winner’s wallet address (e.g., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725)\n"
             "/balance - Check wallet balance ($MON, $TOURS, profile status)\n"
             "/apply - Apply for membership (fill out form for approval)\n"
+            "/listpending - List pending applications (owner only)\n"
             "/approve [user_id] - Approve application (owner only)\n"
             "/reject [user_id] - Reject application (owner only)\n"
             "/debug - Check webhook status\n"
@@ -1937,9 +1942,31 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=ReplyKeyboardMarkup([[KeyboardButton("Share Location", request_location=True)]], one_time_keyboard=True)
             )
             logger.info(f"/handle_photo processed for climb, awaiting location for user {user_id}, took {time.time() - start_time:.2f} seconds")
+        elif 'pending_headshot' in context.user_data:
+            # Headshot for application
+            context.user_data['headshot'] = file_id
+            await update.message.reply_text("Headshot received! Application submitted! We'll review and notify you soon. Thanks! 🎉")
+            user_id = context.user_data['pending_headshot']['user_id']
+            try:
+                cursor.execute('''
+                    INSERT INTO applications (user_id, name, email, climb_exp, web3_interest, why_join, dob, address, education, headshot, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (user_id, context.user_data['name'], context.user_data['email'], context.user_data['climb_exp'], context.user_data['web3_interest'], context.user_data['why_join'], context.user_data['dob'], context.user_data['address'], context.user_data['education'], context.user_data['headshot'], 'pending'))
+                conn.commit()
+                username = update.effective_user.username or update.effective_user.first_name or "User"
+                owner_message = f"New application from @{username} (ID: {user_id}): \nName: {context.user_data['name']}\nEmail: {context.user_data['email']}\nClimbing Exp: {context.user_data['climb_exp']}\nWeb3 Interest: {context.user_data['web3_interest']}\nWhy Join: {context.user_data['why_join']}\nDOB: {context.user_data['dob']}\nAddress: {context.user_data['address']}\nEducation: {context.user_data['education']}\nHeadshot file ID: {context.user_data['headshot']}"
+                await application.bot.send_message(YOUR_TELEGRAM_ID, owner_message)
+                del context.user_data['pending_headshot']
+                logger.info(f"Application completed for user {user_id}")
+            except sqlite3.IntegrityError as e:
+                logger.error(f"Integrity error inserting application for user {user_id}: {str(e)}")
+                await update.message.reply_text("Application already submitted! We'll review soon. 😊")
+            except Exception as e:
+                logger.error(f"Unexpected error inserting application for user {user_id}: {str(e)}")
+                await update.message.reply_text(f"Error submitting application: {str(e)}. Please try again or contact support.")
         else:
-            await update.message.reply_text("No climb or journal creation in progress. Start with /buildaclimb or /journal. 😅")
-            logger.info(f"/handle_photo failed: no pending climb or journal for user {user_id}, took {time.time() - start_time:.2f} seconds")
+            await update.message.reply_text("No climb, journal, or application creation in progress. Start with /buildaclimb, /journal, or /apply. 😅")
+            logger.info(f"/handle_photo failed: no pending climb, journal, or application for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /handle_photo for user {user_id}: {str(e)}")
         await update.message.reply_text(f"Error processing photo: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
@@ -2675,23 +2702,40 @@ async def apply_web3_interest(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def apply_why_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['why_join'] = update.message.text
+    await update.message.reply_text("What's your date of birth (YYYY-MM-DD)?")
+    return DOB
+
+async def apply_dob(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['dob'] = update.message.text
+    await update.message.reply_text("What's your address of residence?")
+    return ADDRESS
+
+async def apply_address(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['address'] = update.message.text
+    await update.message.reply_text("What's your current level of education/degrees?")
+    return EDUCATION
+
+async def apply_education(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['education'] = update.message.text
+    await update.message.reply_text("Please send a selfie headshot photo.")
+    context.user_data['pending_headshot'] = {'user_id': str(update.effective_user.id)}
+    return HEADSHOT
+
+async def apply_headshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    return ConversationHandler.END  # Handled in handle_photo
+
+async def list_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
-    try:
-        cursor.execute('''
-            INSERT INTO applications (user_id, name, email, climb_exp, web3_interest, why_join, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (user_id, context.user_data['name'], context.user_data['email'], context.user_data['climb_exp'], context.user_data['web3_interest'], context.user_data['why_join'], 'pending'))
-        conn.commit()
-        await update.message.reply_text("Application submitted! We'll review and notify you soon. Thanks! 🎉")
-        # Notify owner (replace with your Telegram ID)
-        await context.bot.send_message(YOUR_TELEGRAM_ID, f"New application from @{update.effective_user.username}: \nName: {context.user_data['name']}\nEmail: {context.user_data['email']}\nClimbing Exp: {context.user_data['climb_exp']}\nWeb3 Interest: {context.user_data['web3_interest']}\nWhy Join: {context.user_data['why_join']}")
-    except sqlite3.IntegrityError as e:
-        logger.error(f"Integrity error inserting application for user {user_id}: {str(e)}")
-        await update.message.reply_text("Application already submitted! We'll review soon. 😊")
-    except Exception as e:
-        logger.error(f"Unexpected error inserting application for user {user_id}: {str(e)}")
-        await update.message.reply_text(f"Error submitting application: {str(e)}. Please try again or contact support.")
-    return ConversationHandler.END
+    if user_id != YOUR_TELEGRAM_ID:
+        await update.message.reply_text("Only the owner can list pending applications! 😅")
+        return
+    cursor.execute("SELECT user_id, name FROM applications WHERE status = 'pending'")
+    pending = cursor.fetchall()
+    if not pending:
+        await update.message.reply_text("No pending applications.")
+    else:
+        message = "Pending applications:\n" + "\n".join([f"User ID: {row[0]}, Name: {row[1]}" for row in pending])
+        await update.message.reply_text(message)
 
 async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -2740,6 +2784,10 @@ apply_handler = ConversationHandler(
         CLIMB_EXP: [MessageHandler(filters.TEXT & ~filters.COMMAND, apply_climb_exp)],
         WEB3_INTEREST: [MessageHandler(filters.TEXT & ~filters.COMMAND, apply_web3_interest)],
         WHY_JOIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, apply_why_join)],
+        DOB: [MessageHandler(filters.TEXT & ~filters.COMMAND, apply_dob)],
+        ADDRESS: [MessageHandler(filters.TEXT & ~filters.COMMAND, apply_address)],
+        EDUCATION: [MessageHandler(filters.TEXT & ~filters.COMMAND, apply_education)],
+        HEADSHOT: [MessageHandler(filters.PHOTO, apply_headshot)],
     },
     fallbacks=[]
 )
@@ -2814,7 +2862,8 @@ async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         logger.info(f"Saved pending_wallets for user {user_id} with next_tx")
                     except Exception as e:
                         logger.error(f"Error saving pending_wallets: {str(e)}")
-                    await update.message.reply_text(
+                    await application.bot.send_message(
+                        user_id,
                         f"Approval confirmed! Now open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for climb '{next_tx_data['name']}' ({next_tx_data['difficulty']}) using 10 $TOURS."
                     )
                     logger.info(f"/handle_tx_hash processed approval, next transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
@@ -3058,6 +3107,7 @@ async def startup_event():
         application.add_handler(CommandHandler("buyTours", buy_tours))
         application.add_handler(CommandHandler("sendTours", send_tours))
         application.add_handler(CommandHandler("ping", ping))
+        application.add_handler(CommandHandler("listpending", list_pending))
         application.add_handler(CommandHandler("approve", approve))
         application.add_handler(CommandHandler("reject", reject))
         application.add_handler(apply_handler)
