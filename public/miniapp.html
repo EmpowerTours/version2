@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmpowerTours Mini App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { 
+            font-family: 'Arial', sans-serif; 
+            background: linear-gradient(to bottom, #2c3e50, #bdc3c7); /* Mountain night to day */
+            color: #fff; 
+            padding: 20px; 
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            min-height: 100vh; 
+            overflow-y: auto;
+        }
+        h1 { 
+            text-align: center; 
+            color: #ecf0f1; 
+            font-size: 24px; 
+            margin-bottom: 20px; 
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5); 
+        }
+        .button-container { 
+            width: 100%; 
+            max-width: 400px; 
+        }
+        button { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            margin: 10px 0; 
+            padding: 15px; 
+            width: 100%; 
+            background-color: #27ae60; /* Green for nature/climbing */
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            cursor: pointer; 
+            transition: background-color 0.3s, transform 0.2s; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3); 
+        }
+        button:hover { 
+            background-color: #219d52; 
+            transform: translateY(-2px); 
+        }
+        button:active { 
+            transform: translateY(0); 
+        }
+        .icon { 
+            width: 24px; 
+            height: 24px; 
+            margin-right: 10px; 
+        }
+        .mountain-bg { 
+            position: fixed; 
+            bottom: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 30%; 
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="%2334495e" fill-opacity="1" d="M0,96L48,112C96,128,192,160,288,176C384,192,480,192,576,181.3C672,171,768,149,864,154.7C960,160,1056,192,1152,202.7C1248,213,1344,203,1392,197.3L1440,192L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>') no-repeat bottom center; 
+            background-size: cover; 
+            animation: wave 10s linear infinite; 
+            z-index: -1; 
+        }
+        @keyframes wave { 
+            0% { transform: translateX(0); } 
+            100% { transform: translateX(-1440px); } 
+        }
+        .climber-svg { 
+            position: absolute; 
+            top: 10px; 
+            right: 10px; 
+            width: 50px; 
+            height: 50px; 
+            animation: climb 2s ease-in-out infinite alternate; 
+        }
+        @keyframes climb { 
+            0% { transform: translateY(0); } 
+            100% { transform: translateY(-10px); } 
+        }
+    </style>
+</head>
+<body>
+    <div class="mountain-bg"></div>
+    <svg class="climber-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L4 8V22H20V8L12 2ZM12 4.618L18 9.236V20H6V9.236L12 4.618Z" fill="#ecf0f1"/>
+        <path d="M12 12L8 16H16L12 12Z" fill="#27ae60"/>
+    </svg>
+    <h1>EmpowerTours Mini App</h1>
+    <div class="button-container">
+        <button onclick="sendCommand('/start')"><svg class="icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="white"/></svg>Start</button>
+        <button onclick="sendCommand('/tutorial')"><svg class="icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="white"/></svg>Tutorial</button>
+        <button onclick="sendCommand('/connectwallet')"><svg class="icon" viewBox="0 0 24 24"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-1.25 0-2.25-1-2.25-2.25s1-2.25 2.25-2.25 2.25 1 2.25 2.25-1 2.25-2.25 2.25z" fill="white"/></svg>Connect Wallet</button>
+        <!-- Add more buttons similarly with relevant SVGs for rock climbing theme (e.g., mountain for buildaclimb, trophy for tournament) -->
+        <button onclick="sendCommand('/help')"><svg class="icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H9c0-1.65 1.35-3 3-3s3 1.35 3 3c0 .73-.27 1.4-.81 1.89z" fill="white"/></svg>Help</button>
+    </div>
+    <script>
+        Telegram.WebApp.ready();
+        Telegram.WebApp.expand();
+        function sendCommand(command) {
+            Telegram.WebApp.sendData(command);
+        }
+    </script>
+</body>
+</html>
