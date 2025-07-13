@@ -3159,6 +3159,10 @@ async def startup_event():
     application.add_handler(CommandHandler("approve", approve))
     application.add_handler(CommandHandler("reject", reject))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, debug_command))
+    
+    # Add this line to initialize the application
+    await application.initialize()
+    
     webhook_success = await reset_webhook()
     if not webhook_success:
         logger.warning("Webhook failed, falling back to polling")
