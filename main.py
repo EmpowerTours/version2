@@ -3080,7 +3080,7 @@ async def submit_tx(request: Request):
     if not user_id or not tx_hash:
         logger.error("Missing userId or txHash in /submit_tx")
         raise HTTPException(status_code=400, detail="Missing userId or txHash")
-    logger.info(f"Received /submit_tx for user {user_id} with tx_hash {tx_hash}")
+   logger.info(f"Received /submit_tx for user {user_id} with tx_hash {tx_hash}")
     await handle_tx_hash(user_id, tx_hash, application)
     logger.info(f"Processed /submit_tx for user {user_id}, took {time.time() - start_time:.2f} seconds")
     return {"status": "ok"}
@@ -3198,7 +3198,7 @@ async def startup_event():
         'approve': approve,
         'reject': reject,
     }
-    application.add_handler(MessageHandler(filters.WEB_APP_DATA, handle_mini_app_command))
+    application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_mini_app_command))
     
     # Add this line to initialize the application
     await application.initialize()
