@@ -6,7 +6,7 @@ import time
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response, FileResponse
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity, ReplyKeyboardMarkup, KeyboardButton
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler, PicklePersistence
 import aiohttp
 from web3 import Web3
@@ -1101,7 +1101,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Use /connectwallet to link your wallet, then /createprofile to get started.\n"
             f"Run /tutorial for a full guide or /help for all commands."
         )
-        await update.message.reply_text(welcome_message, parse_mode="Markdown")
+        keyboard = [[InlineKeyboardButton("Launch Mini App", web_app=WebAppInfo(url=f"{API_BASE_URL.rstrip('/')}/public/miniapp.html"))]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode="Markdown")
         logger.info(f"Sent /start response to user {update.effective_user.id}: {welcome_message}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /start for user {update.effective_user.id}: {str(e)}, took {time.time() - start_time:.2f} seconds")
@@ -1117,64 +1119,6 @@ async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Sent /ping response to user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /ping: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
-
-async def testlink(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    start_time = time.time()
-    logger.info(f"Received /testlink command from user {update.effective_user.id} in chat {update.effective_chat.id}")
-    try:
-        message = "Testing link: [EmpowerTours Chat](https://t.me/empowertourschat)"
-        await update.message.reply_text(message, parse_mode="Markdown")
-        logger.info(f"Sent /testlink response to user {update.effective_user.id}: {message}, took {time.time() - start_time:.2f} seconds")
-    except Exception as e:
-        logger.error(f"Error in /testlink: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
-
-async def testplain(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    start_time = time.time()
-    logger.info(f"Received /testplain command from user {update.effective_user.id} in chat {update.effective_chat.id}")
-    try:
-        message = "Testing plain link: https://t.me/empowertourschat"
-        await update.message.reply_text(message)
-        logger.info(f"Sent /testplain response to user {update.effective_user.id}: {message}, took {time.time() - start_time:.2f} seconds")
-    except Exception as e:
-        logger.error(f"Error in /testplain: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
-
-async def testmarkdown(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    start_time = time.time()
-    logger.info(f"Received /testmarkdown command from user {update.effective_user.id} in chat {update.effective_chat.id}")
-    try:
-        message = "Testing Markdown link: [EmpowerTours Chat](https://t.me/empowertourschat)"
-        await update.message.reply_text(message, parse_mode="Markdown")
-        logger.info(f"Sent /testmarkdown response to user {update.effective_user.id}: {message}, took {time.time() - start_time:.2f} seconds")
-    except Exception as e:
-        logger.error(f"Error in /testmarkdown: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
-
-async def testentity(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    start_time = time.time()
-    logger.info(f"Received /testentity command from user {update.effective_user.id} in chat {update.effective_chat.id}")
-    try:
-        message = "Testing entity link: EmpowerTours Chat"
-        await update.message.reply_text(
-            message,
-            entities=[MessageEntity(type="text_link", offset=21, length=17, url="https://t.me/empowertourschat")]
-        )
-        logger.info(f"Sent /testentity response to user {update.effective_user.id}: {message}, took {time.time() - start_time:.2f} seconds")
-    except Exception as e:
-        logger.error(f"Error in /testentity: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
-
-async def testshort(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    start_time = time.time()
-    logger.info(f"Received /testshort command from user {update.effective_user.id} in chat {update.effective_chat.id}")
-    try:
-        message = "Testing short link: t.me/empowertourschat"
-        await update.message.reply_text(message)
-        logger.info(f"Sent /testshort response to user {update.effective_user.id}: {message}, took {time.time() - start_time:.2f} seconds")
-    except Exception as e:
-        logger.error(f"Error in /testshort: {str(e)}, took {time.time() - start_time:.2f} seconds")
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
 async def clearcache(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2815,15 +2759,24 @@ async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
         receipt = w3.eth.get_transaction_receipt(tx_hash)
         if receipt and receipt.status:
             action = "Action completed"
-            if "createProfile" in pending_wallets[user_id]["tx_data"]["data"]:
-                action = "Profile created with 1 $TOURS funded to your wallet"
-            elif "buyTours" in pending_wallets[user_id]["tx_data"]["data"]:
-                amount = int.from_bytes(bytes.fromhex(pending_wallets[user_id]["tx_data"]["data"][10:]), byteorder='big') / 10**18
-                action = f"Successfully purchased {amount} $TOURS"
-            elif "transfer" in pending_wallets[user_id]["tx_data"]["data"]:
-                action = "Successfully sent $TOURS to the recipient"
-            elif "createClimbingLocation" in pending_wallets[user_id]["tx_data"]["data"]:
-                action = f"Climb '{pending_wallets[user_id].get('name', 'Unknown')}' ({pending_wallets[user_id].get('difficulty', 'Unknown')}) created"
+            tournament_id = None
+            location_id = None
+            for log in receipt.logs:
+                if log.topics[0] == contract.events.TournamentCreated.get_event_abi()['anonymous_id']:
+                    parsed_log = contract.events.TournamentCreated().process_log(log)
+                    tournament_id = parsed_log.args.tournamentId
+                    break
+            if tournament_id is not None:
+                action = f"Tournament created with ID: {tournament_id}"
+            if "purchaseClimbingLocation" in pending_wallets[user_id]["tx_data"]["data"]:
+                # Extract location_id from pending_wallets or input_data
+                input_data = pending_wallets[user_id]["tx_data"]["data"]
+                location_id = int.from_bytes(bytes.fromhex(input_data[10:]), 'big')
+                location = contract.functions.getClimbingLocation(location_id).call()
+                lat = location[3] / 10**6
+                lon = location[4] / 10**6
+                directions_url = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}"
+                action = f"Climb purchased. Directions: [Google Maps]({directions_url}) 🗺️"
             await update.message.reply_text(f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 {action}.", parse_mode="Markdown")
             if CHAT_HANDLE and TELEGRAM_TOKEN:
                 message = f"New activity by {escape_html(update.effective_user.username or update.effective_user.first_name)} on EmpowerTours! 🧗 <a href=\"{EXPLORER_URL}/tx/{tx_hash}\">Tx: {escape_html(tx_hash)}</a>"
