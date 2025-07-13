@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmpowerTours - Web3 Rock Climbing Adventures</title>
+    <style>
+        body { 
+            margin: 0; 
+            font-family: 'Arial', sans-serif; 
+            background-color: #1c1c1e; 
+            color: #fff; 
+            scroll-behavior: smooth; 
+        }
+        header { 
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="%232c3e50" fill-opacity="1" d="M0,96L48,112C96,128,192,160,288,176C384,192,480,192,576,181.3C672,171,768,149,864,154.7C960,160,1056,192,1152,202.7C1248,213,1344,203,1392,197.3L1440,192L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z"></path></svg>') no-repeat center/cover; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            text-align: center; 
+            position: relative; 
+        }
+        header::before { 
+            content: ''; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.5); 
+            z-index: 1; 
+        }
+        header > * { z-index: 2; }
+        h1 { font-size: 48px; margin-bottom: 20px; text-shadow: 0 2px 4px rgba(0,0,0,0.7); }
+        p { font-size: 24px; margin-bottom: 40px; }
+        .cta { padding: 15px 30px; background-color: #e67e22; border: none; border-radius: 5px; color: white; font-size: 18px; cursor: pointer; transition: background 0.3s; }
+        .cta:hover { background-color: #d35400; }
+        section { padding: 60px 20px; text-align: center; }
+        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; }
+        .feature { background: #2c3e50; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
+        .feature svg { width: 50px; height: 50px; margin-bottom: 10px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        footer { background: #1c1c1e; padding: 20px; text-align: center; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>EmpowerTours</h1>
+        <p>Web3-Powered Rock Climbing Adventures & Community</p>
+        <button class="cta" onclick="window.open('https://t.me/empowertoursbot', '_blank')">Launch Bot</button>
+    </header>
+    <section id="features">
+        <h2>Why EmpowerTours?</h2>
+        <div class="features">
+            <div class="feature">
+                <svg viewBox="0 0 24 24" fill="#e67e22"><path d="M12 2L4 8V22H20V8L12 2ZM12 4.618L18 9.236V20H6V9.236L12 4.618Z"/></svg>
+                <h3>Journal Climbs</h3>
+                <p>Log your ascents with photos, locations, and earn $TOURS tokens.</p>
+            </div>
+            <div class="feature">
+                <svg viewBox="0 0 24 24" fill="#27ae60"><path d="M12 12L8 16H16L12 12Z"/></svg>
+                <h3>Build & Buy Climbs</h3>
+                <p>Create custom routes or purchase from others in the community.</p>
+            </div>
+            <div class="feature">
+                <svg viewBox="0 0 24 24" fill="#3498db"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                <h3>Tournaments</h3>
+                <p>Compete in challenges, win $TOURS prizes, and climb the leaderboards.</p>
+            </div>
+        </div>
+    </section>
+    <section id="community">
+        <h2>Join the Climb</h2>
+        <p>Connect with fellow climbers in our Telegram community. Share tips, organize meets, and explore Web3 together.</p>
+        <button class="cta" onclick="window.open('https://t.me/empowertourschat', '_blank')">Join Chat</button>
+    </section>
+    <footer>
+        &copy; 2025 EmpowerTours. All rights reserved. Powered by xAI & Monad.
+    </footer>
+</body>
+</html>
