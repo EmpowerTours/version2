@@ -2839,7 +2839,7 @@ async def apply_climb_exp(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
 async def apply_web3_interest(update: Update, context: ContextTypes.DEFAULT_TYPE):
-   start_time = time.time()
+    start_time = time.time()
     logger.info(f"Received apply web3_interest from user {update.effective_user.id} in chat {update.effective_chat.id}")
     try:
         context.user_data['application']['web3_interest'] = update.message.text
