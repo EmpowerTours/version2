@@ -2554,7 +2554,7 @@ async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             contract.functions.joinTournament(tournament_id).call({'from': checksum_address, 'gas': 200000})
         except Exception as e:
             revert_reason = str(e)
-            logger.error(f"joinTournament simulation failed: {revert_reason}")
+            logger.error(f"joinTournament simulationfailed: {revert_reason}")
             if "TournamentNotActive" in revert_reason:
                 await update.message.reply_text(f"Tournament #{tournament_id} is not active. Check with /findaclimb or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
             elif "InvalidTournamentId" in revert_reason:
@@ -3007,6 +3007,32 @@ async def reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error in /reject: {str(e)}, took {time.time() - start_time:.2f} seconds")
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
+command_handlers = {
+    'start': start,
+    'tutorial': tutorial,
+    'connectwallet': connect_wallet,
+    'help': help,
+    'ping': ping,
+    'clearcache': clearcache,
+    'forcewebhook': forcewebhook,
+    'debug': debug,
+    'buyTours': buy_tours,
+    'sendTours': send_tours,
+    'journal': journal,
+    'comment': comment,
+    'buildaclimb': buildaclimb_start,
+    'purchaseclimb': purchaseclimb,
+    'findaclimb': findaclimb,
+    'createtournament': createtournament,
+    'jointournament': jointournament,
+    'endtournament': endtournament,
+    'balance': balance,
+    'apply': apply,
+    'listpending': listpending,
+    'approve': approve,
+    'reject': reject,
+}
+
 async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = update.message.web_app_data.data
     logger.info(f"Received web_app_data from mini app: {data}")
@@ -3186,33 +3212,6 @@ async def startup_event():
     application.add_handler(CommandHandler("approve", approve))
     application.add_handler(CommandHandler("reject", reject))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, debug_command))
-    
-    command_handlers = {
-        'start': start,
-        'tutorial': tutorial,
-        'connectwallet': connect_wallet,
-        'help': help,
-        'ping': ping,
-        'clearcache': clearcache,
-        'forcewebhook': forcewebhook,
-        'debug': debug,
-        'buyTours': buy_tours,
-        'sendTours': send_tours,
-        'journal': journal,
-        'comment': comment,
-        'buildaclimb': buildaclimb_start,
-        'purchaseclimb': purchaseclimb,
-        'findaclimb': findaclimb,
-        'createtournament': createtournament,
-        'jointournament': jointournament,
-        'endtournament': endtournament,
-        'balance': balance,
-        'apply': apply,
-        'listpending': listpending,
-        'approve': approve,
-        'reject': reject,
-    }
-    application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))
 
     build_conv_handler = ConversationHandler(
         entry_points=[CommandHandler("buildaclimb", buildaclimb_start)],
@@ -3225,6 +3224,7 @@ async def startup_event():
         fallbacks=[],
     )
     application.add_handler(build_conv_handler)
+    application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))
 
     # Add this line to initialize the application
     await application.initialize()
