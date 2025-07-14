@@ -1109,8 +1109,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Use /connectwallet to link your wallet, then /createprofile to get started.\n"
             f"Run /tutorial for a full guide or /help for all commands."
         )
-        keyboard = [[InlineKeyboardButton("Launch Mini App", web_app=WebAppInfo(url=f"{base_url}/public/miniapp.html"))]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
+        keyboard = [[KeyboardButton("Launch Mini App", web_app=WebAppInfo(url=f"{base_url}/public/miniapp.html"))]]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode="Markdown")
         logger.info(f"Sent /start response to user {update.effective_user.id}: {welcome_message}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
