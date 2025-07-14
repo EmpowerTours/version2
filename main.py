@@ -1099,19 +1099,24 @@ async def is_approved(user_id: str) -> bool:
         row = await conn.fetchrow("SELECT status FROM applications WHERE user_id = $1", user_id)
         return row and row['status'] == 'approved'
 
+def escape_md_v2(text):
+    special = r'_*[]()~`>#+-=|{}.!'
+    return ''.join(['\\' + c if c in special else c for c in text])
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Received /start command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     try:
-        welcome_message = (
+        welcome_message_raw = (
             f"Welcome to EmpowerTours! 🧗\n"
             f"Join our community at [EmpowerTours Chat](https://t.me/empowertourschat) to connect with climbers and explore Web3-powered adventures.\n"
             f"Use /connectwallet to link your wallet, then /createprofile to get started.\n"
             f"Run /tutorial for a full guide or /help for all commands."
         )
+        welcome_message = escape_md_v2(welcome_message_raw)
         keyboard = [[KeyboardButton("Launch Mini App", web_app=WebAppInfo(url=f"{base_url}/public/miniapp.html"))]]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode="MarkdownV2")
         logger.info(f"Sent /start response to user {update.effective_user.id}: {welcome_message}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /start for user {update.effective_user.id}: {str(e)}, took {time.time() - start_time:.2f} seconds")
