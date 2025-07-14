@@ -2931,7 +2931,7 @@ async def apply_headshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Application submitted for user {user_id}, took {time.time() - start_time:.2f} seconds")
         return ConversationHandler.END
     except Exception as e:
-        logger.error(f"Error in apply_headshot: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        logger.error(f"Error in apply_headshot: {str(e)}, took {time.time() - start_time:.2f}seconds")
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
         return ConversationHandler.END
 
@@ -3037,9 +3037,16 @@ async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE
     data = update.message.web_app_data.data
     logger.info(f"Received web_app_data from mini app: {data}")
     if data.startswith('/'):
-        command = data.lstrip('/').split()[0]
+        parts = data.lstrip('/').split()
+        command = parts[0]
+        args = parts[1:]
         if command in command_handlers:
-            await command_handlers[command](update, context)
+            original_args = context.args
+            context.args = args
+            try:
+                await command_handlers[command](update, context)
+            finally:
+                context.args = original_args
         else:
             await update.message.reply_text(f"Unknown command {data}. Try /help.")
     else:
