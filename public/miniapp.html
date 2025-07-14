@@ -158,7 +158,267 @@
                 startPolling();
             } catch (error) {
                 errorDiv.textContent = `Error connecting wallet: ${error.message}. Ensure Monad Testnet (chainId: 10143) is selected. On mobile, use MetaMask’s browser (Menu > Browser).`;
+                console.error('Error connecting wallet:', error);<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmpowerTours Mini App</title>
+    <link rel="icon" type="image/x-icon" href="/public/favicon.ico">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+        }
+        #error {
+            color: #dc3545;
+            margin-top: 10px;
+        }
+        #txHash {
+            word-break: break-all;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        #instructions {
+            margin-top: 15px;
+            font-size: 16px;
+            color: #555;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        #retryButton {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>EmpowerTours Mini App</h1>
+    <button onclick="connectWallet()">Connect Wallet</button>
+    <button id="retryButton">Retry Connection</button>
+    <button onclick="sendCommand('/tutorial')">Tutorial</button>
+    <button onclick="sendCommand('/help')">Help & Commands</button>
+    <button onclick="sendCommand('/balance')">Check Balance</button>
+    <button onclick="sendCommand('/journal example entry')">Log Journal Entry</button>
+    <button onclick="sendCommand('/buildaclimb example_name V5')">Build a Climb</button>
+    <button onclick="sendCommand('/findaclimb')">Find Climbs</button>
+    <button onclick="sendCommand('/createtournament 10')">Create Tournament</button>
+    <div id="status">Explore EmpowerTours features. Connect your wallet to Monad Testnet (chainId: 10143) for blockchain actions.</div>
+    <div id="instructions">On mobile, open this link in the MetaMask app's browser (Menu > Browser) to connect. If you see a chain ID mismatch, go to MetaMask Settings > Networks, remove all Monad Testnet entries, and reconnect. Network details: Chain ID: 10143, RPC: https://testnet-rpc.monad.xyz, Explorer: https://testnet.monadexplorer.com. After connecting, use /createprofile, /buildaclimb, or /buyTours in Telegram.</div>
+    <div id="error"></div>
+    <div id="txHash"></div>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+    <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+        Telegram.WebApp.ready();
+        const tgUser = Telegram.WebApp.initDataUnsafe.user;
+        const userId = tgUser ? tgUser.id : null;  // Use Telegram WebApp for userId
+        const apiBaseUrl = window.location.origin;
+        const statusDiv = document.getElementById('status');
+        const errorDiv = document.getElementById('error');
+        const txHashDiv = document.getElementById('txHash');
+        const retryButton = document.getElementById('retryButton');
+        let web3;
+        let provider;
+        let pollingInterval = null;
+        const MONAD_TESTNET_CHAIN_ID = '0x27af'; // 10143 in hex
+        const MONAD_TESTNET_CHAIN_ID_DECIMAL = 10143;
+
+        if (!userId) {
+            errorDiv.textContent = 'Unable to detect user ID. Please relaunch the mini app from Telegram.';
+            console.error('Missing userId from Telegram WebApp');
+        }
+
+        async function initializeWeb3(useWalletConnect = false) {
+            try {
+                if (typeof Web3 === 'undefined') {
+                    throw new Error('Web3.js library failed to load. Please refresh the page.');
+                }
+                if (!useWalletConnect && window.ethereum) {
+                    provider = window.ethereum;
+                    web3 = new Web3(provider);
+                    console.log('Using MetaMask provider');
+                } else if (window.WalletConnectProvider) {
+                    provider = new window.WalletConnectProvider.default({
+                        rpc: { 10143: 'https://testnet-rpc.monad.xyz' },
+                        chainId: 10143
+                    });
+                    web3 = new Web3(provider);
+                    console.log('Using WalletConnect provider');
+                } else {
+                    throw new Error('No wallet provider detected. Install MetaMask or use a Web3-compatible browser.');
+                }
+            } catch (error) {
+                errorDiv.textContent = `Error initializing Web3: ${error.message}. On mobile, open this link in MetaMask’s browser (Menu > Browser). On desktop, install MetaMask.`;
+                console.error('Web3 initialization error:', error);
+                statusDiv.textContent = 'Please connect your wallet to Monad Testnet (chainId: 10143).';
+                retryButton.style.display = 'block';
+                return false;
+            }
+            return true;
+        }
+
+        async function connectWallet() {
+            errorDiv.textContent = '';
+            statusDiv.textContent = 'Connecting...';
+            console.log('Attempting to connect wallet for userId:', userId);
+            let useWalletConnect = false;
+            if (!await initializeWeb3(useWalletConnect)) {
+                useWalletConnect = true;
+                if (!await initializeWeb3(useWalletConnect)) return;
+            }
+            try {
+                const chainId = await web3.eth.getChainId();
+                console.log('Current chain ID (decimal):', chainId);
+                if (Number(chainId) !== MONAD_TESTNET_CHAIN_ID_DECIMAL) {
+                    errorDiv.textContent = `Chain ID mismatch: expected 10143 (Monad Testnet), got ${chainId}. Switching...`;
+                    console.warn('Chain ID mismatch detected:', chainId);
+                    try {
+                        await provider.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: MONAD_TESTNET_CHAIN_ID }],
+                        });
+                    } catch (switchError) {
+                        if (switchError.code === 4902 || switchError.code === -32601) {
+                            await provider.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: MONAD_TESTNET_CHAIN_ID,
+                                    chainName: 'Monad Testnet',
+                                    rpcUrls: ['https://testnet-rpc.monad.xyz'],
+                                    nativeCurrency: { name: 'MON', symbol: 'MON', decimals: 18 },
+                                    blockExplorerUrls: ['https://testnet.monadexplorer.com']
+                                }],
+                            });
+                        } else {
+                            throw new Error(`Failed to switch chain: ${switchError.message}. Ensure Monad Testnet (chainId: 10143) is selected.`);
+                        }
+                    }
+                }
+                let accounts;
+                if (provider instanceof window.WalletConnectProvider.default) {
+                    await provider.enable();
+                    accounts = await web3.eth.getAccounts();
+                } else {
+                    accounts = await provider.request({ method: 'eth_requestAccounts' });
+                }
+                const account = accounts[0];
+                statusDiv.textContent = `Connected: ${account.substring(0, 6)}... Use /createprofile, /buildaclimb, or /buyTours in Telegram to continue.`;
+                console.log('Connected account:', account);
+                await submitWallet(account);
+                startPolling();
+            } catch (error) {
+                errorDiv.textContent = `Error connecting wallet: ${error.message}. Ensure Monad Testnet (chainId: 10143) is selected. On mobile, use MetaMask’s browser (Menu > Browser).`;
                 console.error('Error connecting wallet:', error);
+                statusDiv.textContent = 'Please connect your wallet to Monad Testnet (chainId: 10143).';
+                retryButton.style.display = 'block';
+            }
+        }
+
+        async function submitWallet(walletAddress) {
+            try {
+                const response = await fetch(`${apiBaseUrl}/submit_wallet`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ telegramUserId: userId.toString(), walletAddress })
+                });
+                if (!response.ok) throw new Error('Failed to submit wallet address');
+                console.log('Wallet submitted successfully');
+            } catch (error) {
+                errorDiv.textContent = `Error submitting wallet: ${error.message}`;
+                console.error('Submit wallet error:', error);
+            }
+        }
+
+        async function pollTransaction() {
+            try {
+                const response = await fetch(`${apiBaseUrl}/get_transaction?userId=${userId}`);
+                const data = await response.json();
+                if (data.tx) {
+                    stopPolling();
+                    const signedTx = await web3.eth.signTransaction(data.tx);
+                    await submitTransaction(signedTx.raw || signedTx.rawTransaction);
+                }
+            } catch (error) {
+                console.error('Polling error:', error);
+            }
+        }
+
+        async function submitTransaction(signedTxHex) {
+            try {
+                const response = await fetch(`${apiBaseUrl}/submit_tx`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: userId.toString(), txHex: signedTxHex })
+                });
+                if (!response.ok) throw new Error('Failed to submit transaction');
+                const data = await response.json();
+                txHashDiv.textContent = `Submitted Tx Hash: ${data.txHash}`;
+                console.log('Transaction submitted successfully');
+            } catch (error) {
+                errorDiv.textContent = `Error submitting transaction: ${error.message}`;
+                console.error('Submit transaction error:', error);
+            }
+        }
+
+        function startPolling() {
+            if (!pollingInterval) {
+                pollingInterval = setInterval(pollTransaction, 5000);
+                console.log('Started polling for transactions');
+            }
+        }
+
+        function stopPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+                console.log('Stopped polling');
+            }
+        }
+
+        retryButton.addEventListener('click', connectWallet);
+        window.addEventListener('load', () => {
+            console.log('Page loaded for userId:', userId);
+            if (userId) {
+                if (initializeWeb3()) {
+                    startPolling();
+                }
+            } else {
+                errorDiv.textContent = 'Unable to detect user ID. Please relaunch from Telegram.';
+            }
+        });
+
+        function sendCommand(command) {
+            Telegram.WebApp.sendData(command);
+            Telegram.WebApp.showAlert('Command sent to bot!');
+        }
+    </script>
+</body>
+</html>
                 statusDiv.textContent = 'Please connect your wallet to Monad Testnet (chainId: 10143).';
                 retryButton.style.display = 'block';
             }
