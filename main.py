@@ -1462,9 +1462,13 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/buyTours transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /buyTours: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        # Escape special Markdown characters in error message
-        escaped_error = str(e).replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('~', '\\~').replace('`', '\\`').replace('>', '\\>').replace('#', '\\#').replace('+', '\\+').replace('-', '\\-').replace('=', '\\=').replace('|', '\\|').replace('{', '\\{').replace('}', '\\}').replace('.', '\\.').replace('!', '\\!')
-        await update.message.reply_text(f"Error: {escaped_error}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+        # Escape for MarkdownV2
+        special_chars = r'\_[]()~`>#+-=|{}.!'
+        escaped_error = ''.join(['\\' + c if c in special_chars else c for c in str(e)])
+        await update.message.reply_text(
+            f"Error: {escaped_error}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", 
+            parse_mode="MarkdownV2"
+        )
 
 async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1877,25 +1881,26 @@ async def buildaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if not API_BASE_URL:
         logger.error("API_BASE_URL missing, /buildaclimb command disabled")
-        await update.message.reply_text("Creating climbs unavailable due to configuration issues. Try again later! 😅")
+        await update.message.reply_text("Building climbs unavailable due to configuration issues. Try again later! 😅")
         logger.info(f"/buildaclimb failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
         return
     if not w3 or not contract or not tours_contract:
         logger.error("Web3 or contract not initialized, /buildaclimb command disabled")
-        await update.message.reply_text("Creating climbs unavailable due to blockchain issues. Try again later! 😅")
+        await update.message.reply_text("Building climbs unavailable due to blockchain issues. Try again later! 😅")
         logger.info(f"/buildaclimb failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
         args = context.args
         if len(args) < 2:
-            await update.message.reply_text("Use: /buildaclimb [name] [difficulty] 🏔️ (e.g., /buildaclimb Everest V5)")
+            await update.message.reply_text("Use: /buildaclimb [name] [difficulty] 🏗️ (e.g., /buildaclimb Everest V15)")
             logger.info(f"/buildaclimb failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
             return
         name = args[0]
         difficulty = args[1]
-        latitude = 0  # Default, as optional
-        longitude = 0  # Default, as optional
-        photo_hash = ""  # Default, as optional
+        # For simplicity, set fixed latitude, longitude, photo_hash; in real app, prompt or use defaults
+        latitude = 0  # Example: 37.7749 * 10**6 = 37774900
+        longitude = 0  # Example: -122.4194 * 10**6 = -122419400
+        photo_hash = "example_photo_hash"
         wallet_address = sessions.get(user_id, {}).get("wallet_address")
         if not wallet_address:
             await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
@@ -1921,7 +1926,6 @@ async def buildaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         # Check profile existence
-        profile_exists = False
         try:
             profile = contract.functions.profiles(checksum_address).call({'gas': 500000})
             profile_exists = profile[0]
@@ -1932,22 +1936,24 @@ async def buildaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         if not profile_exists:
-            await update.message.reply_text("Profile required to create a climb. Use /createprofile first! 😅")
+            await update.message.reply_text("Profile required to build a climb. Use /createprofile first! 😅")
             logger.info(f"/buildaclimb failed due to missing profile, took {time.time() - start_time:.2f} seconds")
             return
 
-        # Check $TOURS balance for createClimbingLocation (10 $TOURS)
+        # Check $TOURS balance and allowance
+        location_cost = 10 * 10**18  # Assuming 10 $TOURS; replace with contract.functions.locationCreationCost().call() if available
         try:
             tours_balance = tours_contract.functions.balanceOf(checksum_address).call({'gas': 500000})
-            climb_cost = 10 * 10**18
-            if tours_balance < climb_cost:
-                await update.message.reply_text(f"Insufficient $TOURS. Need 10 $TOURS for creating a climb, you have {tours_balance / 10**18}. Use /buyTours! 😅")
-                logger.info(f"/buildaclimb failed due to insufficient $TOURS, took {time.time() - start_time:.2f} seconds")
+            if tours_balance < location_cost:
+                await update.message.reply_text(
+                    f"Insufficient $TOURS. Need {location_cost / 10**18} $TOURS, you have {tours_balance / 10**18}. Use /buyTours! 😅"
+                )
+                logger.info(f"/buildaclimb failed: insufficient $TOURS, took {time.time() - start_time:.2f} seconds")
                 return
             allowance = tours_contract.functions.allowance(checksum_address, contract.address).call({'gas': 500000})
-            if allowance < climb_cost:
+            if allowance < location_cost:
                 nonce = w3.eth.get_transaction_count(checksum_address)
-                approve_tx = tours_contract.functions.approve(contract.address, climb_cost).build_transaction({
+                approve_tx = tours_contract.functions.approve(contract.address, location_cost).build_transaction({
                     'chainId': 10143,
                     'from': checksum_address,
                     'nonce': nonce,
@@ -1960,7 +1966,7 @@ async def buildaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "wallet_address": checksum_address,
                     "timestamp": time.time(),
                     "next_tx": {
-                        "type": "buildaclimb",
+                        "type": "create_climbing_location",
                         "name": name,
                         "difficulty": difficulty,
                         "latitude": latitude,
@@ -1974,14 +1980,18 @@ async def buildaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     logger.info(f"Saved pending_wallets for user {user_id}")
                 except Exception as e:
                     logger.error(f"Error saving pending_wallets: {str(e)}")
+                base_url = API_BASE_URL.rstrip('/')
                 await update.message.reply_text(
-                    f"Please open {base_url}/public/connect.html?userId={user_id} to approve 10 $TOURS for creating climb '{name}'."
+                    f"Please open {base_url}/public/connect.html?userId={user_id} to approve {location_cost / 10**18} $TOURS for building climb '{name}' ({difficulty}).",
+                    parse_mode="Markdown"
                 )
                 logger.info(f"/buildaclimb initiated approval for user {user_id}, took {time.time() - start_time:.2f} seconds")
                 return
         except Exception as e:
             logger.error(f"Error checking $TOURS balance or allowance: {str(e)}")
-            await update.message.reply_text(f"Failed to check $TOURS balance or allowance: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+            special_chars = r'\_[]()~`>#+-=|{}.!'
+            escaped_error = ''.join(['\\' + c if c in special_chars else c for c in str(e)])
+            await update.message.reply_text(f"Failed to check $TOURS balance or allowance: {escaped_error}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
             logger.info(f"/buildaclimb failed due to balance/allowance error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -1991,12 +2001,9 @@ async def buildaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             revert_reason = str(e)
             logger.error(f"createClimbingLocation simulation failed: {revert_reason}")
-            if "ProfileRequired" in revert_reason:
-                await update.message.reply_text("Profile required for creating a climb. Use /createprofile first! 😅")
-            elif "InsufficientTokenBalance" in revert_reason:
-                await update.message.reply_text("Insufficient $TOURS for creating a climb. Use /buyTours! 😅")
-            else:
-                await update.message.reply_text(f"Transaction simulation failed: {revert_reason}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+            special_chars = r'\_[]()~`>#+-=|{}.!'
+            escaped_revert = ''.join(['\\' + c if c in special_chars else c for c in revert_reason])
+            await update.message.reply_text(f"Transaction simulation failed: {escaped_revert}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
             logger.info(f"/buildaclimb failed due to simulation error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -2022,14 +2029,20 @@ async def buildaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
+        base_url = API_BASE_URL.rstrip('/')
         await update.message.reply_text(
-            f"Please open {base_url}/public/connect.html?userId={user_id} to sign the transaction for creating climb '{name}' ({difficulty}) (10 $TOURS) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}).",
+            f"Please open {base_url}/public/connect.html?userId={user_id} to sign the transaction for building climb '{name}' ({difficulty}) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}).",
             parse_mode="Markdown"
         )
         logger.info(f"/buildaclimb transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /buildaclimb: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+        special_chars = r'\_[]()~`>#+-=|{}.!'
+        escaped_error = ''.join(['\\' + c if c in special_chars else c for c in str(e)])
+        await update.message.reply_text(
+            f"Error: {escaped_error}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", 
+            parse_mode="MarkdownV2"
+        )
 
 async def purchaseclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
