@@ -2987,10 +2987,15 @@ async def handle_mini_app_command(update: Update, context: ContextTypes.DEFAULT_
 async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = update.message.web_app_data.data
     logger.info(f"Received web_app_data from mini app: {data}")
-    # Simulate the user sending the command text
-    fake_update = update
-    fake_update.message.text = data
-    # Process as normal message (will trigger command handlers)
+    # Create a fake message update to trigger command handlers
+    fake_message = Message(
+        message_id=update.message.message_id,
+        date=update.message.date,
+        chat=update.message.chat,
+        from_user=update.message.from_user,
+        text=data
+    )
+    fake_update = Update(update_id=update.update_id, message=fake_message)
     await application.process_update(fake_update)
     
 async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
