@@ -1343,7 +1343,7 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Buying $TOURS unavailable due to configuration issues. Try again later! 😅")
         logger.info(f"/buyTours failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
         return
-    if not w3 or not contract or not tours_contract:
+    if not w3 or not contract:
         logger.error("Web3 or contract not initialized, /buyTours command disabled")
         await update.message.reply_text("Buying $TOURS unavailable due to blockchain issues. Try again later! 😅")
         logger.info(f"/buyTours failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
@@ -1351,15 +1351,15 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         args = context.args
         if len(args) < 1:
-            await update.message.reply_text("Use: /buyTours [amount] 🪙 (e.g., /buyTours 10 to buy 10 $TOURS)")
+            await update.message.reply_text("Use: /buyTours [amount] 🛒 (e.g., /buyTours 10)")
             logger.info(f"/buyTours failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
             return
         try:
-            amount = int(float(args[0]) * 10**18)  # Convert to Wei (1 $TOURS = 10^18 Wei)
+            amount = int(float(args[0]) * 10**18)
             if amount <= 0:
                 raise ValueError("Amount must be positive")
         except ValueError:
-            await update.message.reply_text("Invalid amount. Use a positive number (e.g., /buyTours 10 for 10 $TOURS). 😅")
+            await update.message.reply_text("Invalid amount. Use a positive number (e.g., /buyTours 10). 😅")
             logger.info(f"/buyTours failed due to invalid amount, took {time.time() - start_time:.2f} seconds")
             return
         wallet_address = sessions.get(user_id, {}).get("wallet_address")
@@ -1386,67 +1386,37 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"/buyTours failed due to checksum error, took {time.time() - start_time:.2f} seconds")
             return
 
-        # Check profile existence with $TOURS balance first
-        profile_exists = False
+        # Get TOURS_PRICE
         try:
-            tours_balance = tours_contract.functions.balanceOf(checksum_address).call({'gas': 500000})
-            logger.info(f"$TOURS balance for {checksum_address}: {tours_balance / 10**18} $TOURS")
-            if tours_balance > 0:
-                profile_exists = True
-                logger.info(f"Profile assumed to exist due to non-zero $TOURS balance: {tours_balance / 10**18}")
+            tours_price = contract.functions.TOURS_PRICE().call({'gas': 500000})
         except Exception as e:
-            logger.error(f"Error checking $TOURS balance: {str(e)}")
+            logger.error(f"Error getting TOURS_PRICE: {str(e)}")
+            tours_price = 10**18  # Fallback to 1 MON per TOURS if call fails
 
-        # Fallback: Check profile with retries
-        if not profile_exists:
-            max_retries = 5
-            for attempt in range(1, max_retries + 1):
-                try:
-                    profile = contract.functions.profiles(checksum_address).call({'gas': 500000})
-                    logger.info(f"Profile check attempt {attempt}/{max_retries} for {checksum_address}: {profile}")
-                    if profile[0]:
-                        profile_exists = True
-                        break
-                except Exception as e:
-                    logger.error(f"Error checking profile existence (attempt {attempt}/{max_retries}): {str(e)}")
-                    if attempt == max_retries:
-                        logger.warning(f"Profile check failed after {max_retries} attempts")
-                    await asyncio.sleep(3)
+        required_mon = (amount * tours_price) // 10**18
 
-        # Check ProfileCreated events
-        if not profile_exists:
-            try:
-                profile_created_event = contract.events.ProfileCreated.createFilter(
-                    fromBlock=0,
-                    argument_filters={'user': checksum_address}
-                )
-                events = profile_created_event.get_all_entries()
-                if events:
-                    profile_exists = True
-                    logger.info(f"Profile exists based on ProfileCreated event for {checksum_address}")
-            except Exception as e:
-                logger.error(f"Error checking ProfileCreated events: {str(e)}")
-
-        if not profile_exists:
-            await update.message.reply_text("Profile required to buy $TOURS. Use /createprofile first! 😅")
-            logger.info(f"/buyTours failed due to missing profile, took {time.time() - start_time:.2f} seconds")
-            return
-
-        # Check $MON balance for purchase
+        # Check $MON balance
         try:
             mon_balance = w3.eth.get_balance(checksum_address)
-            logger.info(f"$MON balance for {checksum_address}: {mon_balance / 10**18} $MON")
-            tours_price = contract.functions.TOURS_PRICE().call({'gas': 500000})
-            required_mon = amount * tours_price // 10**18
             if mon_balance < required_mon:
-                await update.message.reply_text(f"Insufficient $MON. Need {required_mon / 10**18} $MON for {amount / 10**18} $TOURS. Get $MON from https://testnet.monad.xyz/faucet! 😅")
-                logger.info(f"/buyTours failed due to insufficient $MON, took {time.time() - start_time:.2f} seconds")
+                await update.message.reply_text(
+                    f"Insufficient $MON. Need {required_mon / 10**18} $MON for {amount / 10**18} $TOURS, you have {mon_balance / 10**18}. Get more at https://testnet.monad.xyz/faucet! 😅"
+                )
+                logger.info(f"/buyTours failed: insufficient $MON, took {time.time() - start_time:.2f} seconds")
                 return
         except Exception as e:
-            logger.error(f"Error checking $MON balance or TOURS_PRICE: {str(e)}")
-            await update.message.reply_text(f"Failed to check $MON balance or TOURS_PRICE: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+            logger.error(f"Error checking $MON balance: {str(e)}")
+            await update.message.reply_text(f"Failed to check $MON balance: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
             logger.info(f"/buyTours failed due to balance check error, took {time.time() - start_time:.2f} seconds")
             return
+
+        # Check $TOURS balance (to assume profile exists if >0)
+        try:
+            tours_balance = tours_contract.functions.balanceOf(checksum_address).call({'gas': 500000})
+            logger.info(f"Profile assumed to exist due to non-zero $TOURS balance: {tours_balance / 10**18}")
+        except Exception as e:
+            logger.error(f"Error checking $TOURS balance: {str(e)}")
+            tours_balance = 0
 
         # Simulation check for buyTours
         try:
@@ -1454,10 +1424,8 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             revert_reason = str(e)
             logger.error(f"buyTours simulation failed: {revert_reason}")
-            if "ProfileRequired" in revert_reason:
-                await update.message.reply_text("Profile required to buy $TOURS. Use /createprofile first! 😅")
-            elif "InsufficientMonSent" in revert_reason:
-                await update.message.reply_text(f"Insufficient $MON sent for {amount / 10**18} $TOURS. Need {required_mon / 10**18} $MON. Get $MON from https://testnet.monad.xyz/faucet! 😅")
+            if "InsufficientMonSent" in revert_reason:
+                await update.message.reply_text(f"Insufficient $MON sent for {amount / 10**18} $TOURS. Need {required_mon / 10**18} $MON. 😅")
             else:
                 await update.message.reply_text(f"Transaction simulation failed: {revert_reason}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
             logger.info(f"/buyTours failed due to simulation error, took {time.time() - start_time:.2f} seconds")
@@ -1468,10 +1436,10 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tx = contract.functions.buyTours(amount).build_transaction({
             'chainId': 10143,
             'from': checksum_address,
+            'value': required_mon,
             'nonce': nonce,
             'gas': 200000,
-            'gasPrice': w3.eth.gas_price,
-            'value': required_mon
+            'gasPrice': w3.eth.gas_price
         })
         pending_wallets[user_id] = {
             "awaiting_tx": True,
@@ -1486,6 +1454,7 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
+        base_url = API_BASE_URL.rstrip('/')
         await update.message.reply_text(
             f"Please open or refresh {base_url}/public/connect.html?userId={user_id} to sign the transaction for buying {amount / 10**18} $TOURS ({required_mon / 10**18} $MON) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}).",
             parse_mode="Markdown"
@@ -1493,7 +1462,9 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/buyTours transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /buyTours: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+        # Escape special Markdown characters in error message
+        escaped_error = str(e).replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)').replace('~', '\\~').replace('`', '\\`').replace('>', '\\>').replace('#', '\\#').replace('+', '\\+').replace('-', '\\-').replace('=', '\\=').replace('|', '\\|').replace('{', '\\{').replace('}', '\\}').replace('.', '\\.').replace('!', '\\!')
+        await update.message.reply_text(f"Error: {escaped_error}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
 
 async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
