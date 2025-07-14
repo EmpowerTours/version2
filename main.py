@@ -6,7 +6,7 @@ import time
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response, FileResponse
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo, Message
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler, PicklePersistence
 import aiohttp
 from web3 import Web3
@@ -1099,19 +1099,24 @@ async def is_approved(user_id: str) -> bool:
         row = await conn.fetchrow("SELECT status FROM applications WHERE user_id = $1", user_id)
         return row and row['status'] == 'approved'
 
+def escape_md_v2(text):
+    special = r'_*[]()~`>#+-=|{}.!'
+    return ''.join(['\\' + c if c in special else c for c in text])
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Received /start command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     try:
-        welcome_message = (
+        welcome_message_raw = (
             f"Welcome to EmpowerTours! 🧗\n"
             f"Join our community at [EmpowerTours Chat](https://t.me/empowertourschat) to connect with climbers and explore Web3-powered adventures.\n"
             f"Use /connectwallet to link your wallet, then /createprofile to get started.\n"
             f"Run /tutorial for a full guide or /help for all commands."
         )
-        keyboard = [[KeyboardButton("Launch Mini App", web_app=WebAppInfo(url=f"{API_BASE_URL.rstrip('/')}/public/miniapp.html"))]]
+        welcome_message = escape_md_v2(welcome_message_raw)
+        keyboard = [[KeyboardButton("Launch Mini App", web_app=WebAppInfo(url=f"{base_url}/public/miniapp.html"))]]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode="MarkdownV2")
         logger.info(f"Sent /start response to user {update.effective_user.id}: {welcome_message}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /start for user {update.effective_user.id}: {str(e)}, took {time.time() - start_time:.2f} seconds")
@@ -3005,16 +3010,14 @@ async def reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = update.message.web_app_data.data
     logger.info(f"Received web_app_data from mini app: {data}")
-    # Create a fake message update to trigger command handlers
-    fake_message = Message(
-        message_id=update.message.message_id,
-        date=update.message.date,
-        chat=update.message.chat,
-        from_user=update.message.from_user,
-        text=data
-    )
-    fake_update = Update(update_id=update.update_id, message=fake_message)
-    await application.process_update(fake_update)
+    if data.startswith('/'):
+        command = data.lstrip('/').split()[0]
+        if command in command_handlers:
+            await command_handlers[command](update, context)
+        else:
+            await update.message.reply_text(f"Unknown command {data}. Try /help.")
+    else:
+        await update.message.reply_text(f"Invalid data {data}.")
     
 async def handle_tx_hash(user_id, tx_hex, application):
     start_time = time.time()
