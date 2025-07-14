@@ -66,7 +66,7 @@
     <button onclick="sendCommand('/buildaclimb example_name V5')">Build a Climb</button>
     <button onclick="sendCommand('/findaclimb')">Find Climbs</button>
     <button onclick="sendCommand('/createtournament 10')">Create Tournament</button>
-    <div id="status">Explore EmpowerTours features below!</div>
+    <div id="status">Explore EmpowerTours features. Connect your wallet to Monad Testnet (chainId: 10143) for blockchain actions.</div>
     <div id="instructions">On mobile, open this link in the MetaMask app's browser (Menu > Browser) to connect. If you see a chain ID mismatch, go to MetaMask Settings > Networks, remove all Monad Testnet entries, and reconnect. Network details: Chain ID: 10143, RPC: https://testnet-rpc.monad.xyz, Explorer: https://testnet.monadexplorer.com. After connecting, use /createprofile, /buildaclimb, or /buyTours in Telegram.</div>
     <div id="error"></div>
     <div id="txHash"></div>
@@ -200,6 +200,15 @@
                 const data = await response.json();
                 if (data.tx) {
                     stopPolling();
+                    // Ensure accounts are connected before signing
+                    let accounts = await web3.eth.getAccounts();
+                    if (!accounts || accounts.length === 0) {
+                        if (provider instanceof window.WalletConnectProvider.default) {
+                            await provider.enable();
+                        } else {
+                            accounts = await provider.request({ method: 'eth_requestAccounts' });
+                        }
+                    }
                     const signedTx = await web3.eth.signTransaction(data.tx);
                     await submitTransaction(signedTx.raw || signedTx.rawTransaction);
                 }
@@ -245,7 +254,8 @@
         window.addEventListener('load', async () => {
             console.log('Page loaded for userId:', userId);
             if (userId) {
-                await initializeWeb3();  // Initialize but don't auto-connect; polling can start after manual connect
+                await initializeWeb3();  // Initialize on load
+                startPolling();  // Start polling immediately for pending tx
             } else {
                 errorDiv.textContent = 'Unable to detect user ID. Please relaunch from Telegram.';
             }
