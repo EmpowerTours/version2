@@ -1174,7 +1174,7 @@ async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "- /endtournament id winner - End a tournament (owner only) and award the prize to the winner’s wallet address (e.g., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725)\n"
             "- /balance - Check your $MON and $TOURS balance\n"
             "- /help - List all commands\n"
-            "Join our community at EmpowerTours Chat[](https://t.me/empowertourschat)! Try /connectwallet!"
+            "Join our community at [EmpowerTours Chat](https://t.me/empowertourschat)! Try /connectwallet!"
         )
         await update.message.reply_text(tutorial_text, parse_mode="Markdown")
         logger.info(f"Sent /tutorial response to user {update.effective_user.id}: {tutorial_text}, took {time.time() - start_time:.2f} seconds")
