@@ -184,7 +184,7 @@
                 const response = await fetch(`${apiBaseUrl}/submit_wallet`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ telegramUserId: userId.toString(), walletAddress })
+                    body: JSON.stringify({ userId: userId.toString(), walletAddress })
                 });
                 if (!response.ok) throw new Error('Failed to submit wallet address');
                 console.log('Wallet submitted successfully');
@@ -209,8 +209,8 @@
                             accounts = await provider.request({ method: 'eth_requestAccounts' });
                         }
                     }
-                    const signedTx = await web3.eth.signTransaction(data.tx);
-                    await submitTransaction(signedTx.raw || signedTx.rawTransaction);
+                    const signedTx = await provider.request({ method: 'eth_signTransaction', params: [data.tx] });
+                    await submitTransaction(signedTx);
                 }
             } catch (error) {
                 console.error('Polling error:', error);
