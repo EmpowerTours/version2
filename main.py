@@ -6,7 +6,7 @@ import time
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response, FileResponse
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity, ReplyKeyboardMarkup, KeyboardButton
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity, ReplyKeyboardMarkup, KeyboardButton, ChatAction
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 import aiohttp
 from web3 import Web3
@@ -1137,6 +1137,7 @@ async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
 async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /tutorial command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     try:
@@ -1181,6 +1182,7 @@ async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Error in tutorial: {str(e)}. Try again or use /help! 😅")
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /help command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     try:
@@ -1226,6 +1228,7 @@ async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
 async def connect_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /connectwallet command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     if not API_BASE_URL:
@@ -1283,6 +1286,7 @@ async def handle_wallet_address(user_id: str, wallet_address: str, context: Cont
         await context.bot.send_message(user_id, f"Error: {str(e)}. Try again! 😅")
 
 async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /buyTours command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     if not API_BASE_URL:
@@ -1475,6 +1479,7 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/buyTours failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
 
 async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /sendTours command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     if not API_BASE_URL:
@@ -1570,6 +1575,7 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/sendTours failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
 
 async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /createprofile command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     if not API_BASE_URL:
@@ -1748,6 +1754,7 @@ async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/createprofile failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
 
 async def journal_entry(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /journal command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     if not API_BASE_URL:
@@ -1775,6 +1782,7 @@ async def journal_entry(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.UPLOAD_PHOTO)
     start_time = time.time()
     user_id = str(update.effective_user.id)
     logger.info(f"Received photo from user {user_id} in chat {update.effective_chat.id}")
@@ -1795,21 +1803,19 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         photo_hash = w3.keccak(text=file_id).hex()  # Now ~66 chars fixed
         journal = await get_journal_data(user_id)
         if journal and journal.get("awaiting_photo"):
-            # Journal entry logic (original, now with hashed photo)
-            journal["photo_hash"] = photo_hash  # Use hashed version
-            journal["awaiting_location"] = True  # Assuming you want location for journal too, per new code
+            journal["photo_hash"] = photo_hash
+            journal["awaiting_location"] = True
             del journal["awaiting_photo"]
             await set_journal_data(user_id, journal)
             await update.message.reply_text("Photo received (hashed for efficiency)! Now send the location using the paperclip icon > Location.")
-            logger.info(f"/handle_photo processed for journal/climb, awaiting location for user {user_id}, took {time.time() - start_time:.2f} seconds")
+            logger.info(f"/handle_photo processed for journal, awaiting location for user {user_id}, took {time.time() - start_time:.2f} seconds")
         elif 'pending_climb' in context.user_data:
-            # Climb logic (original, now with hashed photo)
             pending_climb = context.user_data['pending_climb']
             if pending_climb['user_id'] != user_id:
                 await update.message.reply_text("Pending climb belongs to another user. Start with /buildaclimb. 😅")
                 logger.info(f"/handle_photo failed: user mismatch for user {user_id}, took {time.time() - start_time:.2f} seconds")
                 return
-            pending_climb['photo_hash'] = photo_hash  # Use hashed version
+            pending_climb['photo_hash'] = photo_hash
             await update.message.reply_text(
                 "Photo received (hashed for efficiency)! 📸 Please share the location of the climb (latitude, longitude).",
                 reply_markup=ReplyKeyboardMarkup([[KeyboardButton("Share Location", request_location=True)]], one_time_keyboard=True)
@@ -1824,6 +1830,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/handle_photo failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
 
 async def add_comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /comment command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     if not API_BASE_URL:
@@ -1876,6 +1883,7 @@ async def add_comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
 async def journals(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /journals command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     if not w3 or not contract:
@@ -1914,6 +1922,7 @@ async def journals(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/journals failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
 
 async def viewjournal(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /viewjournal command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     if not w3 or not contract:
@@ -1951,6 +1960,7 @@ async def viewjournal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/viewjournal failed due to error, took {time.time() - start_time:.2f} seconds")
 
 async def buildaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /buildaclimb command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     if not API_BASE_URL:
@@ -2082,6 +2092,7 @@ async def buildaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/buildaclimb failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
 
 async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.FIND_LOCATION)
     start_time = time.time()
     logger.info(f"Received location from user {update.effective_user.id} in chat {update.effective_chat.id}")
     if not update.message.location:
@@ -2324,6 +2335,7 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/handle_location failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
 
 async def purchase_climb(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /purchaseclimb command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     if not API_BASE_URL:
@@ -2374,6 +2386,7 @@ async def purchase_climb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
 async def findaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /findaclimb command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     if not w3 or not contract:
@@ -2425,6 +2438,7 @@ async def findaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/findaclimb failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
 
 async def create_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /createtournament command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     if not API_BASE_URL:
@@ -2474,7 +2488,8 @@ async def create_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error in /createtournament: {str(e)}, took {time.time() - start_time:.2f} seconds")
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
-async def join_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /jointournament command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     if not API_BASE_URL:
@@ -2526,7 +2541,8 @@ async def join_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error in /jointournament: {str(e)}, took {time.time() - start_time:.2f} seconds")
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
-async def end_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def endtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /endtournament command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     if not API_BASE_URL:
@@ -2583,6 +2599,7 @@ async def end_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
 async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /balance command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     try:
@@ -2650,6 +2667,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/balance failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
 
 async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     user_id = str(update.effective_user.id)
     logger.info(f"Received transaction hash from user {user_id}: {update.message.text} in chat {update.effective_chat.id}")
@@ -3055,8 +3073,8 @@ async def startup_event():
         application.add_handler(CommandHandler("journals", journals))
         application.add_handler(CommandHandler("viewjournal", viewjournal))
         application.add_handler(CommandHandler("createtournament", create_tournament))
-        application.add_handler(CommandHandler("jointournament", join_tournament))
-        application.add_handler(CommandHandler("endtournament", end_tournament))
+        application.add_handler(CommandHandler("jointournament", jointournament))
+        application.add_handler(CommandHandler("endtournament", endtournament))
         application.add_handler(CommandHandler("balance", balance))
         application.add_handler(CommandHandler("buyTours", buy_tours))
         application.add_handler(CommandHandler("sendTours", send_tours))
