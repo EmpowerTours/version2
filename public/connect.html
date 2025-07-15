@@ -192,7 +192,7 @@
                         const txResult = await web3.eth.sendTransaction(data.transaction);
                         const txHash = txResult.transactionHash;  // Extract the hash string from the receipt object
                         statusDiv.textContent = `Transaction signed: ${txHash.substring(0, 6)}...`;
-                        txHashDiv.textContent = `Transaction Hash: ${txHash}\nCopy this and send it to the Telegram bot.`;
+                        txHashDiv.textContent = `Transaction Hash: ${txHash}\n`;
                         console.log('Transaction signed, hash:', txHash);
                         await submitTransaction(txHash);
                         statusDiv.textContent = `Transaction submitted: ${txHash.substring(0, 6)}...`;
