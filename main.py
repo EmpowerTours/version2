@@ -1092,64 +1092,6 @@ async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error in /ping: {str(e)}, took {time.time() - start_time:.2f} seconds")
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
-async def testlink(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    start_time = time.time()
-    logger.info(f"Received /testlink command from user {update.effective_user.id} in chat {update.effective_chat.id}")
-    try:
-        message = "Testing link: [EmpowerTours Chat](https://t.me/empowertourschat)"
-        await update.message.reply_text(message, parse_mode="Markdown")
-        logger.info(f"Sent /testlink response to user {update.effective_user.id}: {message}, took {time.time() - start_time:.2f} seconds")
-    except Exception as e:
-        logger.error(f"Error in /testlink: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
-
-async def testplain(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    start_time = time.time()
-    logger.info(f"Received /testplain command from user {update.effective_user.id} in chat {update.effective_chat.id}")
-    try:
-        message = "Testing plain link: https://t.me/empowertourschat"
-        await update.message.reply_text(message)
-        logger.info(f"Sent /testplain response to user {update.effective_user.id}: {message}, took {time.time() - start_time:.2f} seconds")
-    except Exception as e:
-        logger.error(f"Error in /testplain: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
-
-async def testmarkdown(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    start_time = time.time()
-    logger.info(f"Received /testmarkdown command from user {update.effective_user.id} in chat {update.effective_chat.id}")
-    try:
-        message = "Testing Markdown link: [EmpowerTours Chat](https://t.me/empowertourschat)"
-        await update.message.reply_text(message, parse_mode="Markdown")
-        logger.info(f"Sent /testmarkdown response to user {update.effective_user.id}: {message}, took {time.time() - start_time:.2f} seconds")
-    except Exception as e:
-        logger.error(f"Error in /testmarkdown: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
-
-async def testentity(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    start_time = time.time()
-    logger.info(f"Received /testentity command from user {update.effective_user.id} in chat {update.effective_chat.id}")
-    try:
-        message = "Testing entity link: EmpowerTours Chat"
-        await update.message.reply_text(
-            message,
-            entities=[MessageEntity(type="text_link", offset=21, length=17, url="https://t.me/empowertourschat")]
-        )
-        logger.info(f"Sent /testentity response to user {update.effective_user.id}: {message}, took {time.time() - start_time:.2f} seconds")
-    except Exception as e:
-        logger.error(f"Error in /testentity: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
-
-async def testshort(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    start_time = time.time()
-    logger.info(f"Received /testshort command from user {update.effective_user.id} in chat {update.effective_chat.id}")
-    try:
-        message = "Testing short link: t.me/empowertourschat"
-        await update.message.reply_text(message)
-        logger.info(f"Sent /testshort response to user {update.effective_user.id}: {message}, took {time.time() - start_time:.2f} seconds")
-    except Exception as e:
-        logger.error(f"Error in /testshort: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
-
 async def clearcache(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Received /clearcache command from user {update.effective_user.id} in chat {update.effective_chat.id}")
@@ -1204,31 +1146,31 @@ async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"/tutorial failed due to missing config, took {time.time() - start_time:.2f} seconds")
             return
         tutorial_text = (
-            "Tutorial\n"
+            "**Tutorial**\n"
             "1. Wallet:\n"
             "- Get MetaMask, Phantom, or Gnosis Safe.\n"
-            f"- Add Monad testnet (RPC: https://testnet-rpc.monad.xyz, ID: 10143).\n"
+            "- Add Monad testnet (RPC: https://testnet-rpc.monad.xyz, ID: 10143).\n"
             "- If you see a chain ID mismatch (e.g., 10159), go to MetaMask Settings > Networks, remove all Monad Testnet entries, and reconnect.\n"
-            "- Get $MON: https://testnet.monad.xyz/faucet\n"
+            "- Get $MON: https://testnet.monad.xyz/faucet\n\n"
             "2. Connect:\n"
-            "- Use /connectwallet to connect via MetaMask or WalletConnect\n"
+            "- Use /connectwallet to connect via MetaMask or WalletConnect\n\n"
             "3. Profile:\n"
-            "- /createprofile (1 $MON, receive 1 $TOURS)\n"
+            "- /createprofile (1 $MON, receive 1 $TOURS)\n\n"
             "4. Manage Tokens:\n"
-            "- /buyTours [amount] - Buy $TOURS tokens with $MON (e.g., /buyTours 10 to buy 10 $TOURS)\n"
-            "- /sendTours [recipient] [amount] - Send $TOURS to another wallet (e.g., /sendTours 0x123...456 10 to send 10 $TOURS)\n"
+            "- /buyTours amount - Buy $TOURS tokens with $MON (e.g., /buyTours 10 to buy 10 $TOURS)\n"
+            "- /sendTours recipient amount - Send $TOURS to another wallet (e.g., /sendTours 0x123...456 10 to send 10 $TOURS)\n\n"
             "5. Explore:\n"
-            "- /journal [your journal entry] - Log a climb (5 $TOURS)\n"
-            "- /comment [id] [your comment] - Comment on a journal (0.1 $MON)\n"
-            "- /buildaclimb [name] [difficulty] - Create a climb (10 $TOURS)\n"
-            "- /purchaseclimb [id] - Buy a climb (10 $TOURS)\n"
+            "- /journal your journal entry - Log a climb (5 $TOURS)\n"
+            "- /comment id your comment - Comment on a journal (0.1 $MON)\n"
+            "- /buildaclimb name difficulty - Create a climb (10 $TOURS)\n"
+            "- /purchaseclimb id - Buy a climb (10 $TOURS)\n"
             "- /findaclimb - List available climbs\n"
-            "- /createtournament [fee] - Start a tournament with an entry fee in $TOURS (e.g., /createtournament 10 for 10 $TOURS per participant)\n"
-            "- /jointournament [id] - Join a tournament by paying the entry fee\n"
-            "- /endtournament [id] [winner] - End a tournament (owner only) and award the prize to the winner’s wallet address (e.g., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725)\n"
+            "- /createtournament fee - Start a tournament with an entry fee in $TOURS (e.g., /createtournament 10 for 10 $TOURS per participant)\n"
+            "- /jointournament id - Join a tournament by paying the entry fee\n"
+            "- /endtournament id winner - End a tournament (owner only) and award the prize to the winner’s wallet address (e.g., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725)\n"
             "- /balance - Check your $MON and $TOURS balance\n"
             "- /help - List all commands\n"
-            "Join our community at [EmpowerTours Chat](https://t.me/empowertourschat)! Try /connectwallet!"
+            "Join our community at EmpowerTours Chat[](https://t.me/empowertourschat)! Try /connectwallet!"
         )
         await update.message.reply_text(tutorial_text, parse_mode="Markdown")
         logger.info(f"Sent /tutorial response to user {update.effective_user.id}: {tutorial_text}, took {time.time() - start_time:.2f} seconds")
@@ -1241,31 +1183,26 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"Received /help command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     try:
         help_text = (
-            "EmpowerTours Commands\n"
-            "/start - Welcome message\n"
-            "/tutorial - Setup guide\n"
-            "/connectwallet - Connect your wallet (use chain ID 10143; remove incorrect Monad Testnet entries from MetaMask if needed)\n"
-            "/createprofile - Create profile (1 $MON, receive 1 $TOURS)\n"
-            "/buyTours [amount] - Buy $TOURS tokens with $MON (e.g., /buyTours 10 to buy 10 $TOURS)\n"
-            "/sendTours [recipient] [amount] - Send $TOURS to another wallet (e.g., /sendTours 0x123...456 10 to send 10 $TOURS)\n"
-            "/journal [entry] - Log a climb for an existing climb with photos or notes (5 $TOURS)\n"
-            "/buildaclimb [name] [difficulty] - Create a new climb with name, difficulty, and optional photo/location (10 $TOURS)\n"
-            "/comment [id] [comment] - Comment on a journal (0.1 $MON)\n"
-            "/purchaseclimb [id] - Buy a climb (10 $TOURS)\n"
-            "/findaclimb - List available climbs\n"
-            "/createtournament [fee] - Start a tournament with an entry fee in $TOURS (e.g., /createtournament 10 sets a 10 $TOURS fee per participant)\n"
-            "/jointournament [id] - Join a tournament by paying the entry fee in $TOURS\n"
-            "/endtournament [id] [winner] - End a tournament (owner only) and award the prize pool to the winner’s wallet address (e.g., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725)\n"
-            "/balance - Check wallet balance ($MON, $TOURS, profile status)\n"
-            "/debug - Check webhook status\n"
-            "/forcewebhook - Force reset webhook\n"
-            "/testlink - Test Markdown link\n"
-            "/testplain - Test plain link\n"
-            "/testmarkdown - Test Markdown link with space\n"
-            "/testentity - Test entity link\n"
-            "/testshort - Test short link\n"
-            "/clearcache - Clear Telegram cache\n"
-            "/ping - Check bot status\n"
+            "**EmpowerTours Commands**\n"
+            "/start - Welcome message\n\n"
+            "/tutorial - Setup guide\n\n"
+            "/connectwallet - Connect your wallet (use chain ID 10143; remove incorrect Monad Testnet entries from MetaMask if needed)\n\n"
+            "/createprofile - Create profile (1 $MON, receive 1 $TOURS)\n\n"
+            "/buyTours amount - Buy $TOURS tokens with $MON (e.g., /buyTours 10 to buy 10 $TOURS)\n\n"
+            "/sendTours recipient amount - Send $TOURS to another wallet (e.g., /sendTours 0x123...456 10 to send 10 $TOURS)\n\n"
+            "/journal entry - Log a climb for an existing climb with photos or notes (5 $TOURS)\n\n"
+            "/buildaclimb name difficulty - Create a new climb with name, difficulty, and optional photo/location (10 $TOURS)\n\n"
+            "/comment id comment - Comment on a journal (0.1 $MON)\n\n"
+            "/purchaseclimb id - Buy a climb (10 $TOURS)\n\n"
+            "/findaclimb - List available climbs\n\n"
+            "/createtournament fee - Start a tournament with an entry fee in $TOURS (e.g., /createtournament 10 sets a 10 $TOURS fee per participant)\n\n"
+            "/jointournament id - Join a tournament by paying the entry fee in $TOURS\n\n"
+            "/endtournament id winner - End a tournament (owner only) and award the prize pool to the winner’s wallet address (e.g., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725)\n\n"
+            "/balance - Check wallet balance ($MON, $TOURS, profile status)\n\n"
+            "/debug - Check webhook status\n\n"
+            "/forcewebhook - Force reset webhook\n\n"
+            "/clearcache - Clear Telegram cache\n\n"
+            "/ping - Check bot status\n\n"
             "Join our community at [EmpowerTours Chat](https://t.me/empowertourschat) for support!"
         )
         await update.message.reply_text(help_text, parse_mode="Markdown")
@@ -1364,7 +1301,7 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             amount = int(float(args[0]) * 10**18)  # Convert to Wei (1 $TOURS = 10^18 Wei)
             if amount <= 0:
-                raise ValueError("Amount must be positive")
+                raise ValueValue("Amount must be positive")
         except ValueError:
             await update.message.reply_text("Invalid amount. Use a positive number (e.g., /buyTours 10 for 10 $TOURS). 😅")
             logger.info(f"/buyTours failed due to invalid amount, took {time.time() - start_time:.2f} seconds")
@@ -1405,9 +1342,9 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Error checking $TOURS balance: {str(e)}")
 
-        # Fallback: Check profile with retries
+        # Fallback: Check profile with reduced retries
         if not profile_exists:
-            max_retries = 5
+            max_retries = 3
             for attempt in range(1, max_retries + 1):
                 try:
                     profile = contract.functions.profiles(checksum_address).call({'gas': 500000})
@@ -1686,9 +1623,9 @@ async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Error checking $TOURS balance: {str(e)}")
 
-        # Fallback: Check profile with retries
+        # Fallback: Check profile with reduced retries
         if not profile_exists:
-            max_retries = 5
+            max_retries = 3
             for attempt in range(1, max_retries + 1):
                 try:
                     profile = contract.functions.profiles(checksum_address).call({'gas': 500000})
@@ -1996,9 +1933,9 @@ async def buildaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Error checking $TOURS balance: {str(e)}")
 
-        # Fallback: Check profile with retries
+        # Fallback: Check profile with reduced retries
         if not profile_exists:
-            max_retries = 5
+            max_retries = 3
             for attempt in range(1, max_retries + 1):
                 try:
                     profile = contract.functions.profiles(checksum_address).call({'gas': 500000})
@@ -2169,7 +2106,7 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     'chainId': 10143,
                     'from': checksum_address,
                     'nonce': nonce,
-                    'gas': 300000,
+                    'gas': 500000,  # Increased gas limit
                     'gasPrice': w3.eth.gas_price
                 })
                 await set_pending_wallet(user_id, {
@@ -2269,14 +2206,14 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 logger.info(f"/handle_location failed due to simulation error, took {time.time() - start_time:.2f} seconds")
                 return
 
-            # Build transaction
+            # Build transaction with increased gas
             try:
                 nonce = w3.eth.get_transaction_count(checksum_address)
                 tx = contract.functions.createClimbingLocation(name, difficulty, latitude, longitude, photo_hash).build_transaction({
                     'chainId': 10143,
                     'from': checksum_address,
                     'nonce': nonce,
-                    'gas': 300000,
+                    'gas': 500000,  # Increased gas limit
                     'gasPrice': w3.eth.gas_price
                 })
                 logger.info(f"Transaction built for user {user_id}: {json.dumps(tx, default=str)}")
@@ -2684,7 +2621,7 @@ async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         'chainId': 10143,
                         'from': pending["wallet_address"],
                         'nonce': nonce,
-                        'gas': 300000,
+                        'gas': 500000,
                         'gasPrice': w3.eth.gas_price
                     })
                     await set_pending_wallet(user_id, {
@@ -2715,7 +2652,7 @@ async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         'chainId': 10143,
                         'from': pending["wallet_address"],
                         'nonce': nonce,
-                        'gas': 300000,
+                        'gas': 500000,
                         'gasPrice': w3.eth.gas_price
                     })
                     await set_pending_wallet(user_id, {
@@ -3027,19 +2964,11 @@ async def startup_event():
 
         # Register command handlers
         application.add_handler(CommandHandler("start", start))
-        application.add_handler(CommandHandler("help", help))
-        application.add_handler(CommandHandler("debug", debug))
+        application.add_handler(CommandHandler("tutorial", tutorial))
         application.add_handler(CommandHandler("connectwallet", connect_wallet))
         application.add_handler(CommandHandler("createprofile", create_profile))
-        application.add_handler(CommandHandler("tutorial", tutorial))
+        application.add_handler(CommandHandler("help", help))
         application.add_handler(CommandHandler("journal", journal_entry))
-        application.add_handler(CommandHandler("testlink", testlink))
-        application.add_handler(CommandHandler("testplain", testplain))
-        application.add_handler(CommandHandler("testmarkdown", testmarkdown))
-        application.add_handler(CommandHandler("testentity", testentity))
-        application.add_handler(CommandHandler("testshort", testshort))
-        application.add_handler(CommandHandler("clearcache", clearcache))
-        application.add_handler(CommandHandler("forcewebhook", forcewebhook))
         application.add_handler(CommandHandler("comment", add_comment))
         application.add_handler(CommandHandler("buildaclimb", buildaclimb))
         application.add_handler(CommandHandler("purchaseclimb", purchase_climb))
@@ -3051,6 +2980,9 @@ async def startup_event():
         application.add_handler(CommandHandler("buyTours", buy_tours))
         application.add_handler(CommandHandler("sendTours", send_tours))
         application.add_handler(CommandHandler("ping", ping))
+        application.add_handler(CommandHandler("debug", debug))
+        application.add_handler(CommandHandler("forcewebhook", forcewebhook))
+        application.add_handler(CommandHandler("clearcache", clearcache))
         application.add_handler(MessageHandler(filters.Regex(r'^0x[a-fA-F0-9]{64}$'), handle_tx_hash))
         application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
         application.add_handler(MessageHandler(filters.LOCATION, handle_location))
@@ -3262,13 +3194,13 @@ async def submit_tx(request: Request):
                 if pending:
                     input_data = pending.get("tx_data", {}).get("data", "")
                     success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Action completed successfully."
-                    if input_data.startswith('0xa9059cbb'):  # transfer (sendTours)
-                        success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Successfully sent $TOURS to the recipient."
-                    elif input_data.startswith('0x00547664'):  # createProfile
+                    if input_data.startswith('0x00547664'):  # createProfile
                         success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Profile created with 1 $TOURS funded to your wallet."
                     elif input_data.startswith('0x9954e40d'):  # buyTours
                         amount = int.from_bytes(bytes.fromhex(input_data[10:]), byteorder='big') / 10**18
                         success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Successfully purchased {amount} $TOURS."
+                    elif input_data.startswith('0xa9059cbb'):  # transfer (sendTours)
+                        success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Successfully sent $TOURS to the recipient."
                     elif input_data.startswith('0xfe985ae0'):  # createClimbingLocation
                         success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Climb '{pending.get('name', 'Unknown')}' ({pending.get('difficulty', 'Unknown')}) created!"
                     elif input_data.startswith('0x6b8b0b0a'):  # addJournalEntryWithDetails, check the selector
@@ -3291,7 +3223,7 @@ async def submit_tx(request: Request):
                                 'chainId': 10143,
                                 'from': pending["wallet_address"],
                                 'nonce': nonce,
-                                'gas': 300000,
+                                'gas': 500000,
                                 'gasPrice': w3.eth.gas_price
                             })
                             await set_pending_wallet(user_id, {
@@ -3323,7 +3255,7 @@ async def submit_tx(request: Request):
                                 'chainId': 10143,
                                 'from': pending["wallet_address"],
                                 'nonce': nonce,
-                                'gas': 300000,
+                                'gas': 500000,
                                 'gasPrice': w3.eth.gas_price
                             })
                             await set_pending_wallet(user_id, {
