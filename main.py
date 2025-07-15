@@ -2273,7 +2273,7 @@ async def findaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "purchase_count": climb[10]
                 })
             except Exception as e:
-                logger.error(f"Error fetching climb #{location_id}: {str(e)}")
+                logger.error(f"Error fetching climb \\#{location_id}: {str(e)}")
 
         # Format response
         response = "Available Climbs:\n"
@@ -2905,7 +2905,7 @@ async def apply_headshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     education = EXCLUDED.education,
                     headshot = EXCLUDED.headshot,
                     status = 'pending'
-           ''', user_id, application['name'], application['email'], application['climb_exp'], application['web3_interest'], application['why_join'], application['dob'], application['address'], application['education'], application['headshot'])
+            ''', user_id, application['name'], application['email'], application['climb_exp'], application['web3_interest'], application['why_join'], application['dob'], application['address'], application['education'], application['headshot'])
         await update.message.reply_text("Application submitted! Waiting for approval. Check status with /balance. 😊")
         logger.info(f"Application submitted for user {user_id}, took {time.time() - start_time:.2f} seconds")
         return ConversationHandler.END
@@ -2944,7 +2944,7 @@ async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     if user_id != YOUR_TELEGRAM_ID:
         await update.message.reply_text("Only the owner can approve applications. Contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
-        logger.info(f"/approve failed: unauthorized user {user_id}, took {time.time() - start_time:.2f} seconds")
+        logger.info(f"/approve failed:unauthorized user {user_id}, took {time.time() - start_time:.2f} seconds")
         return
     try:
         args = context.args or []
