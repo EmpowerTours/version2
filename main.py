@@ -1579,7 +1579,7 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for sending {amount / 10**18} $TOURS to [{checksum_recipient[:6]}...]({EXPLORER_URL}/address/{checksum_recipient}) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for sending {amount / 10**18} $TOURS to [{checksum_recipient[:6]}...]({EXPLORER_URL}/address/{checksum_recipient}) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\\.",
             parse_mode="MarkdownV2"
         )
         logger.info(f"/sendTours transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
@@ -1735,7 +1735,7 @@ async def journal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for adding journal entry '{escape_md_v2(content_hash)}' \\(5 $TOURS\\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for adding journal entry '{escape_md_v2(content_hash)}' \\(5 $TOURS\\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\\.",
             parse_mode="MarkdownV2"
         )
         logger.info(f"/journal transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
@@ -1868,7 +1868,7 @@ async def comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for adding comment '{escape_md_v2(content_hash)}' to entry #{entry_id} \\(0.1 $MON\\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for adding comment '{escape_md_v2(content_hash)}' to entry #{entry_id} \\(0.1 $MON\\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\\.",
             parse_mode="MarkdownV2"
         )
         logger.info(f"/comment transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
@@ -2075,7 +2075,7 @@ async def buildaclimb_final(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error saving pending_wallets: {str(e)}")
 
     await update.message.reply_text(
-        f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for building climb '{escape_md_v2(name)}' ({escape_md_v2(difficulty)}) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+        f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for building climb '{escape_md_v2(name)}' ({escape_md_v2(difficulty)}) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\\.",
         parse_mode="MarkdownV2"
     )
 
@@ -2234,7 +2234,7 @@ async def purchaseclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for purchasing climb #{location_id} \\(10 $TOURS\\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for purchasing climb #{location_id} \\(10 $TOURS\\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\\.",
             parse_mode="MarkdownV2"
         )
         logger.info(f"/purchaseclimb transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
@@ -2412,7 +2412,7 @@ async def createtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for creating tournament with {entry_fee / 10**18} $TOURS entry fee using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for creating tournament with {entry_fee / 10**18} $TOURS entry fee using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\\.",
             parse_mode="MarkdownV2"
         )
         logger.info(f"/createtournament transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
@@ -2591,7 +2591,7 @@ async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for joining tournament #{tournament_id} \\({entry_fee / 10**18} $TOURS\\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for joining tournament #{tournament_id} \\({entry_fee / 10**18} $TOURS\\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\\.",
             parse_mode="MarkdownV2"
         )
         logger.info(f"/jointournament transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
@@ -2702,11 +2702,11 @@ async def endtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             with open("pending_wallets.json", "w") as f:
                 json.dump(pending_wallets, f, default=str)
             logger.info(f"Saved pending_wallets for user {user_id}")
-       except Exception as e:
+        except Exception as e:
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for ending tournament #{tournament_id} and awarding to [{checksum_winner[:6]}...]({EXPLORER_URL}/address/{checksum_winner}) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for ending tournament #{tournament_id} and awarding to [{checksum_winner[:6]}...]({EXPLORER_URL}/address/{checksum_winner}) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\\.",
             parse_mode="MarkdownV2"
         )
         logger.info(f"/endtournament transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
@@ -3019,7 +3019,6 @@ command_handlers = {
     'sendTours': send_tours,
     'journal': journal,
     'comment': comment,
-    'buildaclimb': buildaclimb_start,
     'purchaseclimb': purchaseclimb,
     'findaclimb': findaclimb,
     'createtournament': createtournament,
