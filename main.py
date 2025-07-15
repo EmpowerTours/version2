@@ -1102,20 +1102,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Received /start command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     try:
-        welcome_message_raw = (
-            f"Welcome to EmpowerTours! 🧗\n"
-            f"Join our community at [EmpowerTours Chat](https://t.me/empowertourschat) to connect with climbers and explore Web3-powered adventures.\n"
-            f"Use /connectwallet to link your wallet, then /createprofile to get started.\n"
-            f"Run /tutorial for a full guide or /help for all commands."
+        welcome_message = (
+            "Welcome to EmpowerTours\! 🧗\n"
+            "Join our community at [EmpowerTours Chat](https://t.me/empowertourschat) to connect with climbers and explore Web3\\-powered adventures\\.\n"
+            "Use /connectwallet to link your wallet, then /createprofile to get started\\.\n"
+            "Run /tutorial for a full guide or /help for all commands\\."
         )
-        welcome_message = escape_md_v2(welcome_message_raw)
         keyboard = [[KeyboardButton("Launch Mini App", web_app=WebAppInfo(url=f"{base_url}/public/miniapp.html"))]]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(welcome_message, reply_markup=reply_markup, parse_mode="MarkdownV2")
         logger.info(f"Sent /start response to user {update.effective_user.id}: {welcome_message}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /start for user {update.effective_user.id}: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again or contact support at https://t.me/empowertourschat. 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\ 😅", parse_mode="MarkdownV2")
 
 async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1123,26 +1122,26 @@ async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         webhook_ok = await check_webhook()
         status = "Webhook OK" if webhook_ok else "Webhook failed, using polling"
-        await update.message.reply_text(f"Pong! Bot is running. {status}. Try /start or /createprofile.")
+        await update.message.reply_text(f"Pong\! Bot is running\\. {escape_md_v2(status)}\\. Try /start or /createprofile\\.")
         logger.info(f"Sent /ping response to user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /ping: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\! 😅", parse_mode="MarkdownV2")
 
 async def clearcache(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Received /clearcache command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     try:
-        await update.message.reply_text("Clearing cache with dummy messages to reset Telegram responses.")
+        await update.message.reply_text("Clearing cache with dummy messages to reset Telegram responses\\.")
         await send_notification(update.effective_chat.id, "Dummy message 1 to clear Telegram cache.")
         if CHAT_HANDLE:
             await send_notification(CHAT_HANDLE, "Dummy message 2 to clear Telegram cache.")
         await reset_webhook()
-        await update.message.reply_text("Cache cleared. Try /start again.")
+        await update.message.reply_text("Cache cleared\\. Try /start again\\.")
         logger.info(f"Sent /clearcache response to user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /clearcache: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\! 😅", parse_mode="MarkdownV2")
 
 async def forcewebhook(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1157,7 +1156,7 @@ async def forcewebhook(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Sent /forcewebhook response to user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /forcewebhook: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\! 😅", parse_mode="MarkdownV2")
 
 async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1171,7 +1170,7 @@ async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Sent /debug response to user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /debug: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\! 😅", parse_mode="MarkdownV2")
 
 async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1186,9 +1185,9 @@ async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Tutorial\n\n"
             "1\\. Wallet:\n"
             "\\- Get MetaMask, Phantom, or Gnosis Safe\\.\n"
-            "\\- Add Monad testnet \\(RPC: https://testnet-rpc.monad.xyz, ID: 10143\\)\\.\n"
-            "\\- If you see a chain ID mismatch \\(e\\.g\\., 10159\\), go to MetaMask Settings > Networks, remove all Monad Testnet entries, and reconnect\\.\n"
-            "\\- Get $MON: https://testnet.monad.xyz/faucet\n\n"
+            "\\- Add Monad testnet \\(RPC: https://testnet\\-rpc\\monad\\xyz, ID: 10143\\)\\.\n"
+            "\\- If you see a chain ID mismatch \\(e\\.g\\., 10159\\), go to MetaMask Settings \\> Networks, remove all Monad Testnet entries, and reconnect\\.\n"
+            "\\- Get $MON: https://testnet\\monad\\xyz/faucet\n\n"
             "2\\. Connect:\n"
             "\\- Use /connectwallet to connect via MetaMask or WalletConnect\n\n"
             "3\\. Profile:\n"
@@ -1213,7 +1212,7 @@ async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Sent /tutorial response to user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /tutorial for user {update.effective_user.id}: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error in tutorial: {str(e)}. Try again...")
+        await update.message.reply_text(f"Error in tutorial: {escape_md_v2(str(e))}\\ Try again...", parse_mode="MarkdownV2")
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1250,24 +1249,24 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Sent /help response to user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /help: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\! 😅", parse_mode="MarkdownV2")
 
 async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Received command: {update.message.text} from user {update.effective_user.id} in chat {update.effective_chat.id}")
     try:
-        await update.message.reply_text(f"Debug: Received command '{update.message.text}'. Please use a valid command like /start or /tutorial.")
+        await update.message.reply_text(f"Debug: Received command '{escape_md_v2(update.message.text)}'\\. Please use a valid command like /start or /tutorial\\.")
         logger.info(f"Sent /debug_command response to user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in debug_command: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\! 😅", parse_mode="MarkdownV2")
 
 async def connect_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Received /connectwallet command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     if not API_BASE_URL:
         logger.error("API_BASE_URL missing, /connectwallet command disabled")
-        await update.message.reply_text("Wallet connection unavailable due to configuration issues. Try again later! 😅")
+        await update.message.reply_text("Wallet connection unavailable due to configuration issues\\. Try again later\! 😅")
         logger.info(f"/connectwallet failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
         return
     try:
@@ -1278,8 +1277,8 @@ async def connect_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = InlineKeyboardMarkup(keyboard)
         message = (
             "Click the button to connect your wallet via MetaMask or WalletConnect\\. "
-            "On mobile, copy this link and open it in the MetaMask app's browser \\(Menu > Browser\\)\\. "
-            "If you see a chain ID mismatch, go to MetaMask Settings > Networks, remove all Monad Testnet entries, and reconnect\\. "
+            "On mobile, copy this link and open it in the MetaMask app's browser \\(Menu \\> Browser\\)\\. "
+            "If you see a chain ID mismatch, go to MetaMask Settings \\> Networks, remove all Monad Testnet entries, and reconnect\\. "
             "After connecting, use /createprofile to create your profile or /balance to check your status\\. "
             "If the link fails, contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\."
         )
@@ -1296,7 +1295,7 @@ async def connect_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Continue even if file write fails, as in-memory pending_wallets is sufficient
     except Exception as e:
         logger.error(f"Error in /connectwallet for user {user_id}: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\! 😅", parse_mode="MarkdownV2")
 
 async def handle_wallet_address(user_id: str, wallet_address: str, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1320,11 +1319,11 @@ async def handle_wallet_address(user_id: str, wallet_address: str, context: Cont
                 logger.error(f"Error saving pending_wallets: {str(e)}")
             logger.info(f"Wallet connected for user {user_id}: {checksum_address}, took {time.time() - start_time:.2f} seconds")
         else:
-            await context.bot.send_message(user_id, "Invalid wallet address or blockchain unavailable. Try /connectwallet again.")
+            await context.bot.send_message(user_id, "Invalid wallet address or blockchain unavailable\\. Try /connectwallet again\\.")
             logger.info(f"/handle_wallet_address failed due to invalid address or blockchain, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in handle_wallet_address: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await context.bot.send_message(user_id, f"Error: {str(e)}. Try again! 😅")
+        await context.bot.send_message(user_id, f"Error: {escape_md_v2(str(e))}\\ Try again\! 😅", parse_mode="MarkdownV2")
 
 async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1335,18 +1334,18 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if not API_BASE_URL:
         logger.error("API_BASE_URL missing, /buyTours command disabled")
-        await update.message.reply_text("Buying $TOURS unavailable due to configuration issues. Try again later! 😅")
+        await update.message.reply_text("Buying $TOURS unavailable due to configuration issues\\. Try again later\! 😅")
         logger.info(f"/buyTours failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
         return
     if not w3 or not contract:
         logger.error("Web3 or contract not initialized, /buyTours command disabled")
-        await update.message.reply_text("Buying $TOURS unavailable due to blockchain issues. Try again later! 😅")
+        await update.message.reply_text("Buying $TOURS unavailable due to blockchain issues\\. Try again later\! 😅")
         logger.info(f"/buyTours failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
         args = context.args or []
         if len(args) < 1:
-            await update.message.reply_text("Use: /buyTours [amount] 🛒 (e.g., /buyTours 10)")
+            await update.message.reply_text("Use: /buyTours [amount] 🛒 \\(e\\.g\\., /buyTours 10\\)")
             logger.info(f"/buyTours failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
             return
         try:
@@ -1354,12 +1353,12 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if amount <= 0:
                 raise ValueError("Amount must be positive")
         except ValueError:
-            await update.message.reply_text("Invalid amount. Use a positive number (e.g., /buyTours 10). 😅")
+            await update.message.reply_text("Invalid amount\\. Use a positive number \\(e\\.g\\., /buyTours 10\\)\\. 😅")
             logger.info(f"/buyTours failed due to invalid amount, took {time.time() - start_time:.2f} seconds")
             return
         wallet_address = sessions.get(user_id, {}).get("wallet_address")
         if not wallet_address:
-            await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
+            await update.message.reply_text("No wallet connected\\. Use /connectwallet first\! 🪙")
             logger.info(f"/buyTours failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
             return
         logger.info(f"Wallet address for user {user_id}: {wallet_address}")
@@ -1367,7 +1366,7 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Verify Web3 connection
         if not w3.is_connected():
             logger.error("Web3 not connected to Monad testnet")
-            await update.message.reply_text("Blockchain connection failed. Try again later or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+            await update.message.reply_text("Blockchain connection failed\\. Try again later or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/buyTours failed due to Web3 connection, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -1377,7 +1376,7 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"Using contract address: {contract.address}")
         except Exception as e:
             logger.error(f"Error converting wallet address to checksum: {str(e)}")
-            await update.message.reply_text(f"Invalid wallet address format: {str(e)}. Try /connectwallet again. 😅")
+            await update.message.reply_text(f"Invalid wallet address format: {escape_md_v2(str(e))}\\ Try /connectwallet again\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/buyTours failed due to checksum error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -1395,13 +1394,13 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             mon_balance = w3.eth.get_balance(checksum_address)
             if mon_balance < required_mon:
                 await update.message.reply_text(
-                    f"Insufficient $MON. Need {required_mon / 10**18} $MON for {amount / 10**18} $TOURS, you have {mon_balance / 10**18}. Get more at https://testnet.monad.xyz/faucet! 😅"
+                    f"Insufficient $MON\\. Need {required_mon / 10**18} $MON for {amount / 10**18} $TOURS, you have {mon_balance / 10**18}\\. Get more at https://testnet.monad.xyz/faucet\! 😅"
                 )
                 logger.info(f"/buyTours failed: insufficient $MON, took {time.time() - start_time:.2f} seconds")
                 return
         except Exception as e:
             logger.error(f"Error checking $MON balance: {str(e)}")
-            await update.message.reply_text(f"Failed to check $MON balance: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+            await update.message.reply_text(f"Failed to check $MON balance: {escape_md_v2(str(e))}\\ Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/buyTours failed due to balance check error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -1420,9 +1419,9 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             revert_reason = str(e)
             logger.error(f"buyTours simulation failed: {revert_reason}")
             if "InsufficientMonSent" in revert_reason:
-                await update.message.reply_text(f"Insufficient $MON sent for {amount / 10**18} $TOURS. Need {required_mon / 10**18} $MON. 😅")
+                await update.message.reply_text(f"Insufficient $MON sent for {amount / 10**18} $TOURS\\. Need {required_mon / 10**18} $MON\\. 😅")
             else:
-                await update.message.reply_text(f"Transaction simulation failed: {revert_reason}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+                await update.message.reply_text(f"Transaction simulation failed: {escape_md_v2(revert_reason)}\\. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/buyTours failed due to simulation error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -1456,12 +1455,7 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/buyTours transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /buyTours: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        special_chars = r'\_[]()~`>#+-=|{}.!'
-        escaped_error = ''.join(['\\' + c if c in special_chars else c for c in str(e)])
-        await update.message.reply_text(
-            f"Error: {escaped_error}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", 
-            parse_mode="MarkdownV2"
-        )
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
 
 async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1472,18 +1466,18 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if not API_BASE_URL:
         logger.error("API_BASE_URL missing, /sendTours command disabled")
-        await update.message.reply_text("Sending $TOURS unavailable due to configuration issues. Try again later! 😅")
+        await update.message.reply_text("Sending $TOURS unavailable due to configuration issues\\. Try again later\! 😅")
         logger.info(f"/sendTours failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
         return
     if not w3 or not tours_contract:
         logger.error("Web3 or tours_contract not initialized, /sendTours command disabled")
-        await update.message.reply_text("Sending $TOURS unavailable due to blockchain issues. Try again later! 😅")
+        await update.message.reply_text("Sending $TOURS unavailable due to blockchain issues\\. Try again later\! 😅")
         logger.info(f"/sendTours failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
         args = context.args or []
         if len(args) < 2:
-            await update.message.reply_text("Use: /sendTours [recipient] [amount] 🪙 (e.g., /sendTours 0x123...456 10 to send 10 $TOURS)")
+            await update.message.reply_text("Use: /sendTours [recipient] [amount] 🪙 \\(e\\.g\\., /sendTours 0x123...456 10 to send 10 $TOURS\\)")
             logger.info(f"/sendTours failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
             return
         recipient = args[0]
@@ -1492,12 +1486,12 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if amount <= 0:
                 raise ValueError("Amount must be positive")
         except ValueError:
-            await update.message.reply_text("Invalid amount. Use a positive number (e.g., /sendTours 0x123...456 10). 😅")
+            await update.message.reply_text("Invalid amount\\. Use a positive number \\(e\\.g\\., /sendTours 0x123...456 10\\)\\. 😅")
             logger.info(f"/sendTours failed due to invalid amount, took {time.time() - start_time:.2f} seconds")
             return
         wallet_address = sessions.get(user_id, {}).get("wallet_address")
         if not wallet_address:
-            await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
+            await update.message.reply_text("No wallet connected\\. Use /connectwallet first\! 🪙")
             logger.info(f"/sendTours failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
             return
         logger.info(f"Wallet address for user {user_id}: {wallet_address}")
@@ -1505,7 +1499,7 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Verify Web3 connection
         if not w3.is_connected():
             logger.error("Web3 not connected to Monad testnet")
-            await update.message.reply_text("Blockchain connection failed. Try again later or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+            await update.message.reply_text("Blockchain connection failed\\. Try again later or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/sendTours failed due to Web3 connection, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -1516,7 +1510,7 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"Using tours contract address: {tours_contract.address}")
         except Exception as e:
             logger.error(f"Error converting address to checksum: {str(e)}")
-            await update.message.reply_text(f"Invalid address format: {str(e)}. Check recipient address and try again. 😅")
+            await update.message.reply_text(f"Invalid address format: {escape_md_v2(str(e))}\\ Check recipient address and try again\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/sendTours failed due to checksum error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -1524,12 +1518,12 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             tours_balance = tours_contract.functions.balanceOf(checksum_address).call({'gas': 500000})
             if tours_balance < amount:
-                await update.message.reply_text(f"Insufficient $TOURS. You have {tours_balance / 10**18} $TOURS, need {amount / 10**18}. Use /buyTours! 😅")
+                await update.message.reply_text(f"Insufficient $TOURS\\. You have {tours_balance / 10**18} $TOURS, need {amount / 10**18}\\. Use /buyTours\! 😅")
                 logger.info(f"/sendTours failed due to insufficient $TOURS, took {time.time() - start_time:.2f} seconds")
                 return
         except Exception as e:
             logger.error(f"Error checking $TOURS balance: {str(e)}")
-            await update.message.reply_text(f"Failed to check $TOURS balance: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+            await update.message.reply_text(f"Failed to check $TOURS balance: {escape_md_v2(str(e))}\\ Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/sendTours failed due to balance check error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -1540,9 +1534,9 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             revert_reason = str(e)
             logger.error(f"transfer simulation failed: {revert_reason}")
             if "InsufficientTokenBalance" in revert_reason:
-                await update.message.reply_text(f"Insufficient $TOURS for transfer. Check with /balance or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+                await update.message.reply_text(f"Insufficient $TOURS for transfer\\. Check with /balance or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
             else:
-                await update.message.reply_text(f"Transaction simulation failed: {revert_reason}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+                await update.message.reply_text(f"Transaction simulation failed: {escape_md_v2(revert_reason)}\\. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/sendTours failed due to simulation error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -1575,7 +1569,7 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/sendTours transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /sendTours: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
 
 async def journal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1586,24 +1580,24 @@ async def journal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if not API_BASE_URL:
         logger.error("API_BASE_URL missing, /journal command disabled")
-        await update.message.reply_text("Journaling unavailable due to configuration issues. Try again later! 😅")
+        await update.message.reply_text("Journaling unavailable due to configuration issues\\. Try again later\! 😅")
         logger.info(f"/journal failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
         return
     if not w3 or not contract or not tours_contract:
         logger.error("Web3 or contract not initialized, /journal command disabled")
-        await update.message.reply_text("Journaling unavailable due to blockchain issues. Try again later! 😅")
+        await update.message.reply_text("Journaling unavailable due to blockchain issues\\. Try again later\! 😅")
         logger.info(f"/journal failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
         args = context.args or []
         if len(args) < 1:
-            await update.message.reply_text("Use: /journal [your journal entry] 📖 (e.g., /journal Climbed V5 today!)")
+            await update.message.reply_text("Use: /journal [your journal entry] 📖 \\(e\\.g\\., /journal Climbed V5 today!\\)")
             logger.info(f"/journal failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
             return
         content_hash = ' '.join(args)
         wallet_address = sessions.get(user_id, {}).get("wallet_address")
         if not wallet_address:
-            await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
+            await update.message.reply_text("No wallet connected\\. Use /connectwallet first\! 🪙")
             logger.info(f"/journal failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
             return
         logger.info(f"Wallet address for user {user_id}: {wallet_address}")
@@ -1611,7 +1605,7 @@ async def journal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Verify Web3 connection
         if not w3.is_connected():
             logger.error("Web3 not connected to Monad testnet")
-            await update.message.reply_text("Blockchain connection failed. Try again later or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+            await update.message.reply_text("Blockchain connection failed\\. Try again later or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/journal failed due to Web3 connection, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -1621,7 +1615,7 @@ async def journal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"Using contract address: {contract.address}")
         except Exception as e:
             logger.error(f"Error converting wallet address to checksum: {str(e)}")
-            await update.message.reply_text(f"Invalid wallet address format: {str(e)}. Try /connectwallet again. 😅")
+            await update.message.reply_text(f"Invalid wallet address format: {escape_md_v2(str(e))}\\ Try /connectwallet again\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/journal failed due to checksum error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -1632,12 +1626,12 @@ async def journal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             profile_exists = profile[0]
         except Exception as e:
             logger.error(f"Error checking profile existence: {str(e)}")
-            await update.message.reply_text(f"Failed to check profile: {str(e)}. Try /createprofile or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+            await update.message.reply_text(f"Failed to check profile: {escape_md_v2(str(e))}\\ Try /createprofile or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/journal failed due to profile check error, took {time.time() - start_time:.2f} seconds")
             return
 
         if not profile_exists:
-            await update.message.reply_text("Profile required to journal. Use /createprofile first! 😅")
+            await update.message.reply_text("Profile required to journal\\. Use /createprofile first\! 😅")
             logger.info(f"/journal failed due to missing profile, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -1646,7 +1640,7 @@ async def journal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             tours_balance = tours_contract.functions.balanceOf(checksum_address).call({'gas': 500000})
             journal_cost = 5 * 10**18
             if tours_balance < journal_cost:
-                await update.message.reply_text(f"Insufficient $TOURS. Need 5 $TOURS for journaling, you have {tours_balance / 10**18}. Use /buyTours! 😅")
+                await update.message.reply_text(f"Insufficient $TOURS\\. Need 5 $TOURS for journaling, you have {tours_balance / 10**18}\\. Use /buyTours\! 😅")
                 logger.info(f"/journal failed due to insufficient $TOURS, took {time.time() - start_time:.2f} seconds")
                 return
             allowance = tours_contract.functions.allowance(checksum_address, contract.address).call({'gas': 500000})
@@ -1683,7 +1677,7 @@ async def journal(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
         except Exception as e:
             logger.error(f"Error checking $TOURS balance or allowance: {str(e)}")
-            await update.message.reply_text(f"Failed to check $TOURS balance or allowance: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+            await update.message.reply_text(f"Failed to check $TOURS balance or allowance: {escape_md_v2(str(e))}\\ Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/journal failed due to balance/allowance error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -1698,7 +1692,7 @@ async def journal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif "InsufficientTokenBalance" in revert_reason:
                 await update.message.reply_text("Insufficient $TOURS for journaling. Use /buyTours! 😅")
             else:
-                await update.message.reply_text(f"Transaction simulation failed: {revert_reason}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+                await update.message.reply_text(f"Transaction simulation failed: {escape_md_v2(revert_reason)}\\. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/journal failed due to simulation error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -1731,7 +1725,7 @@ async def journal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/journal transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /journal: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
 
 async def comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1742,30 +1736,30 @@ async def comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if not API_BASE_URL:
         logger.error("API_BASE_URL missing, /comment command disabled")
-        await update.message.reply_text("Commenting unavailable due to configuration issues. Try again later! 😅")
+        await update.message.reply_text("Commenting unavailable due to configuration issues\\. Try again later\! 😅")
         logger.info(f"/comment failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
         return
     if not w3 or not contract:
         logger.error("Web3 or contract not initialized, /comment command disabled")
-        await update.message.reply_text("Commenting unavailable due to blockchain issues. Try again later! 😅")
+        await update.message.reply_text("Commenting unavailable due to blockchain issues\\. Try again later\! 😅")
         logger.info(f"/comment failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
         args = context.args or []
         if len(args) < 2:
-            await update.message.reply_text("Use: /comment [entry_id] [your comment] 💬 (e.g., /comment 1 Great climb!)")
+            await update.message.reply_text("Use: /comment [entry_id] [your comment] 💬 \\(e\\.g\\., /comment 1 Great climb!\\)")
             logger.info(f"/comment failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
             return
         try:
             entry_id = int(args[0])
             content_hash = ' '.join(args[1:])
         except ValueError:
-            await update.message.reply_text("Invalid entry ID. Use a number for entry_id (e.g., /comment 1 Great climb!). 😅")
+            await update.message.reply_text("Invalid entry ID\\. Use a number for entry_id \\(e\\.g\\., /comment 1 Great climb!\\)\\. 😅")
             logger.info(f"/comment failed due to invalid entry_id, took {time.time() - start_time:.2f} seconds")
             return
         wallet_address = sessions.get(user_id, {}).get("wallet_address")
         if not wallet_address:
-            await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
+            await update.message.reply_text("No wallet connected\\. Use /connectwallet first\! 🪙")
             logger.info(f"/comment failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
             return
         logger.info(f"Wallet address for user {user_id}: {wallet_address}")
@@ -1773,7 +1767,7 @@ async def comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Verify Web3 connection
         if not w3.is_connected():
             logger.error("Web3 not connected to Monad testnet")
-            await update.message.reply_text("Blockchain connection failed. Try again later or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+            await update.message.reply_text("Blockchain connection failed\\. Try again later or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/comment failed due to Web3 connection, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -1783,7 +1777,7 @@ async def comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"Using contract address: {contract.address}")
         except Exception as e:
             logger.error(f"Error converting wallet address to checksum: {str(e)}")
-            await update.message.reply_text(f"Invalid wallet address format: {str(e)}. Try /connectwallet again. 😅")
+            await update.message.reply_text(f"Invalid wallet address format: {escape_md_v2(str(e))}\\ Try /connectwallet again\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/comment failed due to checksum error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -1794,12 +1788,12 @@ async def comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             profile_exists = profile[0]
         except Exception as e:
             logger.error(f"Error checking profile existence: {str(e)}")
-            await update.message.reply_text(f"Failed to check profile: {str(e)}. Try /createprofile or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+            await update.message.reply_text(f"Failed to check profile: {escape_md_v2(str(e))}\\ Try /createprofile or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/comment failed due to profile check error, took {time.time() - start_time:.2f} seconds")
             return
 
         if not profile_exists:
-            await update.message.reply_text("Profile required to comment. Use /createprofile first! 😅")
+            await update.message.reply_text("Profile required to comment\\. Use /createprofile first\! 😅")
             logger.info(f"/comment failed due to missing profile, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -1808,12 +1802,12 @@ async def comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             mon_balance = w3.eth.get_balance(checksum_address)
             comment_fee = contract.functions.commentFee().call({'gas': 500000})
             if mon_balance < comment_fee:
-                await update.message.reply_text(f"Insufficient $MON. Need {comment_fee / 10**18} $MON for commenting. Get $MON from https://testnet.monad.xyz/faucet! 😅")
+                await update.message.reply_text(f"Insufficient $MON\\. Need {comment_fee / 10**18} $MON for commenting\\. Get $MON from https://testnet.monad.xyz/faucet! 😅")
                 logger.info(f"/comment failed due to insufficient $MON, took {time.time() - start_time:.2f} seconds")
                 return
         except Exception as e:
             logger.error(f"Error checking $MON balance or commentFee: {str(e)}")
-            await update.message.reply_text(f"Failed to check $MON balance or comment fee: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+            await update.message.reply_text(f"Failed to check $MON balance or comment fee: {escape_md_v2(str(e))}\\ Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/comment failed due to balance check error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -1826,11 +1820,11 @@ async def comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if "ProfileRequired" in revert_reason:
                 await update.message.reply_text("Profile required for commenting. Use /createprofile first! 😅")
             elif "InvalidEntryId" in revert_reason:
-                await update.message.reply_text(f"Invalid entry ID #{entry_id}. Check with /findaclimb or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+                await update.message.reply_text(f"Invalid entry ID \\#{entry_id}. Check with /findaclimb or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
             elif "InsufficientFee" in revert_reason:
                 await update.message.reply_text(f"Insufficient $MON for commenting. Get $MON from https://testnet.monad.xyz/faucet! 😅")
             else:
-                await update.message.reply_text(f"Transaction simulation failed: {revert_reason}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+                await update.message.reply_text(f"Transaction simulation failed: {escape_md_v2(revert_reason)}\\. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/comment failed due to simulation error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -1839,10 +1833,10 @@ async def comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tx = contract.functions.addComment(entry_id, content_hash).build_transaction({
             'chainId': 10143,
             'from': checksum_address,
+            'value': comment_fee,
             'nonce': nonce,
             'gas': 200000,
-            'gasPrice': w3.eth.gas_price,
-            'value': comment_fee
+            'gasPrice': w3.eth.gas_price
         })
         pending_wallets[user_id] = {
             "awaiting_tx": True,
@@ -1858,13 +1852,13 @@ async def comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for adding comment '{escape_md_v2(content_hash)}' to entry \\#{entry_id} \\(0.1 $MON\\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\\.",
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for adding comment '{escape_md_v2(content_hash)}' to entry \\#{entry_id} \\(0\\.1 $MON\\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\\.",
             parse_mode="MarkdownV2"
         )
         logger.info(f"/comment transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /comment: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
 
 BUILD_NAME, BUILD_DIFFICULTY, BUILD_PHOTO, BUILD_LOCATION = range(4)
 
@@ -1877,19 +1871,19 @@ async def buildaclimb_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
     if not API_BASE_URL:
         logger.error("API_BASE_URL missing, /buildaclimb command disabled")
-        await update.message.reply_text("Building climbs unavailable due to configuration issues. Try again later! 😅")
+        await update.message.reply_text("Building climbs unavailable due to configuration issues\\. Try again later\! 😅")
         logger.info(f"/buildaclimb failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
         return ConversationHandler.END
     if not w3 or not contract or not tours_contract:
         logger.error("Web3 or contract not initialized, /buildaclimb command disabled")
-        await update.message.reply_text("Building climbs unavailable due to blockchain issues. Try again later! 😅")
+        await update.message.reply_text("Building climbs unavailable due to blockchain issues\\. Try again later\! 😅")
         logger.info(f"/buildaclimb failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return ConversationHandler.END
     args = context.args or []
     if args:
         # Use args if provided (for testing)
         if len(args) < 2:
-            await update.message.reply_text("Use: /buildaclimb [name] [difficulty] 🏗️ (e.g., /buildaclimb Everest V15)")
+            await update.message.reply_text("Use: /buildaclimb [name] [difficulty] 🏗️ \\(e\\.g\\., /buildaclimb Everest V15\\)")
             logger.info(f"/buildaclimb failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
             return ConversationHandler.END
         context.user_data['build_name'] = args[0]
@@ -1964,7 +1958,7 @@ async def buildaclimb_final(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Using contract address: {contract.address}")
     except Exception as e:
         logger.error(f"Error converting wallet address to checksum: {str(e)}")
-        await update.message.reply_text(f"Invalid wallet address format: {str(e)}. Try /connectwallet again. 😅")
+        await update.message.reply_text(f"Invalid wallet address format: {escape_md_v2(str(e))}. Try /connectwallet again. 😅", parse_mode="MarkdownV2")
         return
 
     # Check profile existence
@@ -1973,7 +1967,7 @@ async def buildaclimb_final(update: Update, context: ContextTypes.DEFAULT_TYPE):
         profile_exists = profile[0]
     except Exception as e:
         logger.error(f"Error checking profile existence: {str(e)}")
-        await update.message.reply_text(f"Failed to check profile: {str(e)}. Try /createprofile or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+        await update.message.reply_text(f"Failed to check profile: {escape_md_v2(str(e))}. Try /createprofile or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
         return
 
     if not profile_exists:
@@ -2074,29 +2068,29 @@ async def purchaseclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if not API_BASE_URL:
         logger.error("API_BASE_URL missing, /purchaseclimb command disabled")
-        await update.message.reply_text("Purchasing climbs unavailable due to configuration issues. Try again later! 😅")
+        await update.message.reply_text("Purchasing climbs unavailable due to configuration issues\\. Try again later\! 😅")
         logger.info(f"/purchaseclimb failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
         return
     if not w3 or not contract or not tours_contract:
         logger.error("Web3 or contract not initialized, /purchaseclimb command disabled")
-        await update.message.reply_text("Purchasing climbs unavailable due to blockchain issues. Try again later! 😅")
+        await update.message.reply_text("Purchasing climbs unavailable due to blockchain issues\\. Try again later\! 😅")
         logger.info(f"/purchaseclimb failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
         args = context.args or []
         if len(args) < 1:
-            await update.message.reply_text("Use: /purchaseclimb [id] 🏔️ (e.g., /purchaseclimb 0)")
+            await update.message.reply_text("Use: /purchaseclimb [id] 🏔️ \\(e\\.g\\., /purchaseclimb 0\\)")
             logger.info(f"/purchaseclimb failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
             return
         try:
             location_id = int(args[0])
         except ValueError:
-            await update.message.reply_text("Invalid climb ID. Use a number (e.g., /purchaseclimb 0). 😅")
+            await update.message.reply_text("Invalid climb ID\\. Use a number \\(e\\.g\\., /purchaseclimb 0\\)\\. 😅")
             logger.info(f"/purchaseclimb failed due to invalid id, took {time.time() - start_time:.2f} seconds")
             return
         wallet_address = sessions.get(user_id, {}).get("wallet_address")
         if not wallet_address:
-            await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
+            await update.message.reply_text("No wallet connected\\. Use /connectwallet first\! 🪙")
             logger.info(f"/purchaseclimb failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
             return
         logger.info(f"Wallet address for user {user_id}: {wallet_address}")
@@ -2104,7 +2098,7 @@ async def purchaseclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Verify Web3 connection
         if not w3.is_connected():
             logger.error("Web3 not connected to Monad testnet")
-            await update.message.reply_text("Blockchain connection failed. Try again later or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+            await update.message.reply_text("Blockchain connection failed\\. Try again later or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/purchaseclimb failed due to Web3 connection, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -2114,7 +2108,7 @@ async def purchaseclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"Using contract address: {contract.address}")
         except Exception as e:
             logger.error(f"Error converting wallet address to checksum: {str(e)}")
-            await update.message.reply_text(f"Invalid wallet address format: {str(e)}. Try /connectwallet again. 😅")
+            await update.message.reply_text(f"Invalid wallet address format: {escape_md_v2(str(e))}\\ Try /connectwallet again\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/purchaseclimb failed due to checksum error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -2125,12 +2119,12 @@ async def purchaseclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             profile_exists = profile[0]
         except Exception as e:
             logger.error(f"Error checking profile existence: {str(e)}")
-            await update.message.reply_text(f"Failed to check profile: {str(e)}. Try /createprofile or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+            await update.message.reply_text(f"Failed to check profile: {escape_md_v2(str(e))}\\ Try /createprofile or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/purchaseclimb failed due to profile check error, took {time.time() - start_time:.2f} seconds")
             return
 
         if not profile_exists:
-            await update.message.reply_text("Profile required to purchase a climb. Use /createprofile first! 😅")
+            await update.message.reply_text("Profile required to purchase a climb\\. Use /createprofile first\! 😅")
             logger.info(f"/purchaseclimb failed due to missing profile, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -2139,7 +2133,7 @@ async def purchaseclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             tours_balance = tours_contract.functions.balanceOf(checksum_address).call({'gas': 500000})
             climb_cost = 10 * 10**18
             if tours_balance < climb_cost:
-                await update.message.reply_text(f"Insufficient $TOURS. Need 10 $TOURS for purchasing a climb, you have {tours_balance / 10**18}. Use /buyTours! 😅")
+                await update.message.reply_text(f"Insufficient $TOURS\\. Need 10 $TOURS for purchasing a climb, you have {tours_balance / 10**18}\\. Use /buyTours\! 😅")
                 logger.info(f"/purchaseclimb failed due to insufficient $TOURS, took {time.time() - start_time:.2f} seconds")
                 return
             allowance = tours_contract.functions.allowance(checksum_address, contract.address).call({'gas': 500000})
@@ -2176,7 +2170,7 @@ async def purchaseclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
         except Exception as e:
             logger.error(f"Error checking $TOURS balance or allowance: {str(e)}")
-            await update.message.reply_text(f"Failed to check $TOURS balance or allowance: {escape_md_v2(str(e))}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+            await update.message.reply_text(f"Failed to check $TOURS balance or allowance: {escape_md_v2(str(e))}\\ Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/purchaseclimb failed due to balance/allowance error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -2193,7 +2187,7 @@ async def purchaseclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif "InsufficientTokenBalance" in revert_reason:
                 await update.message.reply_text("Insufficient $TOURS for purchasing a climb. Use /buyTours! 😅")
             else:
-                await update.message.reply_text(f"Transaction simulation failed: {revert_reason}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+                await update.message.reply_text(f"Transaction simulation failed: {escape_md_v2(revert_reason)}\\. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
             logger.info(f"/purchaseclimb failed due to simulation error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -2226,7 +2220,7 @@ async def purchaseclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/purchaseclimb transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /purchaseclimb: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\\. 😅", parse_mode="MarkdownV2")
 
 async def findaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -2253,7 +2247,7 @@ async def findaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             climb_count = contract.functions.getClimbingLocationCount().call({'gas': 500000})
         except Exception as e:
             logger.error(f"Error getting climbing location count: {str(e)}")
-            await update.message.reply_text(f"Failed to get climb count: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+            await update.message.reply_text(f"Failed to get climb count: {escape_md_v2(str(e))}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
             logger.info(f"/findaclimb failed due to climb count error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -2279,12 +2273,12 @@ async def findaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "purchase_count": climb[10]
                 })
             except Exception as e:
-                logger.error(f"Error fetching climb #{location_id}: {str(e)}")
+                logger.error(f"Error fetching climb \\#{location_id}: {str(e)}")
 
         # Format response
         response = "Available Climbs:\n"
         for climb in climbs:
-            response += f"\\#{climb['id']} - {escape_md_v2(climb['name'])} ({escape_md_v2(climb['difficulty'])}) by [{climb['creator'][:6]}...]({EXPLORER_URL}/address/{climb['creator']}) - Purchases: {climb['purchase_count']}\n"
+            response += f"\\#{climb['id']} \\- {escape_md_v2(climb['name'])} \\({escape_md_v2(climb['difficulty'])}\\) by [{climb['creator'][:6]}...]({EXPLORER_URL}/address/{climb['creator']}) \\- Purchases: {climb['purchase_count']}\n"
         await update.message.reply_text(response, parse_mode="MarkdownV2")
         logger.info(f"Sent /findaclimb response to user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
@@ -2342,7 +2336,7 @@ async def createtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"Using contract address: {contract.address}")
         except Exception as e:
             logger.error(f"Error converting wallet address to checksum: {str(e)}")
-            await update.message.reply_text(f"Invalid wallet address format: {str(e)}. Try /connectwallet again. 😅")
+            await update.message.reply_text(f"Invalid wallet address format: {escape_md_v2(str(e))}. Try /connectwallet again. 😅", parse_mode="MarkdownV2")
             logger.info(f"/createtournament failed due to checksum error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -2353,7 +2347,7 @@ async def createtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             profile_exists = profile[0]
         except Exception as e:
             logger.error(f"Error checking profile existence: {str(e)}")
-            await update.message.reply_text(f"Failed to check profile: {str(e)}. Try /createprofile or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+            await update.message.reply_text(f"Failed to check profile: {escape_md_v2(str(e))}. Try /createprofile or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
             logger.info(f"/createtournament failed due to profile check error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -2371,7 +2365,7 @@ async def createtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if "ProfileRequired" in revert_reason:
                 await update.message.reply_text("Profile required for creating a tournament. Use /createprofile first! 😅")
             else:
-                await update.message.reply_text(f"Transaction simulation failed: {revert_reason}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+                await update.message.reply_text(f"Transaction simulation failed: {escape_md_v2(revert_reason)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
             logger.info(f"/createtournament failed due to simulation error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -2455,7 +2449,7 @@ async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"Using contract address: {contract.address}")
         except Exception as e:
             logger.error(f"Error converting wallet address to checksum: {str(e)}")
-            await update.message.reply_text(f"Invalid wallet address format: {str(e)}. Try /connectwallet again. 😅")
+            await update.message.reply_text(f"Invalid wallet address format: {escape_md_v2(str(e))}. Try /connectwallet again. 😅", parse_mode="MarkdownV2")
             logger.info(f"/jointournament failed due to checksum error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -2466,7 +2460,7 @@ async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             profile_exists = profile[0]
         except Exception as e:
             logger.error(f"Error checking profile existence: {str(e)}")
-            await update.message.reply_text(f"Failed to check profile: {str(e)}. Try /createprofile or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+            await update.message.reply_text(f"Failed to check profile: {escape_md_v2(str(e))}. Try /createprofile or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
             logger.info(f"/jointournament failed due to profile check error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -2550,7 +2544,7 @@ async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif "InsufficientTokenBalance" in revert_reason:
                 await update.message.reply_text("Insufficient $TOURS for joining the tournament. Use /buyTours! 😅")
             else:
-                await update.message.reply_text(f"Transaction simulation failed: {revert_reason}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+                await update.message.reply_text(f"Transaction simulation failed: {escape_md_v2(revert_reason)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
             logger.info(f"/jointournament failed due to simulation error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -2637,7 +2631,7 @@ async def endtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"Using contract address: {contract.address}")
         except Exception as e:
             logger.error(f"Error converting address to checksum: {str(e)}")
-            await update.message.reply_text(f"Invalid address format: {str(e)}. Check winner address and try again. 😅")
+            await update.message.reply_text(f"Invalid address format: {escape_md_v2(str(e))}. Check winner address and try again. 😅", parse_mode="MarkdownV2")
             logger.info(f"/endtournament failed due to checksum error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -2665,7 +2659,7 @@ async def endtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif "InvalidTournamentId" in revert_reason:
                 await update.message.reply_text(f"Invalid tournament ID \\#{tournament_id}. Check with /findaclimb or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
             else:
-                await update.message.reply_text(f"Transaction simulation failed: {revert_reason}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
+                await update.message.reply_text(f"Transaction simulation failed: {escape_md_v2(revert_reason)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
             logger.info(f"/endtournament failed due to simulation error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -2732,7 +2726,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
             checksum_address = w3.to_checksum_address(wallet_address)
         except Exception as e:
             logger.error(f"Error converting wallet address to checksum: {str(e)}")
-            await update.message.reply_text(f"Invalid wallet address format: {str(e)}. Try /connectwallet again. 😅")
+            await update.message.reply_text(f"Invalid wallet address format: {escape_md_v2(str(e))}. Try /connectwallet again. 😅", parse_mode="MarkdownV2")
             logger.info(f"/balance failed due to checksum error, took {time.time() - start_time:.2f} seconds")
             return
 
@@ -2781,7 +2775,7 @@ async def apply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return 'NAME'
     except Exception as e:
         logger.error(f"Error in /apply: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}. Try again! 😅", parse_mode="MarkdownV2")
         return ConversationHandler.END
 
 async def apply_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2790,11 +2784,11 @@ async def apply_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         context.user_data['application']['name'] = update.message.text
         await update.message.reply_text("What's your email?")
-        logger.info(f"Applyname received for user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
+        logger.info(f"Apply name received for user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
         return 'EMAIL'
     except Exception as e:
         logger.error(f"Error in apply_name: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}. Try again! 😅", parse_mode="MarkdownV2")
         return ConversationHandler.END
 
 async def apply_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2807,7 +2801,7 @@ async def apply_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return 'CLIMB_EXP'
     except Exception as e:
         logger.error(f"Error in apply_email: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}. Try again! 😅", parse_mode="MarkdownV2")
         return ConversationHandler.END
 
 async def apply_climb_exp(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2820,7 +2814,7 @@ async def apply_climb_exp(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return 'WEB3_INTEREST'
     except Exception as e:
         logger.error(f"Error in apply_climb_exp: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}. Try again! 😅", parse_mode="MarkdownV2")
         return ConversationHandler.END
 
 async def apply_web3_interest(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2833,7 +2827,7 @@ async def apply_web3_interest(update: Update, context: ContextTypes.DEFAULT_TYPE
         return 'WHY_JOIN'
     except Exception as e:
         logger.error(f"Error in apply_web3_interest: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}. Try again! 😅", parse_mode="MarkdownV2")
         return ConversationHandler.END
 
 async def apply_why_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2846,7 +2840,7 @@ async def apply_why_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return 'DOB'
     except Exception as e:
         logger.error(f"Error in apply_why_join: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}. Try again! 😅", parse_mode="MarkdownV2")
         return ConversationHandler.END
 
 async def apply_dob(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2859,7 +2853,7 @@ async def apply_dob(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return 'ADDRESS'
     except Exception as e:
         logger.error(f"Error in apply_dob: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}. Try again! 😅", parse_mode="MarkdownV2")
         return ConversationHandler.END
 
 async def apply_address(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2872,7 +2866,7 @@ async def apply_address(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return 'EDUCATION'
     except Exception as e:
         logger.error(f"Error in apply_address: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}. Try again! 😅", parse_mode="MarkdownV2")
         return ConversationHandler.END
 
 async def apply_education(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2885,7 +2879,7 @@ async def apply_education(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return 'HEADSHOT'
     except Exception as e:
         logger.error(f"Error in apply_education: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}. Try again! 😅", parse_mode="MarkdownV2")
         return ConversationHandler.END
 
 async def apply_headshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2917,7 +2911,7 @@ async def apply_headshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
     except Exception as e:
         logger.error(f"Error in apply_headshot: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}.Try again! 😅", parse_mode="MarkdownV2")
         return ConversationHandler.END
 
 async def listpending(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2937,12 +2931,12 @@ async def listpending(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         response = "Pending Applications:\n"
         for row in rows:
-            response += f"User ID: {row['user_id']}, Name: {row['name']}\n"
-        await update.message.reply_text(response)
+            response += f"User ID: {row['user_id']}, Name: {escape_md_v2(row['name'])}\n"
+        await update.message.reply_text(response, parse_mode="MarkdownV2")
         logger.info(f"Sent /listpending response to user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /listpending: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}. Try again! 😅", parse_mode="MarkdownV2")
 
 async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -2961,12 +2955,12 @@ async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
         approve_user_id = args[0]
         async with pool.acquire() as conn:
             await conn.execute("UPDATE applications SET status = 'approved' WHERE user_id = $1 AND status = 'pending'", approve_user_id)
-        await update.message.reply_text(f"User {approve_user_id} approved.")
+        await update.message.reply_text(f"User {escape_md_v2(approve_user_id)} approved.")
         await application.bot.send_message(approve_user_id, "Your application has been approved! Try /connectwallet and /createprofile. 😊")
         logger.info(f"User {approve_user_id} approved by {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /approve: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}. Try again! 😅", parse_mode="MarkdownV2")
 
 async def reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -2985,12 +2979,12 @@ async def reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reject_user_id = args[0]
         async with pool.acquire() as conn:
             await conn.execute("UPDATE applications SET status = 'rejected' WHERE user_id = $1 AND status = 'pending'", reject_user_id)
-        await update.message.reply_text(f"User {reject_user_id} rejected.")
+        await update.message.reply_text(f"User {escape_md_v2(reject_user_id)} rejected.")
         await application.bot.send_message(reject_user_id, "Your application has been rejected. Contact support at [EmpowerTours Chat](https://t.me/empowertourschat) for more information. 😔", parse_mode="MarkdownV2")
         logger.info(f"User {reject_user_id} rejected by {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /reject: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}. Try again! 😅", parse_mode="MarkdownV2")
 
 command_handlers = {
     'start': start,
@@ -3032,10 +3026,10 @@ async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE
             finally:
                 context.args = original_args
         else:
-            await update.message.reply_text(f"Unknown command {data}. Try /help.")
+            await update.message.reply_text(f"Unknown command {escape_md_v2(data)}. Try /help.")
     else:
-        await update.message.reply_text(f"Invalid data {data}.")
-    
+        await update.message.reply_text(f"Invalid data {escape_md_v2(data)}.")
+
 async def handle_tx_hash(user_id, tx_hex, application):
     start_time = time.time()
     logger.info(f"Handling tx for user {user_id} with tx_hex {tx_hex}")
@@ -3074,7 +3068,7 @@ async def handle_tx_hash(user_id, tx_hex, application):
                         logger.error(f"Error saving pending_wallets: {str(e)}")
                     await application.bot.send_message(
                         user_id,
-                        f"Approval confirmed! Now open {base_url}/public/connect.html?userId={user_id} to sign the transaction for joining tournament \\#{next_tx_data['tournament_id']}."
+                        f"Approval confirmed\! Now open {base_url}/public/connect.html?userId={user_id} to sign the transaction for joining tournament \\#{next_tx_data['tournament_id']}\\."
                     )
                     logger.info(f"handle_tx_hash processed approval, next transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
                     return
@@ -3102,7 +3096,7 @@ async def handle_tx_hash(user_id, tx_hex, application):
             logger.info(f"handle_tx_hash failed transaction for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in handle_tx_hash: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await application.bot.send_message(user_id, f"Error: {str(e)}. Try again! 😅")
+        await application.bot.send_message(user_id, f"Error: {escape_md_v2(str(e))}. Try again! 😅", parse_mode="MarkdownV2")
 
 async def submit_tx(request: Request):
     start_time = time.time()
