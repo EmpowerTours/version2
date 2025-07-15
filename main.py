@@ -946,6 +946,7 @@ journal_data = {}
 reverse_sessions = {}  # wallet: user_id mapping for event PMs
 webhook_failed = False
 last_processed_block = 0
+processed_updates = set()  # To prevent duplicate processing
 
 def initialize_web3():
     global w3, contract, tours_contract
@@ -1175,6 +1176,7 @@ async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "- /journals - List all journal entries\n"
             "- /viewjournal id - View a journal entry and its comments\n"
             "- /createtournament fee - Start a tournament with an entry fee in $TOURS (e.g., /createtournament 10 for 10 $TOURS per participant)\n"
+            "- /tournaments - List all tournaments with IDs and participant counts\n"
             "- /jointournament id - Join a tournament by paying the entry fee\n"
             "- /endtournament id winner - End a tournament (owner only) and award the prize to the winner’s wallet address (e.g., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725)\n"
             "- /balance - Check your $MON and $TOURS balance\n"
@@ -1697,7 +1699,7 @@ async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if "ProfileExists" in revert_reason:
                     profile_exists = True
                     await update.message.reply_text(
-                        f"A profile already exists for wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})! Use /balance to check your status or try commands like /journal, /buildaclimb, /buyTours, or /createtournament. Contact support at [EmpowerTours Chat](https://t.me/empowertourschat) if needed. 😅",
+                        f"A profile already exists for wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})! Use /balance to check your status or try commands like /journal or /buildaclimb. Contact support at [EmpowerTours Chat](https://t.me/empowertourschat) if needed. 😅",
                         parse_mode="Markdown"
                     )
                     logger.info(f"/createprofile failed: profile exists for user {user_id}, wallet {checksum_address}, took {time.time() - start_time:.2f} seconds")
@@ -3112,6 +3114,7 @@ async def startup_event():
         application.add_handler(CommandHandler("journals", journals))
         application.add_handler(CommandHandler("viewjournal", viewjournal))
         application.add_handler(CommandHandler("createtournament", create_tournament))
+        application.add_handler(CommandHandler("tournaments", tournaments))
         application.add_handler(CommandHandler("jointournament", jointournament))
         application.add_handler(CommandHandler("endtournament", endtournament))
         application.add_handler(CommandHandler("balance", balance))
@@ -3505,7 +3508,14 @@ async def webhook(request: Request):
     start_time = time.time()
     try:
         update = await request.json()
-        logger.info(f"Received webhook update: update_id={update.get('update_id')}, message_id={update.get('message', {}).get('message_id')}")
+        update_id = update.get('update_id')
+        logger.info(f"Received webhook update: update_id={update_id}, message_id={update.get('message', {}).get('message_id')}")
+        if update_id in processed_updates:
+            logger.warning(f"Duplicate update_id {update_id}, skipping")
+            return {"status": "duplicate"}
+        processed_updates.add(update_id)
+        if len(processed_updates) > 1000:
+            processed_updates.pop()
         if not application:
             logger.error("Application not initialized, cannot process webhook update")
             raise HTTPException(status_code=500, detail="Application not initialized")
