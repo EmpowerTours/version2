@@ -1126,7 +1126,7 @@ async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Sent /ping response to user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /ping: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\! 😅", parse_mode="MarkdownV2")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\\! 😅", parse_mode="MarkdownV2")
 
 async def clearcache(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1141,7 +1141,7 @@ async def clearcache(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Sent /clearcache response to user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /clearcache: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\! 😅", parse_mode="MarkdownV2")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\\! 😅", parse_mode="MarkdownV2")
 
 async def forcewebhook(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1156,7 +1156,7 @@ async def forcewebhook(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Sent /forcewebhook response to user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /forcewebhook: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\! 😅", parse_mode="MarkdownV2")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\\! 😅", parse_mode="MarkdownV2")
 
 async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1170,7 +1170,7 @@ async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Sent /debug response to user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /debug: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\! 😅", parse_mode="MarkdownV2")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\\! 😅", parse_mode="MarkdownV2")
 
 async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1194,7 +1194,7 @@ async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "\\- /createprofile \\(1 $MON, receive 1 $TOURS\\)\\n\\n"
             "4\\. Manage Tokens:\\n"
             "\\- /buyTours [amount] \\- Buy $TOURS tokens with $MON \\(e\\.g\\. /buyTours 10 to buy 10 $TOURS\\)\\n"
-            "\\- /sendTours [recipient] [amount] \\- Send $TOURS to another wallet \\(e\\.g\\. /sendTours 0x123...456 10 to send 10 $TOURS\\)\\n\\n"
+            "\\- /sendTours [recipient] [amount] \\- Send $TOURS to another wallet \\(e\\.g\\. /sendTours 0x123\\.\\.\\.456 10 to send 10 $TOURS\\)\\n\\n"
             "5\\. Explore:\\n"
             "\\- /journal [your journal entry] \\- Log a climb \\(5 $TOURS\\)\\n"
             "\\- /comment [id] [your comment] \\- Comment on a journal \\(0\\.1 $MON\\)\\n"
@@ -1212,7 +1212,7 @@ async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Sent /tutorial response to user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /tutorial for user {update.effective_user.id}: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error in tutorial: {escape_md_v2(str(e))}\\ Try again...", parse_mode="MarkdownV2")
+        await update.message.reply_text(f"Error in tutorial: {escape_md_v2(str(e))}\\ Try again\\!", parse_mode="MarkdownV2")
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1225,7 +1225,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/connectwallet \\- Connect your wallet \\(use chain ID 10143; remove incorrect Monad Testnet entries from MetaMask if needed\\)\\n\\n"
             "/createprofile \\- Create profile \\(1 $MON, receive 1 $TOURS\\)\\n\\n"
             "/buyTours [amount] \\- Buy $TOURS tokens with $MON \\(e\\.g\\. /buyTours 10 to buy 10 $TOURS\\)\\n\\n"
-            "/sendTours [recipient] [amount] \\- Send $TOURS to another wallet \\(e\\.g\\. /sendTours 0x123...456 10 to send 10 $TOURS\\)\\n\\n"
+            "/sendTours [recipient] [amount] \\- Send $TOURS to another wallet \\(e\\.g\\. /sendTours 0x123\\.\\.\\.456 10 to send 10 $TOURS\\)\\n\\n"
             "/journal [entry] \\- Log a climb for an existing climb with photos or notes \\(5 $TOURS\\)\\n\\n"
             "/buildaclimb [name] [difficulty] \\- Create a new climb with name, difficulty, and optional photo/location \\(10 $TOURS\\)\\n\\n"
             "/comment [id] [comment] \\- Comment on a journal \\(0\\.1 $MON\\)\\n\\n"
@@ -1249,7 +1249,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Sent /help response to user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /help: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\! 😅", parse_mode="MarkdownV2")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\\! 😅", parse_mode="MarkdownV2")
 
 async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1259,7 +1259,7 @@ async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Sent /debug_command response to user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in debug_command: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\! 😅", parse_mode="MarkdownV2")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\\! 😅", parse_mode="MarkdownV2")
 
 async def connect_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1295,7 +1295,7 @@ async def connect_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Continue even if file write fails, as in-memory pending_wallets is sufficient
     except Exception as e:
         logger.error(f"Error in /connectwallet for user {user_id}: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\! 😅", parse_mode="MarkdownV2")
+        await update.message.reply_text(f"Error: {escape_md_v2(str(e))}\\ Try again\\! 😅", parse_mode="MarkdownV2")
 
 async def handle_wallet_address(user_id: str, wallet_address: str, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1323,7 +1323,7 @@ async def handle_wallet_address(user_id: str, wallet_address: str, context: Cont
             logger.info(f"/handle_wallet_address failed due to invalid address or blockchain, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in handle_wallet_address: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await context.bot.send_message(user_id, f"Error: {escape_md_v2(str(e))}\\ Try again\! 😅", parse_mode="MarkdownV2")
+        await context.bot.send_message(user_id, f"Error: {escape_md_v2(str(e))}\\ Try again\\! 😅", parse_mode="MarkdownV2")
 
 async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -1477,7 +1477,7 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         args = context.args or []
         if len(args) < 2:
-            await update.message.reply_text("Use: /sendTours [recipient] [amount] 🪙 \\(e\\.g\\., /sendTours 0x123...456 10 to send 10 $TOURS\\)")
+            await update.message.reply_text("Use: /sendTours [recipient] [amount] 🪙 \\(e\\.g\\., /sendTours 0x123\\.\\.\\.456 10 to send 10 $TOURS\\)")
             logger.info(f"/sendTours failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
             return
         recipient = args[0]
@@ -1486,7 +1486,7 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if amount <= 0:
                 raise ValueError("Amount must be positive")
         except ValueError:
-            await update.message.reply_text("Invalid amount\\. Use a positive number \\(e\\.g\\., /sendTours 0x123...456 10\\)\\. 😅")
+            await update.message.reply_text("Invalid amount\\. Use a positive number \\(e\\.g\\., /sendTours 0x123\\.\\.\\.456 10\\)\\. 😅")
             logger.info(f"/sendTours failed due to invalid amount, took {time.time() - start_time:.2f} seconds")
             return
         wallet_address = sessions.get(user_id, {}).get("wallet_address")
@@ -2273,7 +2273,7 @@ async def findaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "purchase_count": climb[10]
                 })
             except Exception as e:
-                logger.error(f"Error fetching climb \\#{location_id}: {str(e)}")
+                logger.error(f"Error fetching climb #{location_id}: {str(e)}")
 
         # Format response
         response = "Available Climbs:\n"
@@ -2600,14 +2600,14 @@ async def endtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         args = context.args or []
         if len(args) < 2:
-            await update.message.reply_text("Use: /endtournament [id] [winner_address] 🏆 (e.g., /endtournament 0 0x123...456)")
+            await update.message.reply_text("Use: /endtournament [id] [winner_address] 🏆 (e.g., /endtournament 0 0x123\\.\\.\\.456)")
             logger.info(f"/endtournament failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
             return
         try:
             tournament_id = int(args[0])
             winner = args[1]
         except ValueError:
-            await update.message.reply_text("Invalid tournament ID. Use a number for id (e.g., /endtournament 0 0x123...456). 😅")
+            await update.message.reply_text("Invalid tournament ID. Use a number for id (e.g., /endtournament 0 0x123\\.\\.\\.456). 😅")
             logger.info(f"/endtournament failed due to invalid id, took {time.time() - start_time:.2f} seconds")
             return
         wallet_address = sessions.get(user_id, {}).get("wallet_address")
@@ -2944,7 +2944,7 @@ async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     if user_id != YOUR_TELEGRAM_ID:
         await update.message.reply_text("Only the owner can approve applications. Contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
-        logger.info(f"/approve failed:unauthorized user {user_id}, took {time.time() - start_time:.2f} seconds")
+        logger.info(f"/approve failed: unauthorized user {user_id}, took {time.time() - start_time:.2f} seconds")
         return
     try:
         args = context.args or []
