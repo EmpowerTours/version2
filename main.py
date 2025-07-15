@@ -1677,7 +1677,7 @@ async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     profile_exists = True
                     logger.info(f"Profile confirmed via ProfileCreated event for {checksum_address}: {len(events)} events found")
                     await update.message.reply_text(
-                        f"A profile already exists for wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})! Use /balance to check your status or try commands like /journal, /buildaclimb, /buyTours, or /createtournament. Contact support at [EmpowerTours Chat](https://t.me/empowertourschat) if needed. 😅",
+                        f"A profile already exists for wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})! Use /balance to check your status or try commands like /journal or /buildaclimb. Contact support at [EmpowerTours Chat](https://t.me/empowertourschat) if needed. 😅",
                         parse_mode="Markdown"
                     )
                     logger.info(f"/createprofile failed: profile exists for user {user_id}, wallet {checksum_address}, took {time.time() - start_time:.2f} seconds")
@@ -1812,6 +1812,12 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Hash the file_id to fixed 32-byte hex (reduces gas/storage) for both journal and climb
         photo_hash = w3.keccak(text=file_id).hex()  # Now ~66 chars fixed
         journal = await get_journal_data(user_id)
+        entry_type = 'journal' if journal and journal.get("awaiting_photo") else 'climb'
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO media_files (hash, file_id, user_id, entry_type, entry_id) VALUES ($1, $2, $3, $4, $5)",
+                photo_hash, file_id, user_id, entry_type, None
+            )
         if journal and journal.get("awaiting_photo"):
             journal["photo_hash"] = photo_hash
             journal["awaiting_location"] = True
@@ -1912,9 +1918,14 @@ async def journals(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for i in range(max_entries):
             try:
                 entry = contract.functions.getJournalEntry(i).call({'gas': 500000})
+                content = entry[1]
+                has_photo = False
+                if ' (photo: ' in content:
+                    has_photo = True
+                    content = content.rsplit(' (photo: ', 1)[0]
                 entry_list.append(
                     f"📝 Entry #{i} by [{entry[0][:6]}...]({EXPLORER_URL}/address/{entry[0]})\n"
-                    f"   Content: {entry[1]}\n"
+                    f"   Content: {content}{' (has photo)' if has_photo else ''}\n"
                     f"   Location: {entry[5]}\n"
                     f"   Difficulty: {entry[6]}\n"
                     f"   Created: {datetime.fromtimestamp(entry[2]).strftime('%Y-%m-%d %H:%M:%S')}"
@@ -1947,6 +1958,26 @@ async def viewjournal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         entry_id = int(args[0])
         entry = contract.functions.getJournalEntry(entry_id).call({'gas': 500000})
+        content = entry[1]
+        photo_hash = None
+        if ' (photo: ' in content:
+            photo_hash = content.split(' (photo: ')[-1].rstrip(')')
+            content = content.split(' (photo: ')[0]
+        message = (
+            f"📝 Journal Entry #{entry_id} by [{entry[0][:6]}...]({EXPLORER_URL}/address/{entry[0]})\n"
+            f"Content: {content}\n"
+            f"Location: {entry[5]}\n"
+            f"Difficulty: {entry[6]}\n"
+            f"Created: {datetime.fromtimestamp(entry[2]).strftime('%Y-%m-%d %H:%M:%S')}\n"
+        )
+        await update.message.reply_text(message, parse_mode="Markdown")
+        if photo_hash:
+            async with pool.acquire() as conn:
+                row = await conn.fetchrow("SELECT file_id FROM media_files WHERE hash = $1", photo_hash)
+            if row:
+                await context.bot.send_photo(chat_id=update.effective_chat.id, photo=row['file_id'], caption="Photo for this journal entry")
+            else:
+                await update.message.reply_text("Photo not found in database.")
         comment_count = contract.functions.getCommentCount(entry_id).call({'gas': 500000})
         comments = []
         for j in range(comment_count):
@@ -1954,20 +1985,49 @@ async def viewjournal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             comments.append(
                 f"   - Comment by [{comment[0][:6]}...]: {comment[1]} ({datetime.fromtimestamp(comment[2]).strftime('%Y-%m-%d %H:%M:%S')})"
             )
-        message = (
-            f"📝 Journal Entry #{entry_id} by [{entry[0][:6]}...]({EXPLORER_URL}/address/{entry[0]})\n"
-            f"Content: {entry[1]}\n"
-            f"Location: {entry[5]}\n"
-            f"Difficulty: {entry[6]}\n"
-            f"Created: {datetime.fromtimestamp(entry[2]).strftime('%Y-%m-%d %H:%M:%S')}\n"
-            f"Comments ({comment_count}):\n" + "\n".join(comments)
-        )
-        await update.message.reply_text(message, parse_mode="Markdown")
+        if comments:
+            await update.message.reply_text(f"Comments ({comment_count}):\n" + "\n".join(comments), parse_mode="Markdown")
         logger.info(f"/viewjournal details for {entry_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /viewjournal: {str(e)}")
         await update.message.reply_text(f"Error retrieving entry: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
         logger.info(f"/viewjournal failed due to error, took {time.time() - start_time:.2f} seconds")
+
+async def viewclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /viewclimb command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    if not w3 or not contract:
+        await update.message.reply_text("Blockchain connection unavailable. Try again later! 😅")
+        logger.info(f"/viewclimb failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        if not context.args:
+            await update.message.reply_text("Usage: /viewclimb <id>")
+            logger.info(f"/viewclimb failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
+            return
+        loc_id = int(context.args[0])
+        location = contract.functions.getClimbingLocation(loc_id).call({'gas': 500000})
+        if not location[1]:
+            await update.message.reply_text("Climb not found.")
+            logger.info(f"/viewclimb failed: climb not found, took {time.time() - start_time:.2f} seconds")
+            return
+        photo_hash = location[5]
+        has_photo = photo_hash != ''
+        message = f"🧗 Climb #{loc_id} by [{location[0][:6]}...]({EXPLORER_URL}/address/{location[0]})\n   Name: {location[1]}\n   Difficulty: {location[2]}\n   Location: {location[3]/1000000:.6f}, {location[4]/1000000:.6f}\n   Photo: {'Yes' if has_photo else 'No'}\n"
+        await update.message.reply_text(message, parse_mode="Markdown")
+        if has_photo:
+            async with pool.acquire() as conn:
+                row = await conn.fetchrow("SELECT file_id FROM media_files WHERE hash = $1", photo_hash)
+            if row:
+                await context.bot.send_photo(chat_id=update.effective_chat.id, photo=row['file_id'], caption="Photo for this climb")
+            else:
+                await update.message.reply_text("Photo not found in database.")
+        logger.info(f"/viewclimb details for {loc_id}, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /viewclimb: {str(e)}")
+        await update.message.reply_text(f"Error retrieving climb: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+        logger.info(f"/viewclimb failed due to error, took {time.time() - start_time:.2f} seconds")
 
 async def buildaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
@@ -2186,7 +2246,9 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             "difficulty": difficulty,
                             "is_shared": is_shared,
                             "cast_hash": cast_hash
-                        }
+                        },
+                        "entry_type": "journal",
+                        "photo_hash": journal.get("photo_hash")
                     })
                     await update.message.reply_text(
                         f"Please open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to approve {journal_cost / 10**18} $TOURS for journal entry."
@@ -2213,7 +2275,9 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "awaiting_tx": True,
                     "tx_data": tx,
                     "wallet_address": checksum_address,
-                    "timestamp": time.time()
+                    "timestamp": time.time(),
+                    "entry_type": "journal",
+                    "photo_hash": journal.get("photo_hash")
                 })
                 await update.message.reply_text(
                     f"Please open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for journal entry using 5 $TOURS."
@@ -2278,7 +2342,9 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             "latitude": latitude,
                             "longitude": longitude,
                             "photo_hash": photo_hash
-                        }
+                        },
+                        "entry_type": "climb",
+                        "photo_hash": photo_hash
                     })
                     await update.message.reply_text(
                         f"Please open https://version1-production.up.railway.app/public/connect.html?userId={user_id} in MetaMask’s browser to approve {location_cost / 10**18} $TOURS for climb creation."
@@ -2326,6 +2392,8 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "difficulty": difficulty,
                     "latitude": latitude,
                     "longitude": longitude,
+                    "photo_hash": photo_hash,
+                    "entry_type": "climb",
                     "photo_hash": photo_hash
                 })
                 await update.message.reply_text(
@@ -2429,8 +2497,9 @@ async def findaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for i in range(location_count):
             try:
                 location = contract.functions.climbingLocations(i).call({'gas': 500000})
+                photo_info = " (has photo)" if location[5] else ""
                 tour_list.append(
-                    f"🏔️ {location[1]} ({location[2]}) - By [{location[0][:6]}...]({EXPLORER_URL}/address/{location[0]})\n"
+                    f"🏔️ {location[1]}{photo_info} ({location[2]}) - By [{location[0][:6]}...]({EXPLORER_URL}/address/{location[0]})\n"
                     f"   Location: ({location[3]/10**6:.4f}, {location[4]/10**6:.4f})\n"
                     f"   Map: https://www.google.com/maps?q={location[3]/10**6},{location[4]/10**6}\n"
                     f"   Created: {datetime.fromtimestamp(location[6]).strftime('%Y-%m-%d %H:%M:%S')}"
@@ -3026,6 +3095,15 @@ async def startup_event():
                 timestamp FLOAT
             )
             """)
+            await conn.execute("""
+            CREATE TABLE IF NOT EXISTS media_files (
+                hash TEXT PRIMARY KEY,
+                file_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                entry_type TEXT NOT NULL,
+                entry_id INTEGER
+            )
+            """)
 
             # Load data
             rows = await conn.fetch("SELECT * FROM users")
@@ -3113,6 +3191,7 @@ async def startup_event():
         application.add_handler(CommandHandler("findaclimb", findaclimb))
         application.add_handler(CommandHandler("journals", journals))
         application.add_handler(CommandHandler("viewjournal", viewjournal))
+        application.add_handler(CommandHandler("viewclimb", viewclimb))
         application.add_handler(CommandHandler("createtournament", create_tournament))
         application.add_handler(CommandHandler("tournaments", tournaments))
         application.add_handler(CommandHandler("jointournament", jointournament))
@@ -3350,6 +3429,18 @@ async def submit_tx(request: Request):
                         message = f"New activity by user {user_id} on EmpowerTours! 🧗 <a href=\"{EXPLORER_URL}/tx/{tx_hash}\">Tx: {escape_html(tx_hash)}</a>"
                         await send_notification(CHAT_HANDLE, message)
                     await application.bot.send_message(user_id, success_message, parse_mode="Markdown")
+                    entry_type = pending.get('entry_type')
+                    photo_hash = pending.get('photo_hash')
+                    if entry_type and photo_hash:
+                        if entry_type == 'journal':
+                            entry_id = contract.functions.getJournalEntryCount().call() - 1
+                        elif entry_type == 'climb':
+                            entry_id = contract.functions.getClimbingLocationCount().call() - 1
+                        async with pool.acquire() as conn:
+                            await conn.execute(
+                                "UPDATE media_files SET entry_id = $1 WHERE hash = $2",
+                                entry_id, photo_hash
+                            )
                     if pending.get("next_tx"):
                         next_tx_data = pending["next_tx"]
                         if next_tx_data["type"] == "create_climbing_location":
