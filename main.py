@@ -1182,30 +1182,30 @@ async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"/tutorial failed due to missing config, took {time.time() - start_time:.2f} seconds")
             return
         tutorial_text = (
-            "Tutorial\n\n"
-            "1\\. Wallet:\n"
-            "\\- Get MetaMask, Phantom, or Gnosis Safe\\.\n"
-            "\\- Add Monad testnet \\(RPC: https://testnet\\-rpc\\monad\\xyz, ID: 10143\\)\\.\n"
-            "\\- If you see a chain ID mismatch \\(e\\.g\\., 10159\\), go to MetaMask Settings \\> Networks, remove all Monad Testnet entries, and reconnect\\.\n"
-            "\\- Get $MON: https://testnet\\monad\\xyz/faucet\n\n"
-            "2\\. Connect:\n"
-            "\\- Use /connectwallet to connect via MetaMask or WalletConnect\n\n"
-            "3\\. Profile:\n"
-            "\\- /createprofile \\(1 $MON, receive 1 $TOURS\\)\n\n"
-            "4\\. Manage Tokens:\n"
-            "\\- /buyTours [amount] \\- Buy $TOURS tokens with $MON \\(e\\.g\\., /buyTours 10 to buy 10 $TOURS\\)\n"
-            "\\- /sendTours [recipient] [amount] \\- Send $TOURS to another wallet \\(e\\.g\\., /sendTours 0x123...456 10 to send 10 $TOURS\\)\n\n"
-            "5\\. Explore:\n"
-            "\\- /journal [your journal entry] \\- Log a climb \\(5 $TOURS\\)\n"
-            "\\- /comment [id] [your comment] \\- Comment on a journal \\(0\\.1 $MON\\)\n"
-            "\\- /buildaclimb [name] [difficulty] \\- Create a climb \\(10 $TOURS\\)\n"
-            "\\- /purchaseclimb [id] \\- Buy a climb \\(10 $TOURS\\)\n"
-            "\\- /findaclimb \\- List available climbs\n"
-            "\\- /createtournament [fee] \\- Start a tournament with an entry fee in $TOURS \\(e\\.g\\., /createtournament 10 for 10 $TOURS per participant\\)\n"
-            "\\- /jointournament [id] \\- Join a tournament by paying the entry fee\n"
-            "\\- /endtournament [id] [winner] \\- End a tournament \\(owner only\\) and award the prize to the winner’s wallet address \\(e\\.g\\., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725\\)\n"
-            "\\- /balance \\- Check your $MON and $TOURS balance\n"
-            "\\- /help \\- List all commands\n\n"
+            "Tutorial\\n\\n"
+            "1\\. Wallet:\\n"
+            "\\- Get MetaMask, Phantom, or Gnosis Safe\\.\\n"
+            "\\- Add Monad testnet \\(RPC: https://testnet\\-rpc\\.monad\\.xyz, ID: 10143\\)\\.\\n"
+            "\\- If you see a chain ID mismatch \\(e\\.g\\. 10159\\), go to MetaMask Settings \\> Networks, remove all Monad Testnet entries, and reconnect\\.\\n"
+            "\\- Get $MON: https://testnet\\.monad\\.xyz/faucet\\n\\n"
+            "2\\. Connect:\\n"
+            "\\- Use /connectwallet to connect via MetaMask or WalletConnect\\n\\n"
+            "3\\. Profile:\\n"
+            "\\- /createprofile \\(1 $MON, receive 1 $TOURS\\)\\n\\n"
+            "4\\. Manage Tokens:\\n"
+            "\\- /buyTours [amount] \\- Buy $TOURS tokens with $MON \\(e\\.g\\. /buyTours 10 to buy 10 $TOURS\\)\\n"
+            "\\- /sendTours [recipient] [amount] \\- Send $TOURS to another wallet \\(e\\.g\\. /sendTours 0x123...456 10 to send 10 $TOURS\\)\\n\\n"
+            "5\\. Explore:\\n"
+            "\\- /journal [your journal entry] \\- Log a climb \\(5 $TOURS\\)\\n"
+            "\\- /comment [id] [your comment] \\- Comment on a journal \\(0\\.1 $MON\\)\\n"
+            "\\- /buildaclimb [name] [difficulty] \\- Create a climb \\(10 $TOURS\\)\\n"
+            "\\- /purchaseclimb [id] \\- Buy a climb \\(10 $TOURS\\)\\n"
+            "\\- /findaclimb \\- List available climbs\\n"
+            "\\- /createtournament [fee] \\- Start a tournament with an entry fee in $TOURS \\(e\\.g\\. /createtournament 10 for 10 $TOURS per participant\\)\\n"
+            "\\- /jointournament [id] \\- Join a tournament by paying the entry fee\\n"
+            "\\- /endtournament [id] [winner] \\- End a tournament \\(owner only\\) and award the prize to the winner’s wallet address \\(e\\.g\\. /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725\\)\\n"
+            "\\- /balance \\- Check your $MON and $TOURS balance\\n"
+            "\\- /help \\- List all commands\\n\\n"
             "Join our community at [EmpowerTours Chat](https://t.me/empowertourschat)\\! Try /connectwallet\\!"
         )
         await update.message.reply_text(tutorial_text, parse_mode="MarkdownV2")
@@ -1219,30 +1219,30 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"Received /help command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     try:
         help_text = (
-            "EmpowerTours Commands\n\n"
-            "/start \\- Welcome message\n\n"
-            "/tutorial \\- Setup guide\n\n"
-            "/connectwallet \\- Connect your wallet \\(use chain ID 10143; remove incorrect Monad Testnet entries from MetaMask if needed\\)\n\n"
-            "/createprofile \\- Create profile \\(1 $MON, receive 1 $TOURS\\)\n\n"
-            "/buyTours [amount] \\- Buy $TOURS tokens with $MON \\(e\\.g\\., /buyTours 10 to buy 10 $TOURS\\)\n\n"
-            "/sendTours [recipient] [amount] \\- Send $TOURS to another wallet \\(e\\.g\\., /sendTours 0x123...456 10 to send 10 $TOURS\\)\n\n"
-            "/journal [entry] \\- Log a climb for an existing climb with photos or notes \\(5 $TOURS\\)\n\n"
-            "/buildaclimb [name] [difficulty] \\- Create a new climb with name, difficulty, and optional photo/location \\(10 $TOURS\\)\n\n"
-            "/comment [id] [comment] \\- Comment on a journal \\(0\\.1 $MON\\)\n\n"
-            "/purchaseclimb [id] \\- Buy a climb \\(10 $TOURS\\)\n\n"
-            "/findaclimb \\- List available climbs\n\n"
-            "/createtournament [fee] \\- Start a tournament with an entry fee in $TOURS \\(e\\.g\\., /createtournament 10 sets a 10 $TOURS fee per participant\\)\n\n"
-            "/jointournament [id] \\- Join a tournament by paying the entry fee in $TOURS\n\n"
-            "/endtournament [id] [winner] \\- End a tournament \\(owner only\\) and award the prize pool to the winner’s wallet address \\(e\\.g\\., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725\\)\n\n"
-            "/balance \\- Check wallet balance \\($MON, $TOURS, profile status\\)\n\n"
-            "/apply \\- Apply for membership \\(fill out form for approval\\)\n\n"
-            "/listpending \\- List pending applications \\(owner only\\)\n\n"
-            "/approve [user_id] \\- Approve application \\(owner only\\)\n\n"
-            "/reject [user_id] \\- Reject application \\(owner only\\)\n\n"
-            "/debug \\- Check webhook status\n\n"
-            "/forcewebhook \\- Force reset webhook\n\n"
-            "/clearcache \\- Clear Telegram cache\n\n"
-            "/ping \\- Check bot status\n\n"
+            "EmpowerTours Commands\\n\\n"
+            "/start \\- Welcome message\\n\\n"
+            "/tutorial \\- Setup guide\\n\\n"
+            "/connectwallet \\- Connect your wallet \\(use chain ID 10143; remove incorrect Monad Testnet entries from MetaMask if needed\\)\\n\\n"
+            "/createprofile \\- Create profile \\(1 $MON, receive 1 $TOURS\\)\\n\\n"
+            "/buyTours [amount] \\- Buy $TOURS tokens with $MON \\(e\\.g\\. /buyTours 10 to buy 10 $TOURS\\)\\n\\n"
+            "/sendTours [recipient] [amount] \\- Send $TOURS to another wallet \\(e\\.g\\. /sendTours 0x123...456 10 to send 10 $TOURS\\)\\n\\n"
+            "/journal [entry] \\- Log a climb for an existing climb with photos or notes \\(5 $TOURS\\)\\n\\n"
+            "/buildaclimb [name] [difficulty] \\- Create a new climb with name, difficulty, and optional photo/location \\(10 $TOURS\\)\\n\\n"
+            "/comment [id] [comment] \\- Comment on a journal \\(0\\.1 $MON\\)\\n\\n"
+            "/purchaseclimb [id] \\- Buy a climb \\(10 $TOURS\\)\\n\\n"
+            "/findaclimb \\- List available climbs\\n\\n"
+            "/createtournament [fee] \\- Start a tournament with an entry fee in $TOURS \\(e\\.g\\. /createtournament 10 sets a 10 $TOURS fee per participant\\)\\n\\n"
+            "/jointournament [id] \\- Join a tournament by paying the entry fee in $TOURS\\n\\n"
+            "/endtournament [id] [winner] \\- End a tournament \\(owner only\\) and award the prize pool to the winner’s wallet address \\(e\\.g\\. /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725\\)\\n\\n"
+            "/balance \\- Check wallet balance \\($MON, $TOURS, profile status\\)\\n\\n"
+            "/apply \\- Apply for membership \\(fill out form for approval\\)\\n\\n"
+            "/listpending \\- List pending applications \\(owner only\\)\\n\\n"
+            "/approve [user_id] \\- Approve application \\(owner only\\)\\n\\n"
+            "/reject [user_id] \\- Reject application \\(owner only\\)\\n\\n"
+            "/debug \\- Check webhook status\\n\\n"
+            "/forcewebhook \\- Force reset webhook\\n\\n"
+            "/clearcache \\- Clear Telegram cache\\n\\n"
+            "/ping \\- Check bot status\\n\\n"
             "Join our community at [EmpowerTours Chat](https://t.me/empowertourschat) for support\\!"
         )
         await update.message.reply_text(help_text, parse_mode="MarkdownV2")
@@ -2273,7 +2273,7 @@ async def findaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "purchase_count": climb[10]
                 })
             except Exception as e:
-                logger.error(f"Error fetching climb \\#{location_id}: {str(e)}")
+                logger.error(f"Error fetching climb #{location_id}: {str(e)}")
 
         # Format response
         response = "Available Climbs:\n"
@@ -2905,7 +2905,7 @@ async def apply_headshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     education = EXCLUDED.education,
                     headshot = EXCLUDED.headshot,
                     status = 'pending'
-            ''', user_id, application['name'], application['email'], application['climb_exp'], application['web3_interest'], application['why_join'], application['dob'], application['address'], application['education'], application['headshot'])
+           ''', user_id, application['name'], application['email'], application['climb_exp'], application['web3_interest'], application['why_join'], application['dob'], application['address'], application['education'], application['headshot'])
         await update.message.reply_text("Application submitted! Waiting for approval. Check status with /balance. 😊")
         logger.info(f"Application submitted for user {user_id}, took {time.time() - start_time:.2f} seconds")
         return ConversationHandler.END
