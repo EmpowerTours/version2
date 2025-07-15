@@ -1191,16 +1191,16 @@ async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Tutorial\n\n"
             "1\\. Wallet:\\n"
             "\\- Get MetaMask, Phantom, or Gnosis Safe\\.\\n"
-            "\\- Add Monad testnet \\(RPC: https://testnet-rpc.monad.xyz, ID: 10143\\)\\.\\n"
+            "\\- Add Monad testnet \\(RPC: [https://testnet-rpc.monad.xyz](https://testnet-rpc.monad.xyz), ID: 10143\\)\\.\\n"
             "\\- If you see a chain ID mismatch \\(e\\.g\\., 10159\\), go to MetaMask Settings > Networks, remove all Monad Testnet entries, and reconnect\\.\\n"
-            "\\- Get $MON: https://testnet.monad.xyz/faucet\\n\\n"
+            "\\- Get $MON: [https://testnet.monad.xyz/faucet](https://testnet.monad.xyz/faucet)\\n\\n"
             "2\\. Connect:\\n"
             "\\- Use /connectwallet to connect via MetaMask or WalletConnect\\n\\n"
             "3\\. Profile:\\n"
             "\\- /createprofile \\(1 $MON, receive 1 $TOURS\\)\\n\\n"
             "4\\. Manage Tokens:\\n"
             "\\- /buyTours [amount] \\- Buy $TOURS tokens with $MON \\(e\\.g\\., /buyTours 10 to buy 10 $TOURS\\)\\n"
-            "\\- /sendTours [recipient] [amount] \\- Send $TOURS to another wallet \\(e\\.g\\., /sendTours 0x123...456 10 to send 10 $TOURS\\)\\n\\n"
+            "\\- /sendTours [recipient] [amount] \\- Send $TOURS to another wallet \\(e\\.g\\., /sendTours 0x123\\.\\.\\.456 10 to send 10 $TOURS\\)\\n\\n"
             "5\\. Explore:\\n"
             "\\- /journal [your journal entry] \\- Log a climb \\(5 $TOURS\\)\\n"
             "\\- /comment [id] [your comment] \\- Comment on a journal \\(0\\.1 $MON\\)\\n"
@@ -1231,7 +1231,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/connectwallet \\- Connect your wallet \\(use chain ID 10143; remove incorrect Monad Testnet entries from MetaMask if needed\\)\n\n"
             "/createprofile \\- Create profile \\(1 $MON, receive 1 $TOURS\\)\n\n"
             "/buyTours [amount] \\- Buy $TOURS tokens with $MON \\(e\\.g\\., /buyTours 10 to buy 10 $TOURS\\)\n\n"
-            "/sendTours [recipient] [amount] \\- Send $TOURS to another wallet \\(e\\.g\\., /sendTours 0x123...456 10 to send 10 $TOURS\\)\n\n"
+            "/sendTours [recipient] [amount] \\- Send $TOURS to another wallet \\(e\\.g\\., /sendTours 0x123\\.\\.\\.456 10 to send 10 $TOURS\\)\n\n"
             "/journal [entry] \\- Log a climb for an existing climb with photos or notes \\(5 $TOURS\\)\n\n"
             "/buildaclimb [name] [difficulty] \\- Create a new climb with name, difficulty, and optional photo/location \\(10 $TOURS\\)\n\n"
             "/comment [id] [comment] \\- Comment on a journal \\(0\\.1 $MON\\)\n\n"
@@ -1320,7 +1320,7 @@ async def handle_wallet_address(user_id: str, wallet_address: str, context: Cont
             checksum_address = w3.to_checksum_address(wallet_address)
             sessions[user_id] = {"wallet_address": checksum_address}
             reverse_sessions[checksum_address] = user_id
-            await context.bot.send_message(user_id, f"Wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}) connected\\! Try /createprofile\\. 🪙", parse_mode="MarkdownV2")
+            await context.bot.send_message(user_id, f"Wallet [{checksum_address[:6]}\\.\\.\\.]({EXPLORER_URL}/address/{checksum_address}) connected\\! Try /createprofile\\. 🪙", parse_mode="MarkdownV2")
             del pending_wallets[user_id]
             try:
                 with open("pending_wallets.json", "w") as f:
@@ -1405,7 +1405,7 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             mon_balance = w3.eth.get_balance(checksum_address)
             if mon_balance < required_mon:
                 await update.message.reply_text(
-                    f"Insufficient $MON. Need {required_mon / 10**18} $MON for {amount / 10**18} $TOURS, you have {mon_balance / 10**18}. Get more at https://testnet.monad.xyz/faucet! 😅"
+                    f"Insufficient $MON. Need {required_mon / 10**18} $MON for {amount / 10**18} $TOURS, you have {mon_balance / 10**18}. Get more at [https://testnet.monad.xyz/faucet](https://testnet.monad.xyz/faucet)! 😅"
                 )
                 logger.info(f"/buyTours failed: insufficient $MON, took {time.time() - start_time:.2f} seconds")
                 return
@@ -1460,13 +1460,13 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for buying {amount / 10**18} $TOURS \\({required_mon / 10**18} $MON\\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\\.",
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for buying {amount / 10**18} $TOURS \\({required_mon / 10**18} $MON\\) using your wallet [{checksum_address[:6]}\\.\\.\\.]({EXPLORER_URL}/address/{checksum_address})\\.",
             parse_mode="MarkdownV2"
         )
         logger.info(f"/buyTours transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /buyTours: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        special_chars = r'\_[]()~`>#+-=|{}.!'
+        special_chars = r'_*[]()~`>#+-=|{}.!'
         escaped_error = ''.join(['\\' + c if c in special_chars else c for c in str(e)])
         await update.message.reply_text(
             f"Error: {escaped_error}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", 
@@ -1493,7 +1493,7 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         args = context.args or []
         if len(args) < 2:
-            await update.message.reply_text("Use: /sendTours [recipient] [amount] 🪙 (e.g., /sendTours 0x123...456 10 to send 10 $TOURS)")
+            await update.message.reply_text("Use: /sendTours [recipient] [amount] 🪙 (e.g., /sendTours 0x123\\.\\.\\.456 10 to send 10 $TOURS)")
             logger.info(f"/sendTours failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
             return
         recipient = args[0]
@@ -1502,7 +1502,7 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if amount <= 0:
                 raise ValueError("Amount must be positive")
         except ValueError:
-            await update.message.reply_text("Invalid amount. Use a positive number (e.g., /sendTours 0x123...456 10). 😅")
+            await update.message.reply_text("Invalid amount. Use a positive number (e.g., /sendTours 0x123\\.\\.\\.456 10). 😅")
             logger.info(f"/sendTours failed due to invalid amount, took {time.time() - start_time:.2f} seconds")
             return
         wallet_address = sessions.get(user_id, {}).get("wallet_address")
@@ -1579,7 +1579,7 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for sending {amount / 10**18} $TOURS to [{checksum_recipient[:6]}...]({EXPLORER_URL}/address/{checksum_recipient}) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for sending {amount / 10**18} $TOURS to [{checksum_recipient[:6]}\\.\\.\\.]({EXPLORER_URL}/address/{checksum_recipient}) using your wallet [{checksum_address[:6]}\\.\\.\\.]({EXPLORER_URL}/address/{checksum_address})\\.",
             parse_mode="MarkdownV2"
         )
         logger.info(f"/sendTours transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
@@ -1735,7 +1735,7 @@ async def journal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for adding journal entry '{escape_md_v2(content_hash)}' \\(5 $TOURS\\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for adding journal entry '{escape_md_v2(content_hash)}' \\(5 $TOURS\\) using your wallet [{checksum_address[:6]}\\.\\.\\.]({EXPLORER_URL}/address/{checksum_address})\\.",
             parse_mode="MarkdownV2"
         )
         logger.info(f"/journal transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
@@ -1818,7 +1818,7 @@ async def comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             mon_balance = w3.eth.get_balance(checksum_address)
             comment_fee = contract.functions.commentFee().call({'gas': 500000})
             if mon_balance < comment_fee:
-                await update.message.reply_text(f"Insufficient $MON. Need {comment_fee / 10**18} $MON for commenting. Get $MON from https://testnet.monad.xyz/faucet! 😅")
+                await update.message.reply_text(f"Insufficient $MON. Need {comment_fee / 10**18} $MON for commenting. Get $MON from [https://testnet.monad.xyz/faucet](https://testnet.monad.xyz/faucet)! 😅")
                 logger.info(f"/comment failed due to insufficient $MON, took {time.time() - start_time:.2f} seconds")
                 return
         except Exception as e:
@@ -1838,7 +1838,7 @@ async def comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif "InvalidEntryId" in revert_reason:
                 await update.message.reply_text(f"Invalid entry ID #{entry_id}. Check with /findaclimb or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
             elif "InsufficientFee" in revert_reason:
-                await update.message.reply_text(f"Insufficient $MON for commenting. Get $MON from https://testnet.monad.xyz/faucet! 😅")
+                await update.message.reply_text(f"Insufficient $MON for commenting. Get $MON from [https://testnet.monad.xyz/faucet](https://testnet.monad.xyz/faucet)! 😅")
             else:
                 await update.message.reply_text(f"Transaction simulation failed: {revert_reason}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
             logger.info(f"/comment failed due to simulation error, took {time.time() - start_time:.2f} seconds")
@@ -1868,7 +1868,7 @@ async def comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for adding comment '{escape_md_v2(content_hash)}' to entry #{entry_id} \\(0.1 $MON\\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for adding comment '{escape_md_v2(content_hash)}' to entry #{entry_id} \\(0.1 $MON\\) using your wallet [{checksum_address[:6]}\\.\\.\\.]({EXPLORER_URL}/address/{checksum_address})\\.",
             parse_mode="MarkdownV2"
         )
         logger.info(f"/comment transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
@@ -2036,7 +2036,7 @@ async def buildaclimb_final(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
     except Exception as e:
         logger.error(f"Error checking $TOURS balance or allowance: {str(e)}")
-        special_chars = r'\_[]()~`>#+-=|{}.!'
+        special_chars = r'_*[]()~`>#+-=|{}.!'
         escaped_error = ''.join(['\\' + c if c in special_chars else c for c in str(e)])
         await update.message.reply_text(f"Failed to check $TOURS balance or allowance: {escaped_error}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
         return
@@ -2047,7 +2047,7 @@ async def buildaclimb_final(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         revert_reason = str(e)
         logger.error(f"createClimbingLocation simulation failed: {revert_reason}")
-        special_chars = r'\_[]()~`>#+-=|{}.!'
+        special_chars = r'_*[]()~`>#+-=|{}.!'
         escaped_revert = ''.join(['\\' + c if c in special_chars else c for c in revert_reason])
         await update.message.reply_text(f"Transaction simulation failed: {escaped_revert}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="MarkdownV2")
         return
@@ -2075,7 +2075,7 @@ async def buildaclimb_final(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error saving pending_wallets: {str(e)}")
 
     await update.message.reply_text(
-        f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for building climb '{escape_md_v2(name)}' ({escape_md_v2(difficulty)}) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+        f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for building climb '{escape_md_v2(name)}' ({escape_md_v2(difficulty)}) using your wallet [{checksum_address[:6]}\\.\\.\\.]({EXPLORER_URL}/address/{checksum_address})\\.",
         parse_mode="MarkdownV2"
     )
 
@@ -2234,7 +2234,7 @@ async def purchaseclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for purchasing climb #{location_id} \\(10 $TOURS\\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for purchasing climb #{location_id} \\(10 $TOURS\\) using your wallet [{checksum_address[:6]}\\.\\.\\.]({EXPLORER_URL}/address/{checksum_address})\\.",
             parse_mode="MarkdownV2"
         )
         logger.info(f"/purchaseclimb transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
@@ -2298,7 +2298,7 @@ async def findaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Format response
         response = "Available Climbs:\n"
         for climb in climbs:
-            response += f"#{climb['id']} - {escape_md_v2(climb['name'])} ({escape_md_v2(climb['difficulty'])}) by [{climb['creator'][:6]}...]({EXPLORER_URL}/address/{climb['creator']}) - Purchases: {climb['purchase_count']}\n"
+            response += f"#{climb['id']} - {escape_md_v2(climb['name'])} ({escape_md_v2(climb['difficulty'])}) by [{climb['creator'][:6]}\\.\\.\\.]({EXPLORER_URL}/address/{climb['creator']}) - Purchases: {climb['purchase_count']}\n"
         await update.message.reply_text(response, parse_mode="MarkdownV2")
         logger.info(f"Sent /findaclimb response to user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
@@ -2412,7 +2412,7 @@ async def createtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for creating tournament with {entry_fee / 10**18} $TOURS entry fee using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for creating tournament with {entry_fee / 10**18} $TOURS entry fee using your wallet [{checksum_address[:6]}\\.\\.\\.]({EXPLORER_URL}/address/{checksum_address})\\.",
             parse_mode="MarkdownV2"
         )
         logger.info(f"/createtournament transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
@@ -2538,7 +2538,7 @@ async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         json.dump(pending_wallets, f, default=str)
                     logger.info(f"Saved pending_wallets for user {user_id}")
                 except Exception as e:
-                    logger.error(f"Error saving pending_wallets: {str(e)}")
+                    logger.error(f"Error saving pending_wallets:{str(e)}")
                 await update.message.reply_text(
                     f"Please click [here to approve]({base_url}/public/connect.html?userId={user_id}) {entry_fee / 10**18} $TOURS for joining tournament #{tournament_id}\\.",
                     parse_mode="MarkdownV2"
@@ -2591,7 +2591,7 @@ async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for joining tournament #{tournament_id} \\({entry_fee / 10**18} $TOURS\\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for joining tournament #{tournament_id} \\({entry_fee / 10**18} $TOURS\\) using your wallet [{checksum_address[:6]}\\.\\.\\.]({EXPLORER_URL}/address/{checksum_address})\\.",
             parse_mode="MarkdownV2"
         )
         logger.info(f"/jointournament transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
@@ -2620,14 +2620,14 @@ async def endtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         args = context.args or []
         if len(args) < 2:
-            await update.message.reply_text("Use: /endtournament [id] [winner_address] 🏆 (e.g., /endtournament 0 0x123...456)")
+            await update.message.reply_text("Use: /endtournament [id] [winner_address] 🏆 (e.g., /endtournament 0 0x123\\.\\.\\.456)")
             logger.info(f"/endtournament failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
             return
         try:
             tournament_id = int(args[0])
             winner = args[1]
         except ValueError:
-            await update.message.reply_text("Invalid tournament ID. Use a number for id (e.g., /endtournament 0 0x123...456). 😅")
+            await update.message.reply_text("Invalid tournament ID. Use a number for id (e.g., /endtournament 0 0x123\\.\\.\\.456). 😅")
             logger.info(f"/endtournament failed due to invalid id, took {time.time() - start_time:.2f} seconds")
             return
         wallet_address = sessions.get(user_id, {}).get("wallet_address")
@@ -2702,11 +2702,11 @@ async def endtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             with open("pending_wallets.json", "w") as f:
                 json.dump(pending_wallets, f, default=str)
             logger.info(f"Saved pending_wallets for user {user_id}")
-       except Exception as e:
+        except Exception as e:
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for ending tournament #{tournament_id} and awarding to [{checksum_winner[:6]}...]({EXPLORER_URL}/address/{checksum_winner}) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for ending tournament #{tournament_id} and awarding to [{checksum_winner[:6]}\\.\\.\\.]({EXPLORER_URL}/address/{checksum_winner}) using your wallet [{checksum_address[:6]}\\.\\.\\.]({EXPLORER_URL}/address/{checksum_address})\\.",
             parse_mode="MarkdownV2"
         )
         logger.info(f"/endtournament transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
@@ -2772,7 +2772,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Error checking profile existence: {str(e)}")
 
-        response = f"Wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\n$MON: {mon_balance / 10**18}\n$TOURS: {tours_balance / 10**18}\nProfile: {'Exists' if profile_exists else 'Not Created \\(Use /createprofile\\)'}\n"
+        response = f"Wallet [{checksum_address[:6]}\\.\\.\\.]({EXPLORER_URL}/address/{checksum_address})\n$MON: {mon_balance / 10**18}\n$TOURS: {tours_balance / 10**18}\nProfile: {'Exists' if profile_exists else 'Not Created \\(Use /createprofile\\)'}\n"
         await update.message.reply_text(response, parse_mode="MarkdownV2")
         logger.info(f"Sent /balance response to user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
