@@ -1175,6 +1175,7 @@ async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "- /findaclimb - List available climbs\n"
             "- /journals - List all journal entries\n"
             "- /viewjournal id - View a journal entry and its comments\n"
+            "- /viewclimb id - View a specific climb\n"
             "- /createtournament fee - Start a tournament with an entry fee in $TOURS (e.g., /createtournament 10 for 10 $TOURS per participant)\n"
             "- /tournaments - List all tournaments with IDs and participant counts\n"
             "- /jointournament id - Join a tournament by paying the entry fee\n"
@@ -1209,6 +1210,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/findaclimb - List available climbs\n\n"
             "/journals - List all journal entries\n\n"
             "/viewjournal id - View a journal entry and its comments\n\n"
+            "/viewclimb id - View a specific climb\n\n"
             "/createtournament fee - Start a tournament with an entry fee in $TOURS (e.g., /createtournament 10 sets a 10 $TOURS fee per participant)\n\n"
             "/tournaments - List all tournaments with IDs and participant counts\n\n"
             "/jointournament id - Join a tournament by paying the entry fee in $TOURS\n\n"
@@ -2014,7 +2016,7 @@ async def viewclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         photo_hash = location[5]
         has_photo = photo_hash != ''
-        message = f"🧗 Climb #{loc_id} by [{location[0][:6]}...]({EXPLORER_URL}/address/{location[0]})\n   Name: {location[1]}\n   Difficulty: {location[2]}\n   Location: {location[3]/1000000:.6f}, {location[4]/1000000:.6f}\n   Photo: {'Yes' if has_photo else 'No'}\n"
+        message = f"🧗 Climb #{loc_id} by [{location[0][:6]}...]({EXPLORER_URL}/address/{location[0]})\n   Name: {location[1]}\n   Difficulty: {location[2]}\n   Location: {location[3]/1000000:.6f}, {location[4]/1000000:.6f}\n   Photo: {'Yes' if has_photo else 'No'}\n   Purchases: {location[10]}\n"
         await update.message.reply_text(message, parse_mode="Markdown")
         if has_photo:
             async with pool.acquire() as conn:
@@ -2499,10 +2501,9 @@ async def findaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 location = contract.functions.climbingLocations(i).call({'gas': 500000})
                 photo_info = " (has photo)" if location[5] else ""
                 tour_list.append(
-                    f"🏔️ {location[1]}{photo_info} ({location[2]}) - By [{location[0][:6]}...]({EXPLORER_URL}/address/{location[0]})\n"
-                    f"   Location: ({location[3]/10**6:.4f}, {location[4]/10**6:.4f})\n"
-                    f"   Map: https://www.google.com/maps?q={location[3]/10**6},{location[4]/10**6}\n"
-                    f"   Created: {datetime.fromtimestamp(location[6]).strftime('%Y-%m-%d %H:%M:%S')}"
+                    f"🧗 Climb #{i}: {location[1]}{photo_info} ({location[2]}) by [{location[0][:6]}...]({EXPLORER_URL}/address/{location[0]})\n"
+                    f"Location: {location[3]/1000000:.6f},{location[4]/1000000:.6f}\n"
+                    f"Purchases: {location[10]}\n"
                 )
             except Exception as e:
                 logger.error(f"Error retrieving climb {i}: {str(e)}")
