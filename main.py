@@ -1066,6 +1066,7 @@ async def reset_webhook():
         return False
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /start command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     try:
@@ -1082,6 +1083,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Error: {str(e)}. Try again or contact support at https://t.me/empowertourschat. 😅")
 
 async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /ping command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     try:
@@ -1094,6 +1096,7 @@ async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
 async def clearcache(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /clearcache command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     try:
@@ -1109,6 +1112,7 @@ async def clearcache(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
 async def forcewebhook(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /forcewebhook command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     try:
@@ -1124,6 +1128,7 @@ async def forcewebhook(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
 async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /debug command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     try:
@@ -1203,6 +1208,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/journals - List all journal entries\n\n"
             "/viewjournal id - View a journal entry and its comments\n\n"
             "/createtournament fee - Start a tournament with an entry fee in $TOURS (e.g., /createtournament 10 sets a 10 $TOURS fee per participant)\n\n"
+            "/tournaments - List all tournaments with IDs and participant counts\n\n"
             "/jointournament id - Join a tournament by paying the entry fee in $TOURS\n\n"
             "/endtournament id winner - End a tournament (owner only) and award the prize pool to the winner’s wallet address (e.g., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725)\n\n"
             "/balance - Check wallet balance ($MON, $TOURS, profile status)\n\n"
@@ -1219,6 +1225,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
 async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received command: {update.message.text} from user {update.effective_user.id} in chat {update.effective_chat.id}")
     try:
@@ -2488,6 +2495,37 @@ async def create_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error in /createtournament: {str(e)}, took {time.time() - start_time:.2f} seconds")
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+
+async def tournaments(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /tournaments command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    if not w3 or not contract:
+        await update.message.reply_text("Blockchain unavailable. Try again later! 😅")
+        logger.info(f"/tournaments failed due to blockchain issues, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        count = contract.functions.getTournamentCount().call()
+        if count == 0:
+            await update.message.reply_text("No tournaments created yet. Start one with /createtournament fee! 🏆")
+            logger.info(f"/tournaments: No tournaments found, took {time.time() - start_time:.2f} seconds")
+            return
+        msg = "**Tournaments List:**\n"
+        for i in range(count):
+            t = contract.functions.tournaments(i).call()
+            entry_fee = t[0] / 10**18
+            pot = t[1] / 10**18
+            winner = t[2]
+            active = t[3]
+            name = t[7] if len(t) > 7 else "Unnamed"
+            participants = pot / entry_fee if entry_fee > 0 else 0
+            status = "Active" if active else f"Ended (Winner: {winner[:6]}...{winner[-4:]})"
+            msg += f"#{i}: {name} - Fee: {entry_fee} $TOURS, Pot: {pot} $TOURS, Participants: {int(participants)}, Status: {status}\n"
+        await update.message.reply_text(msg, parse_mode="Markdown")
+        logger.info(f"/tournaments listed {count} tournaments, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /tournaments: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        await update.message.reply_text(f"Error listing tournaments: {str(e)}. Try again! 😅")
 
 async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
