@@ -1101,7 +1101,7 @@ async def clearcache(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if CHAT_HANDLE:
             await send_notification(CHAT_HANDLE, "Dummy message 2 to clear Telegram cache.")
         await reset_webhook()
-        await update.message.reply_text("Cache cleared. Try /start, /testlink, /testplain, /testmarkdown, /testentity, or /testshort again.")
+        await update.message.reply_text("Cache cleared. Try /start again.")
         logger.info(f"Sent /clearcache response to user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /clearcache: {str(e)}, took {time.time() - start_time:.2f} seconds")
@@ -1165,6 +1165,8 @@ async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "- /buildaclimb name difficulty - Create a climb (10 $TOURS)\n"
             "- /purchaseclimb id - Buy a climb (10 $TOURS)\n"
             "- /findaclimb - List available climbs\n"
+            "- /journals - List all journal entries\n"
+            "- /viewjournal id - View a journal entry and its comments\n"
             "- /createtournament fee - Start a tournament with an entry fee in $TOURS (e.g., /createtournament 10 for 10 $TOURS per participant)\n"
             "- /jointournament id - Join a tournament by paying the entry fee\n"
             "- /endtournament id winner - End a tournament (owner only) and award the prize to the winner’s wallet address (e.g., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725)\n"
@@ -1195,6 +1197,8 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/comment id comment - Comment on a journal (0.1 $MON)\n\n"
             "/purchaseclimb id - Buy a climb (10 $TOURS)\n\n"
             "/findaclimb - List available climbs\n\n"
+            "/journals - List all journal entries\n\n"
+            "/viewjournal id - View a journal entry and its comments\n\n"
             "/createtournament fee - Start a tournament with an entry fee in $TOURS (e.g., /createtournament 10 sets a 10 $TOURS fee per participant)\n\n"
             "/jointournament id - Join a tournament by paying the entry fee in $TOURS\n\n"
             "/endtournament id winner - End a tournament (owner only) and award the prize pool to the winner’s wallet address (e.g., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725)\n\n"
@@ -1301,7 +1305,7 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             amount = int(float(args[0]) * 10**18)  # Convert to Wei (1 $TOURS = 10^18 Wei)
             if amount <= 0:
-                raise ValueValue("Amount must be positive")
+                raise ValueError("Amount must be positive")
         except ValueError:
             await update.message.reply_text("Invalid amount. Use a positive number (e.g., /buyTours 10 for 10 $TOURS). 😅")
             logger.info(f"/buyTours failed due to invalid amount, took {time.time() - start_time:.2f} seconds")
@@ -1870,6 +1874,81 @@ async def add_comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error in /comment: {str(e)}, took {time.time() - start_time:.2f} seconds")
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+
+async def journals(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    start_time = time.time()
+    logger.info(f"Received /journals command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    if not w3 or not contract:
+        await update.message.reply_text("Blockchain connection unavailable. Try again later! 😅")
+        logger.info(f"/journals failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        entry_count = contract.functions.getJournalEntryCount().call({'gas': 500000})
+        logger.info(f"Journal entry count: {entry_count}")
+        if entry_count == 0:
+            await update.message.reply_text("No journal entries found. Create one with /journal! 📝")
+            logger.info(f"/journals found no entries, took {time.time() - start_time:.2f} seconds")
+            return
+        entry_list = []
+        max_entries = min(entry_count, 50)  # Cap at 50 for performance
+        for i in range(max_entries):
+            try:
+                entry = contract.functions.getJournalEntry(i).call({'gas': 500000})
+                entry_list.append(
+                    f"📝 Entry #{i} by [{entry[0][:6]}...]({EXPLORER_URL}/address/{entry[0]})\n"
+                    f"   Content: {entry[1]}\n"
+                    f"   Location: {entry[5]}\n"
+                    f"   Difficulty: {entry[6]}\n"
+                    f"   Created: {datetime.fromtimestamp(entry[2]).strftime('%Y-%m-%d %H:%M:%S')}"
+                )
+            except Exception as e:
+                logger.error(f"Error retrieving journal {i}: {str(e)}")
+        if not entry_list:
+            await update.message.reply_text("No journal entries found. Create one with /journal! 📝")
+        else:
+            await update.message.reply_text("\n".join(entry_list), parse_mode="Markdown")
+        logger.info(f"/journals retrieved {len(entry_list)} entries, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Unexpected error in /journals: {str(e)}")
+        await update.message.reply_text(f"Error retrieving journals: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+        logger.info(f"/journals failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
+
+async def viewjournal(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    start_time = time.time()
+    logger.info(f"Received /viewjournal command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    if not w3 or not contract:
+        await update.message.reply_text("Blockchain connection unavailable. Try again later! 😅")
+        logger.info(f"/viewjournal failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        args = context.args
+        if len(args) < 1:
+            await update.message.reply_text("Use: /viewjournal [id] 📝")
+            logger.info(f"/viewjournal failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
+            return
+        entry_id = int(args[0])
+        entry = contract.functions.getJournalEntry(entry_id).call({'gas': 500000})
+        comment_count = contract.functions.getCommentCount(entry_id).call({'gas': 500000})
+        comments = []
+        for j in range(comment_count):
+            comment = contract.functions.journalComments(entry_id, j).call({'gas': 500000})
+            comments.append(
+                f"   - Comment by [{comment[0][:6]}...]: {comment[1]} ({datetime.fromtimestamp(comment[2]).strftime('%Y-%m-%d %H:%M:%S')})"
+            )
+        message = (
+            f"📝 Journal Entry #{entry_id} by [{entry[0][:6]}...]({EXPLORER_URL}/address/{entry[0]})\n"
+            f"Content: {entry[1]}\n"
+            f"Location: {entry[5]}\n"
+            f"Difficulty: {entry[6]}\n"
+            f"Created: {datetime.fromtimestamp(entry[2]).strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"Comments ({comment_count}):\n" + "\n".join(comments)
+        )
+        await update.message.reply_text(message, parse_mode="Markdown")
+        logger.info(f"/viewjournal details for {entry_id}, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /viewjournal: {str(e)}")
+        await update.message.reply_text(f"Error retrieving entry: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+        logger.info(f"/viewjournal failed due to error, took {time.time() - start_time:.2f} seconds")
 
 async def buildaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -2973,6 +3052,8 @@ async def startup_event():
         application.add_handler(CommandHandler("buildaclimb", buildaclimb))
         application.add_handler(CommandHandler("purchaseclimb", purchase_climb))
         application.add_handler(CommandHandler("findaclimb", findaclimb))
+        application.add_handler(CommandHandler("journals", journals))
+        application.add_handler(CommandHandler("viewjournal", viewjournal))
         application.add_handler(CommandHandler("createtournament", create_tournament))
         application.add_handler(CommandHandler("jointournament", join_tournament))
         application.add_handler(CommandHandler("endtournament", end_tournament))
