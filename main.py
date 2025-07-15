@@ -43,6 +43,7 @@ LEGACY_ADDRESS = os.getenv("LEGACY_ADDRESS")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 WALLET_CONNECT_PROJECT_ID = os.getenv("WALLET_CONNECT_PROJECT_ID")
 EXPLORER_URL = "https://testnet.monadexplorer.com"
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Log environment variables
 logger.info("Environment variables:")
@@ -56,6 +57,7 @@ logger.info(f"OWNER_ADDRESS: {'Set' if OWNER_ADDRESS else 'Missing'}")
 logger.info(f"LEGACY_ADDRESS: {'Set' if LEGACY_ADDRESS else 'Missing'}")
 logger.info(f"PRIVATE_KEY: {'Set' if PRIVATE_KEY else 'Missing'}")
 logger.info(f"WALLET_CONNECT_PROJECT_ID: {'Set' if WALLET_CONNECT_PROJECT_ID else 'Missing'}")
+logger.info(f"DATABASE_URL: {'Set' if DATABASE_URL else 'Missing'}")
 missing_vars = []
 if not TELEGRAM_TOKEN: missing_vars.append("TELEGRAM_TOKEN")
 if not API_BASE_URL: missing_vars.append("API_BASE_URL")
@@ -67,6 +69,7 @@ if not OWNER_ADDRESS: missing_vars.append("OWNER_ADDRESS")
 if not LEGACY_ADDRESS: missing_vars.append("LEGACY_ADDRESS")
 if not PRIVATE_KEY: missing_vars.append("PRIVATE_KEY")
 if not WALLET_CONNECT_PROJECT_ID: missing_vars.append("WALLET_CONNECT_PROJECT_ID")
+if not DATABASE_URL: missing_vars.append("DATABASE_URL")
 if missing_vars:
     logger.error(f"Missing environment variables: {', '.join(missing_vars)}")
     logger.warning("Proceeding with limited functionality")
@@ -935,12 +938,13 @@ TOURS_ABI = [
 w3 = None
 contract = None
 tours_contract = None
+pool = None
+sessions = {}
 pending_wallets = {}
 journal_data = {}
-sessions = {}
+reverse_sessions = {}  # wallet: user_id mapping for event PMs
 webhook_failed = False
 last_processed_block = 0
-reverse_sessions = {}  # wallet: user_id mapping for event PMs
 
 def initialize_web3():
     global w3, contract, tours_contract
@@ -1304,15 +1308,8 @@ async def connect_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await update.message.reply_text(message, reply_markup=reply_markup, parse_mode="Markdown")
         logger.info(f"Sent /connectwallet response to user {update.effective_user.id}: {message}, took {time.time() - start_time:.2f} seconds")
-        pending_wallets[user_id] = {"awaiting_wallet": True, "timestamp": time.time()}
-        logger.info(f"Added user {user_id} to pending_wallets: {pending_wallets[user_id]}")
-        try:
-            with open("pending_wallets.json", "w") as f:
-                json.dump(pending_wallets, f, default=str)
-            logger.info(f"Saved pending_wallets for user {user_id}")
-        except Exception as e:
-            logger.error(f"Error saving pending_wallets for user {user_id}: {str(e)}")
-            # Continue even if file write fails, as in-memory pending_wallets is sufficient
+        await set_pending_wallet(user_id, {"awaiting_wallet": True, "timestamp": time.time()})
+        logger.info(f"Added user {user_id} to pending_wallets: {pending_wallets.get(user_id)}")
     except Exception as e:
         logger.error(f"Error in /connectwallet for user {user_id}: {str(e)}, took {time.time() - start_time:.2f} seconds")
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
@@ -1320,7 +1317,8 @@ async def connect_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_wallet_address(user_id: str, wallet_address: str, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     logger.info(f"Handling wallet address for user {user_id}: {wallet_address}")
-    if user_id not in pending_wallets or not pending_wallets[user_id].get("awaiting_wallet"):
+    pending = await get_pending_wallet(user_id)
+    if not pending or not pending.get("awaiting_wallet"):
         logger.warning(f"No pending wallet connection for user {user_id}")
         logger.info(f"/handle_wallet_address no pending connection, took {time.time() - start_time:.2f} seconds")
         return
@@ -1332,15 +1330,9 @@ async def handle_wallet_address(user_id: str, wallet_address: str, context: Cont
     try:
         if w3 and w3.is_address(wallet_address):
             checksum_address = w3.to_checksum_address(wallet_address)
-            sessions[user_id] = {"wallet_address": checksum_address}
+            await set_session(user_id, checksum_address)
             await context.bot.send_message(user_id, f"Wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}) connected! Try /createprofile. 🪙", parse_mode="Markdown")
-            del pending_wallets[user_id]
-            try:
-                with open("pending_wallets.json", "w") as f:
-                    json.dump(pending_wallets, f, default=str)
-                logger.info(f"Saved pending_wallets after clearing for user {user_id}")
-            except Exception as e:
-                logger.error(f"Error saving pending_wallets: {str(e)}")
+            await delete_pending_wallet(user_id)
             logger.info(f"Wallet connected for user {user_id}: {checksum_address}, took {time.time() - start_time:.2f} seconds")
         else:
             await context.bot.send_message(user_id, "Invalid wallet address or blockchain unavailable. Try /connectwallet again.")
@@ -1377,7 +1369,8 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Invalid amount. Use a positive number (e.g., /buyTours 10 for 10 $TOURS). 😅")
             logger.info(f"/buyTours failed due to invalid amount, took {time.time() - start_time:.2f} seconds")
             return
-        wallet_address = sessions.get(user_id, {}).get("wallet_address")
+        session = await get_session(user_id)
+        wallet_address = session.get("wallet_address") if session else None
         if not wallet_address:
             await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
             logger.info(f"/buyTours failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
@@ -1520,18 +1513,12 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'gasPrice': w3.eth.gas_price
             })
             logger.info(f"Transaction built for user {user_id}: {json.dumps(tx, default=str)}")
-            pending_wallets[user_id] = {
+            await set_pending_wallet(user_id, {
                 "awaiting_tx": True,
                 "tx_data": tx,
                 "wallet_address": checksum_address,
                 "timestamp": time.time()
-            }
-            try:
-                with open("pending_wallets.json", "w") as f:
-                    json.dump(pending_wallets, f, default=str)
-                logger.info(f"Saved pending_wallets for user {user_id}")
-            except Exception as e:
-                logger.error(f"Error saving pending_wallets: {str(e)}")
+            })
             await update.message.reply_text(
                 f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction to buy {args[0]} $TOURS using {w3.from_wei(mon_required, 'ether')} $MON with your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
                 parse_mode="Markdown"
@@ -1573,7 +1560,8 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Invalid amount. Use a number (e.g., /sendTours 0x123...456 10 for 10 $TOURS). 😅")
             logger.info(f"/sendTours failed due to invalid amount, took {time.time() - start_time:.2f} seconds")
             return
-        wallet_address = sessions.get(user_id, {}).get("wallet_address")
+        session = await get_session(user_id)
+        wallet_address = session.get("wallet_address") if session else None
         if not wallet_address:
             await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
             logger.info(f"/sendTours failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
@@ -1620,18 +1608,12 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'gasPrice': w3.eth.gas_price
             })
             logger.info(f"Transaction built for user {user_id}: {json.dumps(tx, default=str)}")
-            pending_wallets[user_id] = {
+            await set_pending_wallet(user_id, {
                 "awaiting_tx": True,
                 "tx_data": tx,
                 "wallet_address": checksum_address,
                 "timestamp": time.time()
-            }
-            try:
-                with open("pending_wallets.json", "w") as f:
-                    json.dump(pending_wallets, f, default=str)
-                logger.info(f"Saved pending_wallets for user {user_id}")
-            except Exception as e:
-                logger.error(f"Error saving pending_wallets: {str(e)}")
+            })
             await update.message.reply_text(
                 f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction to send {args[1]} $TOURS to [{recipient_checksum_address[:6]}...]({EXPLORER_URL}/address/{recipient_checksum_address}) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
                 parse_mode="Markdown"
@@ -1661,7 +1643,8 @@ async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     try:
         user_id = str(update.effective_user.id)
-        wallet_address = sessions.get(user_id, {}).get("wallet_address")
+        session = await get_session(user_id)
+        wallet_address = session.get("wallet_address") if session else None
         if not wallet_address:
             logger.warning(f"No wallet found for user {user_id}")
             await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
@@ -1804,18 +1787,12 @@ async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'gasPrice': w3.eth.gas_price
             })
             logger.info(f"Transaction built for user {user_id}: {json.dumps(tx, default=str)}")
-            pending_wallets[user_id] = {
+            await set_pending_wallet(user_id, {
                 "awaiting_tx": True,
                 "tx_data": tx,
                 "wallet_address": checksum_address,
                 "timestamp": time.time()
-            }
-            try:
-                with open("pending_wallets.json", "w") as f:
-                    json.dump(pending_wallets, f, default=str)
-                logger.info(f"Saved pending_wallets for user {user_id}")
-            except Exception as e:
-                logger.error(f"Error saving pending_wallets: {str(e)}")
+            })
             await update.message.reply_text(
                 f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} in your browser to sign the transaction for profile creation (1 $MON). You will receive 1 $TOURS upon confirmation. After signing."
             )
@@ -1850,7 +1827,7 @@ async def journal_entry(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"/journal failed due to missing content, took {time.time() - start_time:.2f} seconds")
             return
         await update.message.reply_text(f"Great, {update.effective_user.first_name}! Send photo. 🌟")
-        journal_data[user_id] = {"content": content, "awaiting_photo": True, "timestamp": time.time()}
+        await set_journal_data(user_id, {"content": content, "awaiting_photo": True, "timestamp": time.time()})
         logger.info(f"/journal initiated for user {user_id}, awaiting photo, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /journal: {str(e)}, took {time.time() - start_time:.2f} seconds")
@@ -1875,11 +1852,13 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file_id = photo.file_id
         # Hash the file_id to fixed 32-byte hex (reduces gas/storage) for both journal and climb
         photo_hash = w3.keccak(text=file_id).hex()  # Now ~66 chars fixed
-        if user_id in journal_data and journal_data[user_id].get("awaiting_photo"):
+        journal = await get_journal_data(user_id)
+        if journal and journal.get("awaiting_photo"):
             # Journal entry logic (original, now with hashed photo)
-            journal_data[user_id]["photo_hash"] = photo_hash  # Use hashed version
-            journal_data[user_id]["awaiting_location"] = True  # Assuming you want location for journal too, per new code
-            del journal_data[user_id]["awaiting_photo"]
+            journal["photo_hash"] = photo_hash  # Use hashed version
+            journal["awaiting_location"] = True  # Assuming you want location for journal too, per new code
+            del journal["awaiting_photo"]
+            await set_journal_data(user_id, journal)
             await update.message.reply_text("Photo received (hashed for efficiency)! Now send the location using the paperclip icon > Location.")
             logger.info(f"/handle_photo processed for journal/climb, awaiting location for user {user_id}, took {time.time() - start_time:.2f} seconds")
         elif 'pending_climb' in context.user_data:
@@ -1925,7 +1904,8 @@ async def add_comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         entry_id = int(args[0])
         content = " ".join(args[1:])
-        wallet_address = sessions.get(user_id, {}).get("wallet_address")
+        session = await get_session(user_id)
+        wallet_address = session.get("wallet_address") if session else None
         if not wallet_address:
             await update.message.reply_text("Use /connectwallet! 🪙")
             logger.info(f"/comment failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
@@ -1943,18 +1923,12 @@ async def add_comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for comment (0.1 $MON) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
             parse_mode="Markdown"
         )
-        pending_wallets[user_id] = {
+        await set_pending_wallet(user_id, {
             "awaiting_tx": True,
             "tx_data": tx,
             "wallet_address": checksum_address,
             "timestamp": time.time()
-        }
-        try:
-            with open("pending_wallets.json", "w") as f:
-                json.dump(pending_wallets, f, default=str)
-            logger.info(f"Saved pending_wallets for user {user_id}")
-        except Exception as e:
-            logger.error(f"Error saving pending_wallets: {str(e)}")
+        })
         logger.info(f"/comment transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /comment: {str(e)}, took {time.time() - start_time:.2f} seconds")
@@ -1986,7 +1960,8 @@ async def buildaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Name (max 32 chars) or difficulty (max 16 chars) too long. Try again! 😅")
             logger.info(f"/buildaclimb failed due to invalid name or difficulty length, took {time.time() - start_time:.2f} seconds")
             return
-        wallet_address = sessions.get(user_id, {}).get("wallet_address")
+        session = await get_session(user_id)
+        wallet_address = session.get("wallet_address") if session else None
         if not wallet_address:
             await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
             logger.info(f"/buildaclimb failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
@@ -2151,7 +2126,7 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     'gas': 100000,
                     'gasPrice': w3.eth.gas_price
                 })
-                pending_wallets[user_id] = {
+                await set_pending_wallet(user_id, {
                     "awaiting_tx": True,
                     "tx_data": approve_tx,
                     "wallet_address": checksum_address,
@@ -2164,13 +2139,7 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         "longitude": longitude,
                         "photo_hash": photo_hash
                     }
-                }
-                try:
-                    with open("pending_wallets.json", "w") as f:
-                        json.dump(pending_wallets, f, default=str)
-                    logger.info(f"Saved pending_wallets for user {user_id}")
-                except Exception as e:
-                    logger.error(f"Error saving pending_wallets: {str(e)}")
+                })
                 await update.message.reply_text(
                     f"Please open https://version1-production.up.railway.app/public/connect.html?userId={user_id} in MetaMask’s browser to approve {location_cost / 10**18} $TOURS for climb creation."
                 )
@@ -2208,7 +2177,7 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'gasPrice': w3.eth.gas_price
             })
             logger.info(f"Transaction built for user {user_id}: {json.dumps(tx, default=str)}")
-            pending_wallets[user_id] = {
+            await set_pending_wallet(user_id, {
                 "awaiting_tx": True,
                 "tx_data": tx,
                 "wallet_address": checksum_address,
@@ -2218,13 +2187,7 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "latitude": latitude,
                 "longitude": longitude,
                 "photo_hash": photo_hash
-            }
-            try:
-                with open("pending_wallets.json", "w") as f:
-                    json.dump(pending_wallets, f, default=str)
-                logger.info(f"Saved pending_wallets for user {user_id}")
-            except Exception as e:
-                logger.error(f"Error saving pending_wallets: {str(e)}")
+            })
             await update.message.reply_text(
                 f"Please open https://version1-production.up.railway.app/public/connect.html?userId={user_id} in MetaMask’s browser to sign the transaction for climb '{name}' ({difficulty}) using 10 $TOURS."
             )
@@ -2259,7 +2222,8 @@ async def purchase_climb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"/purchaseclimb failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
             return
         location_id = int(args[0])
-        wallet_address = sessions.get(user_id, {}).get("wallet_address")
+        session = await get_session(user_id)
+        wallet_address = session.get("wallet_address") if session else None
         if not wallet_address:
             await update.message.reply_text("Use /connectwallet! 🪙")
             logger.info(f"/purchaseclimb failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
@@ -2276,18 +2240,12 @@ async def purchase_climb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for climb purchase (10 $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
             parse_mode="Markdown"
         )
-        pending_wallets[user_id] = {
+        await set_pending_wallet(user_id, {
             "awaiting_tx": True,
             "tx_data": tx,
             "wallet_address": checksum_address,
             "timestamp": time.time()
-        }
-        try:
-            with open("pending_wallets.json", "w") as f:
-                json.dump(pending_wallets, f, default=str)
-            logger.info(f"Saved pending_wallets for user {user_id}")
-        except Exception as e:
-            logger.error(f"Error saving pending_wallets: {str(e)}")
+        })
         logger.info(f"/purchaseclimb transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /purchaseclimb: {str(e)}, took {time.time() - start_time:.2f} seconds")
@@ -2365,7 +2323,8 @@ async def create_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"/createtournament failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
             return
         entry_fee = int(float(args[0]) * 10**18)
-        wallet_address = sessions.get(user_id, {}).get("wallet_address")
+        session = await get_session(user_id)
+        wallet_address = session.get("wallet_address") if session else None
         if not wallet_address:
             await update.message.reply_text("Use /connectwallet! 🪙")
             logger.info(f"/createtournament failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
@@ -2382,18 +2341,12 @@ async def create_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for tournament creation ({entry_fee / 10**18} $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
             parse_mode="Markdown"
         )
-        pending_wallets[user_id] = {
+        await set_pending_wallet(user_id, {
             "awaiting_tx": True,
             "tx_data": tx,
             "wallet_address": checksum_address,
             "timestamp": time.time()
-        }
-        try:
-            with open("pending_wallets.json", "w") as f:
-                json.dump(pending_wallets, f, default=str)
-            logger.info(f"Saved pending_wallets for user {user_id}")
-        except Exception as e:
-            logger.error(f"Error saving pending_wallets: {str(e)}")
+        })
         logger.info(f"/createtournament transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /createtournament: {str(e)}, took {time.time() - start_time:.2f} seconds")
@@ -2420,7 +2373,8 @@ async def join_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"/jointournament failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
             return
         tournament_id = int(args[0])
-        wallet_address = sessions.get(user_id, {}).get("wallet_address")
+        session = await get_session(user_id)
+        wallet_address = session.get("wallet_address") if session else None
         if not wallet_address:
             await update.message.reply_text("Use /connectwallet! 🪙")
             logger.info(f"/jointournament failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
@@ -2439,18 +2393,12 @@ async def join_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for joining tournament #{tournament_id} ({entry_fee / 10**18} $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
             parse_mode="Markdown"
         )
-        pending_wallets[user_id] = {
+        await set_pending_wallet(user_id, {
             "awaiting_tx": True,
             "tx_data": tx,
             "wallet_address": checksum_address,
             "timestamp": time.time()
-        }
-        try:
-            with open("pending_wallets.json", "w") as f:
-                json.dump(pending_wallets, f, default=str)
-            logger.info(f"Saved pending_wallets for user {user_id}")
-        except Exception as e:
-            logger.error(f"Error saving pending_wallets: {str(e)}")
+        })
         logger.info(f"/jointournament transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /jointournament: {str(e)}, took {time.time() - start_time:.2f} seconds")
@@ -2478,7 +2426,8 @@ async def end_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         tournament_id = int(args[0])
         winner_address = args[1]
-        wallet_address = sessions.get(user_id, {}).get("wallet_address")
+        session = await get_session(user_id)
+        wallet_address = session.get("wallet_address") if session else None
         if not wallet_address:
             await update.message.reply_text("Use /connectwallet! 🪙")
             logger.info(f"/endtournament failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
@@ -2500,18 +2449,12 @@ async def end_tournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for ending tournament #{tournament_id} using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
             parse_mode="Markdown"
         )
-        pending_wallets[user_id] = {
+        await set_pending_wallet(user_id, {
             "awaiting_tx": True,
             "tx_data": tx,
             "wallet_address": checksum_address,
             "timestamp": time.time()
-        }
-        try:
-            with open("pending_wallets.json", "w") as f:
-                json.dump(pending_wallets, f, default=str)
-            logger.info(f"Saved pending_wallets for user {user_id}")
-        except Exception as e:
-            logger.error(f"Error saving pending_wallets: {str(e)}")
+        })
         logger.info(f"/endtournament transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /endtournament: {str(e)}, took {time.time() - start_time:.2f} seconds")
@@ -2522,7 +2465,8 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"Received /balance command from user {update.effective_user.id} in chat {update.effective_chat.id}")
     try:
         user_id = str(update.effective_user.id)
-        wallet_address = sessions.get(user_id, {}).get("wallet_address")
+        session = await get_session(user_id)
+        wallet_address = session.get("wallet_address") if session else None
         if not wallet_address:
             await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
             logger.info(f"/balance failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
@@ -2587,7 +2531,8 @@ async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     user_id = str(update.effective_user.id)
     logger.info(f"Received transaction hash from user {user_id}: {update.message.text} in chat {update.effective_chat.id}")
-    if user_id not in pending_wallets or not pending_wallets[user_id].get("awaiting_tx"):
+    pending = await get_pending_wallet(user_id)
+    if not pending or not pending.get("awaiting_tx"):
         logger.warning(f"No pending transaction for user {user_id}")
         await update.message.reply_text("No pending transaction found. Use /createprofile, /buyTours, or another command again! 😅")
         logger.info(f"/handle_tx_hash no pending transaction, took {time.time() - start_time:.2f} seconds")
@@ -2606,23 +2551,23 @@ async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
         receipt = w3.eth.get_transaction_receipt(tx_hash)
         if receipt and receipt.status:
             action = "Action completed"
-            if "createProfile" in pending_wallets[user_id]["tx_data"]["data"]:
+            if "createProfile" in pending["tx_data"]["data"]:
                 action = "Profile created with 1 $TOURS funded to your wallet"
-            elif "buyTours" in pending_wallets[user_id]["tx_data"]["data"]:
-                amount = int.from_bytes(bytes.fromhex(pending_wallets[user_id]["tx_data"]["data"][10:]), byteorder='big') / 10**18
+            elif "buyTours" in pending["tx_data"]["data"]:
+                amount = int.from_bytes(bytes.fromhex(pending["tx_data"]["data"][10:]), byteorder='big') / 10**18
                 action = f"Successfully purchased {amount} $TOURS"
-            elif "transfer" in pending_wallets[user_id]["tx_data"]["data"]:
+            elif "transfer" in pending["tx_data"]["data"]:
                 action = "Successfully sent $TOURS to the recipient"
-            elif "createClimbingLocation" in pending_wallets[user_id]["tx_data"]["data"]:
-                action = f"Climb '{pending_wallets[user_id].get('name', 'Unknown')}' ({pending_wallets[user_id].get('difficulty', 'Unknown')}) created"
+            elif "createClimbingLocation" in pending["tx_data"]["data"]:
+                action = f"Climb '{pending.get('name', 'Unknown')}' ({pending.get('difficulty', 'Unknown')}) created"
             await update.message.reply_text(f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 {action}.", parse_mode="Markdown")
             if CHAT_HANDLE and TELEGRAM_TOKEN:
                 message = f"New activity by {escape_html(update.effective_user.username or update.effective_user.first_name)} on EmpowerTours! 🧗 <a href=\"{EXPLORER_URL}/tx/{tx_hash}\">Tx: {escape_html(tx_hash)}</a>"
                 await send_notification(CHAT_HANDLE, message)
-            if user_id in pending_wallets and pending_wallets[user_id].get("next_tx"):
-                next_tx_data = pending_wallets[user_id]["next_tx"]
+            if pending.get("next_tx"):
+                next_tx_data = pending["next_tx"]
                 if next_tx_data["type"] == "create_climbing_location":
-                    nonce = w3.eth.get_transaction_count(pending_wallets[user_id]["wallet_address"])
+                    nonce = w3.eth.get_transaction_count(pending["wallet_address"])
                     tx = contract.functions.createClimbingLocation(
                         next_tx_data["name"],
                         next_tx_data["difficulty"],
@@ -2631,40 +2576,28 @@ async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         next_tx_data["photo_hash"]
                     ).build_transaction({
                         'chainId': 10143,
-                        'from': pending_wallets[user_id]["wallet_address"],
+                        'from': pending["wallet_address"],
                         'nonce': nonce,
                         'gas': 300000,
                         'gasPrice': w3.eth.gas_price
                     })
-                    pending_wallets[user_id] = {
+                    await set_pending_wallet(user_id, {
                         "awaiting_tx": True,
                         "tx_data": tx,
-                        "wallet_address": pending_wallets[user_id]["wallet_address"],
+                        "wallet_address": pending["wallet_address"],
                         "timestamp": time.time(),
                         "name": next_tx_data["name"],
                         "difficulty": next_tx_data["difficulty"],
                         "latitude": next_tx_data["latitude"],
                         "longitude": next_tx_data["longitude"],
                         "photo_hash": next_tx_data["photo_hash"]
-                    }
-                    try:
-                        with open("pending_wallets.json", "w") as f:
-                            json.dump(pending_wallets, f, default=str)
-                        logger.info(f"Saved pending_wallets for user {user_id} with next_tx")
-                    except Exception as e:
-                        logger.error(f"Error saving pending_wallets: {str(e)}")
+                    })
                     await update.message.reply_text(
                         f"Approval confirmed! Now open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for climb '{next_tx_data['name']}' ({next_tx_data['difficulty']}) using 10 $TOURS."
                     )
                     logger.info(f"/handle_tx_hash processed approval, next transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
                     return
-            del pending_wallets[user_id]
-            try:
-                with open("pending_wallets.json", "w") as f:
-                    json.dump(pending_wallets, f, default=str)
-                logger.info(f"Saved pending_wallets after clearing for user {user_id}")
-            except Exception as e:
-                logger.error(f"Error saving pending_wallets: {str(e)}")
+            await delete_pending_wallet(user_id)
             logger.info(f"/handle_tx_hash confirmed for user {user_id}, took {time.time() - start_time:.2f} seconds")
         else:
             await update.message.reply_text("Transaction failed or pending. Check and try again! 😅")
@@ -2805,24 +2738,106 @@ async def log_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     logger.info(f"Processed non-command text message, took {time.time() - start_time:.2f} seconds")
 
+async def get_session(user_id):
+    return sessions.get(user_id)
+
+async def set_session(user_id, wallet_address):
+    global sessions, reverse_sessions
+    sessions[user_id] = {"wallet_address": wallet_address}
+    if wallet_address:
+        reverse_sessions[wallet_address] = user_id
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "INSERT INTO users (user_id, wallet_address) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET wallet_address = $2",
+            user_id, wallet_address
+        )
+
+async def get_pending_wallet(user_id):
+    return pending_wallets.get(user_id)
+
+async def set_pending_wallet(user_id, data):
+    global pending_wallets
+    pending_wallets[user_id] = data
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "INSERT INTO pending_wallets (user_id, data, timestamp) VALUES ($1, $2, $3) ON CONFLICT (user_id) DO UPDATE SET data = $2, timestamp = $3",
+            user_id, json.dumps(data), data['timestamp']
+        )
+
+async def delete_pending_wallet(user_id):
+    global pending_wallets
+    if user_id in pending_wallets:
+        del pending_wallets[user_id]
+    async with pool.acquire() as conn:
+        await conn.execute("DELETE FROM pending_wallets WHERE user_id = $1", user_id)
+
+async def get_journal_data(user_id):
+    return journal_data.get(user_id)
+
+async def set_journal_data(user_id, data):
+    global journal_data
+    journal_data[user_id] = data
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "INSERT INTO journal_data (user_id, data, timestamp) VALUES ($1, $2, $3) ON CONFLICT (user_id) DO UPDATE SET data = $2, timestamp = $3",
+            user_id, json.dumps(data), data['timestamp']
+        )
+
 @app.on_event("startup")
 async def startup_event():
     start_time = time.time()
-    global application, webhook_failed, pending_wallets
+    global application, webhook_failed, pool, sessions, reverse_sessions, pending_wallets, journal_data
     try:
-        # Load pending_wallets
-        if os.path.exists("pending_wallets.json"):
-            try:
-                with open("pending_wallets.json", "r") as f:
-                    loaded_wallets = json.load(f)
-                    current_time = time.time()
-                    pending_wallets.update({
-                        k: v for k, v in loaded_wallets.items()
-                        if 'timestamp' in v and current_time - v['timestamp'] < 3600
-                    })
-                logger.info(f"Loaded pending_wallets: {len(pending_wallets)} entries")
-            except Exception as e:
-                logger.error(f"Error loading pending_wallets: {str(e)}")
+        # Initialize Postgres pool
+        pool = await asyncpg.create_pool(DATABASE_URL)
+        async with pool.acquire() as conn:
+            # Create tables
+            await conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                user_id TEXT PRIMARY KEY,
+                wallet_address TEXT
+            )
+            """)
+            await conn.execute("""
+            CREATE TABLE IF NOT EXISTS pending_wallets (
+                user_id TEXT PRIMARY KEY,
+                data JSONB,
+                timestamp FLOAT
+            )
+            """)
+            await conn.execute("""
+            CREATE TABLE IF NOT EXISTS journal_data (
+                user_id TEXT PRIMARY KEY,
+                data JSONB,
+                timestamp FLOAT
+            )
+            """)
+
+            # Load data
+            rows = await conn.fetch("SELECT * FROM users")
+            sessions = {}
+            reverse_sessions = {}
+            for row in rows:
+                sessions[row['user_id']] = {"wallet_address": row['wallet_address']}
+                if row['wallet_address']:
+                    reverse_sessions[row['wallet_address']] = row['user_id']
+
+            rows = await conn.fetch("SELECT * FROM pending_wallets")
+            pending_wallets = {}
+            current_time = time.time()
+            for row in rows:
+                if current_time - row['timestamp'] < 3600:
+                    pending_wallets[row['user_id']] = json.loads(row['data'])
+                    pending_wallets[row['user_id']]['timestamp'] = row['timestamp']
+
+            rows = await conn.fetch("SELECT * FROM journal_data")
+            journal_data = {}
+            for row in rows:
+                if current_time - row['timestamp'] < 3600:
+                    journal_data[row['user_id']] = json.loads(row['data'])
+                    journal_data[row['user_id']]['timestamp'] = row['timestamp']
+
+        logger.info(f"Loaded from DB: {len(sessions)} sessions, {len(pending_wallets)} pending_wallets, {len(journal_data)} journal_data")
 
         # Check and free port
         port = int(os.getenv("PORT", 8080))
@@ -2984,7 +2999,7 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     start_time = time.time()
-    global application
+    global application, pool
     logger.info("Received shutdown signal")
     if application:
         try:
@@ -2993,6 +3008,9 @@ async def shutdown_event():
             logger.info(f"Application shutdown complete, took {time.time() - start_time:.2f} seconds")
         except Exception as e:
             logger.error(f"Error during shutdown: {str(e)}, took {time.time() - start_time:.2f} seconds")
+    if pool:
+        await pool.close()
+        logger.info("Postgres pool closed")
 
 @app.get("/public/{path:path}")
 async def log_static_access(path: str, request: Request):
@@ -3019,19 +3037,16 @@ async def get_transaction(userId: str):
     start_time = time.time()
     logger.info(f"Received /get_transaction request for user {userId}")
     try:
-        if userId in pending_wallets and pending_wallets[userId].get("awaiting_tx"):
-            if pending_wallets[userId].get("tx_served", False):
+        pending = await get_pending_wallet(userId)
+        if pending and pending.get("awaiting_tx"):
+            if pending.get("tx_served", False):
                 # Already served once—prevent repeat
                 logger.info(f"Transaction already served for user {userId}, ignoring repeat poll")
                 return {"transaction": None}
-            pending_wallets[userId]["tx_served"] = True  # Mark as served
-            try:
-                with open("pending_wallets.json", "w") as f:
-                    json.dump(pending_wallets, f, default=str)
-            except Exception as e:
-                logger.error(f"Error saving pending_wallets: {str(e)}")
-            logger.info(f"Transaction served (once) for user {userId}: {pending_wallets[userId]['tx_data']}, took {time.time() - start_time:.2f} seconds")
-            return {"transaction": pending_wallets[userId]["tx_data"]}
+            pending["tx_served"] = True  # Mark as served
+            await set_pending_wallet(userId, pending)
+            logger.info(f"Transaction served (once) for user {userId}: {pending['tx_data']}, took {time.time() - start_time:.2f} seconds")
+            return {"transaction": pending["tx_data"]}
         logger.info(f"No transaction found for user {userId}, took {time.time() - start_time:.2f} seconds")
         return {"transaction": None}
     except Exception as e:
@@ -3058,26 +3073,19 @@ async def submit_wallet(request: Request):
             return {"status": "error"}
         
         # Process wallet even if not in pending_wallets to handle edge cases
-        if user_id not in pending_wallets or not pending_wallets[user_id].get("awaiting_wallet"):
+        pending = await get_pending_wallet(user_id)
+        if not pending or not pending.get("awaiting_wallet"):
             logger.warning(f"No pending wallet connection for user {user_id}, proceeding anyway")
         
         try:
             checksum_address = w3.to_checksum_address(wallet_address)
-            sessions[user_id] = {"wallet_address": checksum_address}
-            reverse_sessions[checksum_address] = user_id  # Add reverse map for event monitoring
+            await set_session(user_id, checksum_address)
             await application.bot.send_message(
                 user_id,
                 f"Wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}) connected! Use /createprofile to create your profile or /balance to check your status. 🪙",
                 parse_mode="Markdown"
             )
-            if user_id in pending_wallets:
-                del pending_wallets[user_id]
-                try:
-                    with open("pending_wallets.json", "w") as f:
-                        json.dump(pending_wallets, f, default=str)
-                    logger.info(f"Saved pending_wallets after clearing for user {user_id}")
-                except Exception as e:
-                    logger.error(f"Error saving pending_wallets: {str(e)}")
+            await delete_pending_wallet(user_id)
             logger.info(f"/submit_wallet processed for user {user_id}, wallet {checksum_address}, took {time.time() - start_time:.2f} seconds")
             return {"status": "success"}
         except Exception as e:
@@ -3111,9 +3119,9 @@ async def submit_tx(request: Request):
         try:
             receipt = w3.eth.get_transaction_receipt(tx_hash)
             if receipt and receipt.status:
-                if user_id in pending_wallets:
-                    tx_data = pending_wallets[user_id]
-                    input_data = tx_data.get("tx_data", {}).get("data", "")
+                pending = await get_pending_wallet(user_id)
+                if pending:
+                    input_data = pending.get("tx_data", {}).get("data", "")
                     success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Action completed successfully."
                     if input_data.startswith('0xa9059cbb'):  # transfer (sendTours)
                         success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Successfully sent $TOURS to the recipient."
@@ -3123,15 +3131,15 @@ async def submit_tx(request: Request):
                         amount = int.from_bytes(bytes.fromhex(input_data[10:]), byteorder='big') / 10**18
                         success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Successfully purchased {amount} $TOURS."
                     elif input_data.startswith('0xfe985ae0'):  # createClimbingLocation
-                        success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Climb '{tx_data.get('name', 'Unknown')}' ({tx_data.get('difficulty', 'Unknown')}) created!"
+                        success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Climb '{pending.get('name', 'Unknown')}' ({pending.get('difficulty', 'Unknown')}) created!"
                     if CHAT_HANDLE and TELEGRAM_TOKEN:
                         message = f"New activity by user {user_id} on EmpowerTours! 🧗 <a href=\"{EXPLORER_URL}/tx/{tx_hash}\">Tx: {escape_html(tx_hash)}</a>"
                         await send_notification(CHAT_HANDLE, message)
                     await application.bot.send_message(user_id, success_message, parse_mode="Markdown")
-                    if user_id in pending_wallets and pending_wallets[user_id].get("next_tx"):
-                        next_tx_data = pending_wallets[user_id]["next_tx"]
+                    if pending.get("next_tx"):
+                        next_tx_data = pending["next_tx"]
                         if next_tx_data["type"] == "create_climbing_location":
-                            nonce = w3.eth.get_transaction_count(pending_wallets[user_id]["wallet_address"])
+                            nonce = w3.eth.get_transaction_count(pending["wallet_address"])
                             tx = contract.functions.createClimbingLocation(
                                 next_tx_data["name"],
                                 next_tx_data["difficulty"],
@@ -3140,41 +3148,29 @@ async def submit_tx(request: Request):
                                 next_tx_data["photo_hash"]
                             ).build_transaction({
                                 'chainId': 10143,
-                                'from': pending_wallets[user_id]["wallet_address"],
+                                'from': pending["wallet_address"],
                                 'nonce': nonce,
                                 'gas': 300000,
                                 'gasPrice': w3.eth.gas_price
                             })
-                            pending_wallets[user_id] = {
+                            await set_pending_wallet(user_id, {
                                 "awaiting_tx": True,
                                 "tx_data": tx,
-                                "wallet_address": pending_wallets[user_id]["wallet_address"],
+                                "wallet_address": pending["wallet_address"],
                                 "timestamp": time.time(),
                                 "name": next_tx_data["name"],
                                 "difficulty": next_tx_data["difficulty"],
                                 "latitude": next_tx_data["latitude"],
                                 "longitude": next_tx_data["longitude"],
                                 "photo_hash": next_tx_data["photo_hash"]
-                            }
-                            try:
-                                with open("pending_wallets.json", "w") as f:
-                                    json.dump(pending_wallets, f, default=str)
-                                logger.info(f"Saved pending_wallets for user {user_id} with next_tx")
-                            except Exception as e:
-                                logger.error(f"Error saving pending_wallets: {str(e)}")
+                            })
                             await application.bot.send_message(
                                 user_id,
                                 f"Approval confirmed! Now open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for climb '{next_tx_data['name']}' ({next_tx_data['difficulty']}) using 10 $TOURS."
                             )
                             logger.info(f"/submit_tx processed approval, next transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
                             return {"status": "success"}
-                    del pending_wallets[user_id]
-                    try:
-                        with open("pending_wallets.json", "w") as f:
-                            json.dump(pending_wallets, f, default=str)
-                        logger.info(f"Saved pending_wallets after clearing for user {user_id}")
-                    except Exception as e:
-                        logger.error(f"Error saving pending_wallets: {str(e)}")
+                    await delete_pending_wallet(user_id)
                 logger.info(f"/submit_tx confirmed for user {user_id}, took {time.time() - start_time:.2f} seconds")
                 return {"status": "success"}
             else:
