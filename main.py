@@ -1212,9 +1212,9 @@ async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "- /endtournament [id] [winner] - End a tournament (owner only) and award the prize to the winner’s wallet address (e.g., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725)\n"
             "- /balance - Check your $MON and $TOURS balance\n"
             "- /help - List all commands\n\n"
-            "Join our community at [EmpowerTours Chat](https://t.me/empowertourschat)! Try /connectwallet!"
+            "Join our community at [EmpowerTours Chat](https://t.me/empowertourschat)\! Try /connectwallet\!"
         )
-        await update.message.reply_text(tutorial_text, parse_mode="Markdown")
+        await update.message.reply_text(tutorial_text, parse_mode="MarkdownV2")
         logger.info(f"Sent /tutorial response to user {update.effective_user.id}: {tutorial_text}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /tutorial for user {update.effective_user.id}: {str(e)}, took {time.time() - start_time:.2f} seconds")
@@ -1249,9 +1249,9 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/forcewebhook - Force reset webhook\n\n"
             "/clearcache - Clear Telegram cache\n\n"
             "/ping - Check bot status\n\n"
-            "Join our community at [EmpowerTours Chat](https://t.me/empowertourschat) for support!"
+            "Join our community at [EmpowerTours Chat](https://t.me/empowertourschat) for support\!"
         )
-        await update.message.reply_text(help_text, parse_mode="Markdown")
+        await update.message.reply_text(help_text, parse_mode="MarkdownV2")
         logger.info(f"Sent /help response to user {update.effective_user.id}: {help_text}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /help: {str(e)}, took {time.time() - start_time:.2f} seconds")
@@ -1282,13 +1282,13 @@ async def connect_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [[InlineKeyboardButton("Connect with MetaMask/WalletConnect", url=connect_url)]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         message = (
-            "Click the button to connect your wallet via MetaMask or WalletConnect. "
-            "On mobile, copy this link and open it in the MetaMask app's browser (Menu > Browser). "
-            "If you see a chain ID mismatch, go to MetaMask Settings > Networks, remove all Monad Testnet entries, and reconnect. "
-            "After connecting, use /createprofile to create your profile or /balance to check your status. "
-            "If the link fails, contact support at [EmpowerTours Chat](https://t.me/empowertourschat)."
+            "Click the button to connect your wallet via MetaMask or WalletConnect\. "
+            "On mobile, copy this link and open it in the MetaMask app's browser (Menu > Browser)\. "
+            "If you see a chain ID mismatch, go to MetaMask Settings > Networks, remove all Monad Testnet entries, and reconnect\. "
+            "After connecting, use /createprofile to create your profile or /balance to check your status\. "
+            "If the link fails, contact support at [EmpowerTours Chat](https://t.me/empowertourschat)\."
         )
-        await update.message.reply_text(message, reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_text(message, reply_markup=reply_markup, parse_mode="MarkdownV2")
         logger.info(f"Sent /connectwallet response to user {update.effective_user.id}: {message}, took {time.time() - start_time:.2f} seconds")
         pending_wallets[user_id] = {"awaiting_wallet": True, "timestamp": time.time()}
         logger.info(f"Added user {user_id} to pending_wallets: {pending_wallets[user_id]}")
@@ -1320,7 +1320,7 @@ async def handle_wallet_address(user_id: str, wallet_address: str, context: Cont
             checksum_address = w3.to_checksum_address(wallet_address)
             sessions[user_id] = {"wallet_address": checksum_address}
             reverse_sessions[checksum_address] = user_id
-            await context.bot.send_message(user_id, f"Wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}) connected! Try /createprofile. 🪙", parse_mode="Markdown")
+            await context.bot.send_message(user_id, f"Wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}) connected\! Try /createprofile\. 🪙", parse_mode="MarkdownV2")
             del pending_wallets[user_id]
             try:
                 with open("pending_wallets.json", "w") as f:
@@ -1354,7 +1354,7 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/buyTours failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        args = context.args
+        args = context.args or []
         if len(args) < 1:
             await update.message.reply_text("Use: /buyTours [amount] 🛒 (e.g., /buyTours 10)")
             logger.info(f"/buyTours failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
@@ -1460,8 +1460,8 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please open or refresh {base_url}/public/connect.html?userId={user_id} to sign the transaction for buying {amount / 10**18} $TOURS ({required_mon / 10**18} $MON) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}).",
-            parse_mode="Markdown"
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for buying {amount / 10**18} $TOURS \({required_mon / 10**18} $MON\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            parse_mode="MarkdownV2"
         )
         logger.info(f"/buyTours transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
@@ -1492,7 +1492,7 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/sendTours failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        args = context.args
+        args = context.args or []
         if len(args) < 2:
             await update.message.reply_text("Use: /sendTours [recipient] [amount] 🪙 (e.g., /sendTours 0x123...456 10 to send 10 $TOURS)")
             logger.info(f"/sendTours failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
@@ -1580,8 +1580,8 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please open or refresh {base_url}/public/connect.html?userId={user_id} to sign the transaction for sending {amount / 10**18} $TOURS to [{checksum_recipient[:6]}...]({EXPLORER_URL}/address/{checksum_recipient}) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}).",
-            parse_mode="Markdown"
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for sending {amount / 10**18} $TOURS to [{checksum_recipient[:6]}...]({EXPLORER_URL}/address/{checksum_recipient}) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            parse_mode="MarkdownV2"
         )
         logger.info(f"/sendTours transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
@@ -1606,7 +1606,7 @@ async def journal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/journal failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        args = context.args
+        args = context.args or []
         if len(args) < 1:
             await update.message.reply_text("Use: /journal [your journal entry] 📖 (e.g., /journal Climbed V5 today!)")
             logger.info(f"/journal failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
@@ -1687,7 +1687,8 @@ async def journal(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 except Exception as e:
                     logger.error(f"Error saving pending_wallets: {str(e)}")
                 await update.message.reply_text(
-                    f"Please open {base_url}/public/connect.html?userId={user_id} to approve 5 $TOURS for journaling."
+                    f"Please click [here to approve]({base_url}/public/connect.html?userId={user_id}) 5 $TOURS for journaling\.",
+                    parse_mode="MarkdownV2"
                 )
                 logger.info(f"/journal initiated approval for user {user_id}, took {time.time() - start_time:.2f} seconds")
                 return
@@ -1735,8 +1736,8 @@ async def journal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please open {base_url}/public/connect.html?userId={user_id} to sign the transaction for adding journal entry '{content_hash}' (5 $TOURS) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}).",
-            parse_mode="Markdown"
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for adding journal entry '{escape_md_v2(content_hash)}' \(5 $TOURS\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            parse_mode="MarkdownV2"
         )
         logger.info(f"/journal transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
@@ -1761,7 +1762,7 @@ async def comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/comment failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        args = context.args
+        args = context.args or []
         if len(args) < 2:
             await update.message.reply_text("Use: /comment [entry_id] [your comment] 💬 (e.g., /comment 1 Great climb!)")
             logger.info(f"/comment failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
@@ -1868,8 +1869,8 @@ async def comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please open {base_url}/public/connect.html?userId={user_id} to sign the transaction for adding comment '{content_hash}' to entry #{entry_id} (0.1 $MON) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}).",
-            parse_mode="Markdown"
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for adding comment '{escape_md_v2(content_hash)}' to entry #{entry_id} \(0.1 $MON\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            parse_mode="MarkdownV2"
         )
         logger.info(f"/comment transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
@@ -1895,7 +1896,7 @@ async def buildaclimb_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Building climbs unavailable due to blockchain issues. Try again later! 😅")
         logger.info(f"/buildaclimb failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return ConversationHandler.END
-    args = context.args
+    args = context.args or []
     if args:
         # Use args if provided (for testing)
         if len(args) < 2:
@@ -2030,8 +2031,8 @@ async def buildaclimb_final(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception as e:
                 logger.error(f"Error saving pending_wallets: {str(e)}")
             await update.message.reply_text(
-                f"Please open {base_url}/public/connect.html?userId={user_id} to approve {location_cost / 10**18} $TOURS for building climb '{name}' ({difficulty}).",
-                parse_mode="Markdown"
+                f"Please click [here to approve]({base_url}/public/connect.html?userId={user_id}) {location_cost / 10**18} $TOURS for building climb '{escape_md_v2(name)}' ({escape_md_v2(difficulty)})\.",
+                parse_mode="MarkdownV2"
             )
             return
     except Exception as e:
@@ -2075,8 +2076,8 @@ async def buildaclimb_final(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error saving pending_wallets: {str(e)}")
 
     await update.message.reply_text(
-        f"Please open {base_url}/public/connect.html?userId={user_id} to sign the transaction for building climb '{name}' ({difficulty}) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}).",
-        parse_mode="Markdown"
+        f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for building climb '{escape_md_v2(name)}' ({escape_md_v2(difficulty)}) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+        parse_mode="MarkdownV2"
     )
 
 async def purchaseclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2097,7 +2098,7 @@ async def purchaseclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/purchaseclimb failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        args = context.args
+        args = context.args or []
         if len(args) < 1:
             await update.message.reply_text("Use: /purchaseclimb [id] 🏔️ (e.g., /purchaseclimb 0)")
             logger.info(f"/purchaseclimb failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
@@ -2183,7 +2184,8 @@ async def purchaseclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 except Exception as e:
                     logger.error(f"Error saving pending_wallets: {str(e)}")
                 await update.message.reply_text(
-                    f"Please open {base_url}/public/connect.html?userId={user_id} to approve 10 $TOURS for purchasing climb #{location_id}."
+                    f"Please click [here to approve]({base_url}/public/connect.html?userId={user_id}) 10 $TOURS for purchasing climb #{location_id}\.",
+                    parse_mode="MarkdownV2"
                 )
                 logger.info(f"/purchaseclimb initiated approval for user {user_id}, took {time.time() - start_time:.2f} seconds")
                 return
@@ -2233,8 +2235,8 @@ async def purchaseclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please open {base_url}/public/connect.html?userId={user_id} to sign the transaction for purchasing climb #{location_id} (10 $TOURS) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}).",
-            parse_mode="Markdown"
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for purchasing climb #{location_id} \(10 $TOURS\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            parse_mode="MarkdownV2"
         )
         logger.info(f"/purchaseclimb transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
@@ -2298,7 +2300,7 @@ async def findaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response = "Available Climbs:\n"
         for climb in climbs:
             response += f"#{climb['id']} - {climb['name']} ({climb['difficulty']}) by [{climb['creator'][:6]}...]({EXPLORER_URL}/address/{climb['creator']}) - Purchases: {climb['purchase_count']}\n"
-        await update.message.reply_text(response, parse_mode="Markdown")
+        await update.message.reply_text(response, parse_mode="MarkdownV2")
         logger.info(f"Sent /findaclimb response to user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /findaclimb: {str(e)}, took {time.time() - start_time:.2f} seconds")
@@ -2322,7 +2324,7 @@ async def createtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/createtournament failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        args = context.args
+        args = context.args or []
         if len(args) < 1:
             await update.message.reply_text("Use: /createtournament [fee] 🏆 (e.g., /createtournament 10 for 10 $TOURS entry fee)")
             logger.info(f"/createtournament failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
@@ -2411,8 +2413,8 @@ async def createtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please open {base_url}/public/connect.html?userId={user_id} to sign the transaction for creating tournament with {entry_fee / 10**18} $TOURS entry fee using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}).",
-            parse_mode="Markdown"
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for creating tournament with {entry_fee / 10**18} $TOURS entry fee using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            parse_mode="MarkdownV2"
         )
         logger.info(f"/createtournament transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
@@ -2437,7 +2439,7 @@ async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/jointournament failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        args = context.args
+        args = context.args or []
         if len(args) < 1:
             await update.message.reply_text("Use: /jointournament [id] 🏆 (e.g., /jointournament 0)")
             logger.info(f"/jointournament failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
@@ -2539,7 +2541,8 @@ async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 except Exception as e:
                     logger.error(f"Error saving pending_wallets: {str(e)}")
                 await update.message.reply_text(
-                    f"Please open {base_url}/public/connect.html?userId={user_id} to approve {entry_fee / 10**18} $TOURS for joining tournament #{tournament_id}."
+                    f"Please click [here to approve]({base_url}/public/connect.html?userId={user_id}) {entry_fee / 10**18} $TOURS for joining tournament #{tournament_id}\.",
+                    parse_mode="MarkdownV2"
                 )
                 logger.info(f"/jointournament initiated approval for user {user_id}, took {time.time() - start_time:.2f} seconds")
                 return
@@ -2589,8 +2592,8 @@ async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please open {base_url}/public/connect.html?userId={user_id} to sign the transaction for joining tournament #{tournament_id} ({entry_fee / 10**18} $TOURS) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}).",
-            parse_mode="Markdown"
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for joining tournament #{tournament_id} \({entry_fee / 10**18} $TOURS\) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            parse_mode="MarkdownV2"
         )
         logger.info(f"/jointournament transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
@@ -2616,7 +2619,7 @@ async def endtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/endtournament failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        args = context.args
+        args = context.args or []
         if len(args) < 2:
             await update.message.reply_text("Use: /endtournament [id] [winner_address] 🏆 (e.g., /endtournament 0 0x123...456)")
             logger.info(f"/endtournament failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
@@ -2704,8 +2707,8 @@ async def endtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error saving pending_wallets: {str(e)}")
 
         await update.message.reply_text(
-            f"Please open {base_url}/public/connect.html?userId={user_id} to sign the transaction for ending tournament #{tournament_id} and awarding to [{checksum_winner[:6]}...]({EXPLORER_URL}/address/{checksum_winner}) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}).",
-            parse_mode="Markdown"
+            f"Please click [here to sign]({base_url}/public/connect.html?userId={user_id}) the transaction for ending tournament #{tournament_id} and awarding to [{checksum_winner[:6]}...]({EXPLORER_URL}/address/{checksum_winner}) using your wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})\.",
+            parse_mode="MarkdownV2"
         )
         logger.info(f"/endtournament transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
@@ -2774,7 +2777,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response += f"$MON: {mon_balance / 10**18}\n"
         response += f"$TOURS: {tours_balance / 10**18}\n"
         response += f"Profile: {'Exists' if profile_exists else 'Not Created (Use /createprofile)'}\n"
-        await update.message.reply_text(response, parse_mode="Markdown")
+        await update.message.reply_text(response, parse_mode="MarkdownV2")
         logger.info(f"Sent /balance response to user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /balance: {str(e)}, took {time.time() - start_time:.2f} seconds")
@@ -2931,7 +2934,7 @@ async def apply_headshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Application submitted for user {user_id}, took {time.time() - start_time:.2f} seconds")
         return ConversationHandler.END
     except Exception as e:
-        logger.error(f"Error in apply_headshot: {str(e)}, took {time.time() - start_time:.2f}seconds")
+        logger.error(f"Error in apply_headshot: {str(e)}, took {time.time() - start_time:.2f} seconds")
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
         return ConversationHandler.END
 
@@ -2968,7 +2971,7 @@ async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/approve failed: unauthorized user {user_id}, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        args = context.args
+        args = context.args or []
         if len(args) < 1:
             await update.message.reply_text("Use: /approve [user_id]")
             logger.info(f"/approve failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
@@ -2992,7 +2995,7 @@ async def reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/reject failed: unauthorized user {user_id}, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        args = context.args
+        args = context.args or []
         if len(args) < 1:
             await update.message.reply_text("Use: /reject [user_id]")
             logger.info(f"/reject failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
