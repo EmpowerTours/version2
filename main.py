@@ -640,9 +640,9 @@ CONTRACT_ABI = [
             {"internalType": "string", "name": "photoHash", "type": "string"},
             {"internalType": "uint256", "name": "timestamp", "type": "uint256"},
             {"internalType": "uint256", "name": "farcasterFid", "type": "uint256"},
-            {"internalType": "string", "name": "farcasterCastHash", "type": "string"},
-            {"internalType": "bool", "name": "isSharedOnFarcaster", "type": "bool"},
-            {"internalType": "uint256", "name": "purchaseCount", "type": "uint256"}
+            {"indexed": False, "internalType": "string", "name": "farcasterCastHash", "type": "string"},
+            {"indexed": False, "internalType": "bool", "name": "isSharedOnFarcaster", "type": "bool"},
+            {"indexed": False, "internalType": "uint256", "name": "purchaseCount", "type": "uint256"}
         ],
         "stateMutability": "view",
         "type": "function"
@@ -2084,118 +2084,224 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     try:
         user_id = str(update.effective_user.id)
-        if 'pending_climb' not in context.user_data:
-            await update.message.reply_text("No climb creation in progress. Start with /buildaclimb [name] [difficulty]. 😅")
-            logger.info(f"/handle_location failed: no pending climb for user {user_id}, took {time.time() - start_time:.2f} seconds")
-            return
-        pending_climb = context.user_data['pending_climb']
-        if pending_climb['user_id'] != user_id:
-            await update.message.reply_text("Pending climb belongs to another user. Start with /buildaclimb. 😅")
-            logger.info(f"/handle_location failed: user mismatch for user {user_id}, took {time.time() - start_time:.2f} seconds")
-            return
-        latitude = int(update.message.location.latitude * 10**6)
-        longitude = int(update.message.location.longitude * 10**6)
-        if not (-90 * 10**6 <= latitude <= 90 * 10**6 and -180 * 10**6 <= longitude <= 180 * 10**6):
-            await update.message.reply_text("Invalid coordinates. Latitude must be -90 to 90, longitude -180 to 180. Try again! 😅")
-            logger.info(f"/handle_location failed: invalid coordinates for user {user_id}, took {time.time() - start_time:.2f} seconds")
-            return
-        checksum_address = pending_climb['wallet_address']
-        name = pending_climb['name']
-        difficulty = pending_climb['difficulty']
-        photo_hash = pending_climb.get('photo_hash', '')
-
-        # Check $TOURS balance and allowance
-        try:
-            location_cost = contract.functions.locationCreationCost().call({'gas': 500000})
-            tours_balance = tours_contract.functions.balanceOf(checksum_address).call({'gas': 500000})
-            logger.info(f"$TOURS balance for {checksum_address}: {tours_balance / 10**18} $TOURS")
-            if tours_balance < location_cost:
-                await update.message.reply_text(
-                    f"Insufficient $TOURS. Need {location_cost / 10**18} $TOURS, you have {tours_balance / 10**18}. Buy more with /buyTours! 😅"
-                )
-                logger.info(f"/handle_location failed: insufficient $TOURS for user {user_id}, took {time.time() - start_time:.2f} seconds")
+        journal = await get_journal_data(user_id)
+        if journal and journal.get("awaiting_location"):
+            latitude = update.message.location.latitude
+            longitude = update.message.location.longitude
+            location_str = f"{latitude},{longitude}"
+            content_hash = journal["content"]
+            if "photo_hash" in journal:
+                content_hash += f" (photo: {journal['photo_hash']})"
+            difficulty = ''  # Empty as not provided
+            is_shared = False
+            cast_hash = ''
+            session = await get_session(user_id)
+            wallet_address = session.get("wallet_address") if session else None
+            if not wallet_address:
+                await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
+                logger.info(f"/handle_location failed due to missing wallet for journal, took {time.time() - start_time:.2f} seconds")
                 return
-            allowance = tours_contract.functions.allowance(checksum_address, contract.address).call({'gas': 500000})
-            logger.info(f"$TOURS allowance for {checksum_address}: {allowance / 10**18} $TOURS")
-            if allowance < location_cost:
+            checksum_address = w3.to_checksum_address(wallet_address)
+            # Check profile existence
+            profile_exists = False
+            try:
+                tours_balance = tours_contract.functions.balanceOf(checksum_address).call({'gas': 500000})
+                if tours_balance > 0:
+                    profile_exists = True
+            except Exception as e:
+                logger.error(f"Error checking profile for journal: {str(e)}")
+            if not profile_exists:
+                await update.message.reply_text(
+                    f"No profile exists for wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})! Use /createprofile first. 😅",
+                    parse_mode="Markdown"
+                )
+                logger.info(f"/handle_location failed: no profile for journal, took {time.time() - start_time:.2f} seconds")
+                return
+            # Check $TOURS balance and allowance
+            try:
+                journal_cost = contract.functions.journalReward().call({'gas': 500000})
+                tours_balance = tours_contract.functions.balanceOf(checksum_address).call({'gas': 500000})
+                if tours_balance < journal_cost:
+                    await update.message.reply_text(
+                        f"Insufficient $TOURS. Need {journal_cost / 10**18} $TOURS, you have {tours_balance / 10**18}. Buy more with /buyTours! 😅"
+                    )
+                    logger.info(f"/handle_location failed: insufficient $TOURS for journal, took {time.time() - start_time:.2f} seconds")
+                    return
+                allowance = tours_contract.functions.allowance(checksum_address, contract.address).call({'gas': 500000})
+                if allowance < journal_cost:
+                    nonce = w3.eth.get_transaction_count(checksum_address)
+                    approve_tx = tours_contract.functions.approve(contract.address, journal_cost).build_transaction({
+                        'chainId': 10143,
+                        'from': checksum_address,
+                        'nonce': nonce,
+                        'gas': 100000,
+                        'gasPrice': w3.eth.gas_price
+                    })
+                    await set_pending_wallet(user_id, {
+                        "awaiting_tx": True,
+                        "tx_data": approve_tx,
+                        "wallet_address": checksum_address,
+                        "timestamp": time.time(),
+                        "next_tx": {
+                            "type": "add_journal_entry",
+                            "content_hash": content_hash,
+                            "location": location_str,
+                            "difficulty": difficulty,
+                            "is_shared": is_shared,
+                            "cast_hash": cast_hash
+                        }
+                    })
+                    await update.message.reply_text(
+                        f"Please open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to approve {journal_cost / 10**18} $TOURS for journal entry."
+                    )
+                    logger.info(f"/handle_location initiated approval for journal, took {time.time() - start_time:.2f} seconds")
+                    return
+            except Exception as e:
+                logger.error(f"Error checking $TOURS for journal: {str(e)}")
+                await update.message.reply_text(f"Failed to check $TOURS for journal: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+                logger.info(f"/handle_location failed due to $TOURS check for journal, took {time.time() - start_time:.2f} seconds")
+                return
+
+            # Build transaction for journal
+            try:
                 nonce = w3.eth.get_transaction_count(checksum_address)
-                approve_tx = tours_contract.functions.approve(contract.address, location_cost).build_transaction({
+                tx = contract.functions.addJournalEntryWithDetails(content_hash, location_str, difficulty, is_shared, cast_hash).build_transaction({
                     'chainId': 10143,
                     'from': checksum_address,
                     'nonce': nonce,
-                    'gas': 100000,
+                    'gas': 300000,
                     'gasPrice': w3.eth.gas_price
                 })
                 await set_pending_wallet(user_id, {
                     "awaiting_tx": True,
-                    "tx_data": approve_tx,
+                    "tx_data": tx,
                     "wallet_address": checksum_address,
-                    "timestamp": time.time(),
-                    "next_tx": {
-                        "type": "create_climbing_location",
-                        "name": name,
-                        "difficulty": difficulty,
-                        "latitude": latitude,
-                        "longitude": longitude,
-                        "photo_hash": photo_hash
-                    }
+                    "timestamp": time.time()
                 })
                 await update.message.reply_text(
-                    f"Please open https://version1-production.up.railway.app/public/connect.html?userId={user_id} in MetaMask’s browser to approve {location_cost / 10**18} $TOURS for climb creation."
+                    f"Please open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for journal entry using 5 $TOURS."
                 )
-                logger.info(f"/handle_location initiated approval for user {user_id}, took {time.time() - start_time:.2f} seconds")
+                await delete_journal_data(user_id)
+                logger.info(f"/handle_location processed for journal, transaction built, took {time.time() - start_time:.2f} seconds")
                 return
-        except Exception as e:
-            logger.error(f"Error checking $TOURS balance or allowance: {str(e)}")
-            await update.message.reply_text(f"Failed to check $TOURS balance or allowance: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
-            logger.info(f"/handle_location failed due to balance/allowance error, took {time.time() - start_time:.2f} seconds")
-            return
+            except Exception as e:
+                logger.error(f"Error building journal transaction: {str(e)}")
+                await update.message.reply_text(f"Failed to build journal transaction: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+                logger.info(f"/handle_location failed due to journal tx build, took {time.time() - start_time:.2f} seconds")
+                return
+        elif 'pending_climb' in context.user_data:
+            # Existing climb logic
+            pending_climb = context.user_data['pending_climb']
+            if pending_climb['user_id'] != user_id:
+                await update.message.reply_text("Pending climb belongs to another user. Start with /buildaclimb. 😅")
+                logger.info(f"/handle_location failed: user mismatch for user {user_id}, took {time.time() - start_time:.2f} seconds")
+                return
+            latitude = int(update.message.location.latitude * 10**6)
+            longitude = int(update.message.location.longitude * 10**6)
+            if not (-90 * 10**6 <= latitude <= 90 * 10**6 and -180 * 10**6 <= longitude <= 180 * 10**6):
+                await update.message.reply_text("Invalid coordinates. Latitude must be -90 to 90, longitude -180 to 180. Try again! 😅")
+                logger.info(f"/handle_location failed: invalid coordinates for user {user_id}, took {time.time() - start_time:.2f} seconds")
+                return
+            checksum_address = pending_climb['wallet_address']
+            name = pending_climb['name']
+            difficulty = pending_climb['difficulty']
+            photo_hash = pending_climb.get('photo_hash', '')
 
-        # Simulate createClimbingLocation
-        try:
-            contract.functions.createClimbingLocation(name, difficulty, latitude, longitude, photo_hash).call({
-                'from': checksum_address,
-                'gas': 500000
-            })
-        except Exception as e:
-            logger.error(f"createClimbingLocation simulation failed: {str(e)}")
-            await update.message.reply_text(
-                f"Transaction simulation failed: {str(e)}. Check parameters (name, difficulty, coordinates) or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅",
-                parse_mode="Markdown"
-            )
-            logger.info(f"/handle_location failed due to simulation error, took {time.time() - start_time:.2f} seconds")
-            return
+            # Check $TOURS balance and allowance
+            try:
+                location_cost = contract.functions.locationCreationCost().call({'gas': 500000})
+                tours_balance = tours_contract.functions.balanceOf(checksum_address).call({'gas': 500000})
+                logger.info(f"$TOURS balance for {checksum_address}: {tours_balance / 10**18} $TOURS")
+                if tours_balance < location_cost:
+                    await update.message.reply_text(
+                        f"Insufficient $TOURS. Need {location_cost / 10**18} $TOURS, you have {tours_balance / 10**18}. Buy more with /buyTours! 😅"
+                    )
+                    logger.info(f"/handle_location failed: insufficient $TOURS for user {user_id}, took {time.time() - start_time:.2f} seconds")
+                    return
+                allowance = tours_contract.functions.allowance(checksum_address, contract.address).call({'gas': 500000})
+                logger.info(f"$TOURS allowance for {checksum_address}: {allowance / 10**18} $TOURS")
+                if allowance < location_cost:
+                    nonce = w3.eth.get_transaction_count(checksum_address)
+                    approve_tx = tours_contract.functions.approve(contract.address, location_cost).build_transaction({
+                        'chainId': 10143,
+                        'from': checksum_address,
+                        'nonce': nonce,
+                        'gas': 100000,
+                        'gasPrice': w3.eth.gas_price
+                    })
+                    await set_pending_wallet(user_id, {
+                        "awaiting_tx": True,
+                        "tx_data": approve_tx,
+                        "wallet_address": checksum_address,
+                        "timestamp": time.time(),
+                        "next_tx": {
+                            "type": "create_climbing_location",
+                            "name": name,
+                            "difficulty": difficulty,
+                            "latitude": latitude,
+                            "longitude": longitude,
+                            "photo_hash": photo_hash
+                        }
+                    })
+                    await update.message.reply_text(
+                        f"Please open https://version1-production.up.railway.app/public/connect.html?userId={user_id} in MetaMask’s browser to approve {location_cost / 10**18} $TOURS for climb creation."
+                    )
+                    logger.info(f"/handle_location initiated approval for user {user_id}, took {time.time() - start_time:.2f} seconds")
+                    return
+            except Exception as e:
+                logger.error(f"Error checking $TOURS balance or allowance: {str(e)}")
+                await update.message.reply_text(f"Failed to check $TOURS balance or allowance: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+                logger.info(f"/handle_location failed due to balance/allowance error, took {time.time() - start_time:.2f} seconds")
+                return
 
-        # Build transaction
-        try:
-            nonce = w3.eth.get_transaction_count(checksum_address)
-            tx = contract.functions.createClimbingLocation(name, difficulty, latitude, longitude, photo_hash).build_transaction({
-                'chainId': 10143,
-                'from': checksum_address,
-                'nonce': nonce,
-                'gas': 300000,
-                'gasPrice': w3.eth.gas_price
-            })
-            logger.info(f"Transaction built for user {user_id}: {json.dumps(tx, default=str)}")
-            await set_pending_wallet(user_id, {
-                "awaiting_tx": True,
-                "tx_data": tx,
-                "wallet_address": checksum_address,
-                "timestamp": time.time(),
-                "name": name,
-                "difficulty": difficulty,
-                "latitude": latitude,
-                "longitude": longitude,
-                "photo_hash": photo_hash
-            })
-            await update.message.reply_text(
-                f"Please open https://version1-production.up.railway.app/public/connect.html?userId={user_id} in MetaMask’s browser to sign the transaction for climb '{name}' ({difficulty}) using 10 $TOURS."
-            )
-            logger.info(f"/handle_location processed, transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
-        except Exception as e:
-            logger.error(f"Error building transaction for user {user_id}: {str(e)}")
-            await update.message.reply_text(f"Failed to build transaction: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
-            logger.info(f"/handle_location failed due to transaction build error, took {time.time() - start_time:.2f} seconds")
+            # Simulate createClimbingLocation
+            try:
+                contract.functions.createClimbingLocation(name, difficulty, latitude, longitude, photo_hash).call({
+                    'from': checksum_address,
+                    'gas': 500000
+                })
+            except Exception as e:
+                logger.error(f"createClimbingLocation simulation failed: {str(e)}")
+                await update.message.reply_text(
+                    f"Transaction simulation failed: {str(e)}. Check parameters (name, difficulty, coordinates) or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅",
+                    parse_mode="Markdown"
+                )
+                logger.info(f"/handle_location failed due to simulation error, took {time.time() - start_time:.2f} seconds")
+                return
+
+            # Build transaction
+            try:
+                nonce = w3.eth.get_transaction_count(checksum_address)
+                tx = contract.functions.createClimbingLocation(name, difficulty, latitude, longitude, photo_hash).build_transaction({
+                    'chainId': 10143,
+                    'from': checksum_address,
+                    'nonce': nonce,
+                    'gas': 300000,
+                    'gasPrice': w3.eth.gas_price
+                })
+                logger.info(f"Transaction built for user {user_id}: {json.dumps(tx, default=str)}")
+                await set_pending_wallet(user_id, {
+                    "awaiting_tx": True,
+                    "tx_data": tx,
+                    "wallet_address": checksum_address,
+                    "timestamp": time.time(),
+                    "name": name,
+                    "difficulty": difficulty,
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "photo_hash": photo_hash
+                })
+                await update.message.reply_text(
+                    f"Please open https://version1-production.up.railway.app/public/connect.html?userId={user_id} in MetaMask’s browser to sign the transaction for climb '{name}' ({difficulty}) using 10 $TOURS."
+                )
+                logger.info(f"/handle_location processed, transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
+            except Exception as e:
+                logger.error(f"Error building transaction for user {user_id}: {str(e)}")
+                await update.message.reply_text(f"Failed to build transaction: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+                logger.info(f"/handle_location failed due to transaction build error, took {time.time() - start_time:.2f} seconds")
+        else:
+            await update.message.reply_text("No climb or journal creation in progress. Start with /buildaclimb or /journal. 😅")
+            logger.info(f"/handle_location failed: no pending climb or journal for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Unexpected error in /handle_location for user {user_id}: {str(e)}")
         await update.message.reply_text(f"Unexpected error: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
@@ -2597,6 +2703,32 @@ async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     )
                     logger.info(f"/handle_tx_hash processed approval, next transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
                     return
+                elif next_tx_data["type"] == "add_journal_entry":
+                    nonce = w3.eth.get_transaction_count(pending["wallet_address"])
+                    tx = contract.functions.addJournalEntryWithDetails(
+                        next_tx_data["content_hash"],
+                        next_tx_data["location"],
+                        next_tx_data["difficulty"],
+                        next_tx_data["is_shared"],
+                        next_tx_data["cast_hash"]
+                    ).build_transaction({
+                        'chainId': 10143,
+                        'from': pending["wallet_address"],
+                        'nonce': nonce,
+                        'gas': 300000,
+                        'gasPrice': w3.eth.gas_price
+                    })
+                    await set_pending_wallet(user_id, {
+                        "awaiting_tx": True,
+                        "tx_data": tx,
+                        "wallet_address": pending["wallet_address"],
+                        "timestamp": time.time()
+                    })
+                    await update.message.reply_text(
+                        f"Approval confirmed! Now open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for journal entry using 5 $TOURS."
+                    )
+                    logger.info(f"/handle_tx_hash processed approval, next transaction built for journal, took {time.time() - start_time:.2f} seconds")
+                    return
             await delete_pending_wallet(user_id)
             logger.info(f"/handle_tx_hash confirmed for user {user_id}, took {time.time() - start_time:.2f} seconds")
         else:
@@ -2782,6 +2914,13 @@ async def set_journal_data(user_id, data):
             "INSERT INTO journal_data (user_id, data, timestamp) VALUES ($1, $2, $3) ON CONFLICT (user_id) DO UPDATE SET data = $2, timestamp = $3",
             user_id, json.dumps(data), data['timestamp']
         )
+
+async def delete_journal_data(user_id):
+    global journal_data
+    if user_id in journal_data:
+        del journal_data[user_id]
+    async with pool.acquire() as conn:
+        await conn.execute("DELETE FROM journal_data WHERE user_id = $1", user_id)
 
 @app.on_event("startup")
 async def startup_event():
@@ -3132,6 +3271,8 @@ async def submit_tx(request: Request):
                         success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Successfully purchased {amount} $TOURS."
                     elif input_data.startswith('0xfe985ae0'):  # createClimbingLocation
                         success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Climb '{pending.get('name', 'Unknown')}' ({pending.get('difficulty', 'Unknown')}) created!"
+                    elif input_data.startswith('0x6b8b0b0a'):  # addJournalEntryWithDetails, check the selector
+                        success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Journal entry added!"
                     if CHAT_HANDLE and TELEGRAM_TOKEN:
                         message = f"New activity by user {user_id} on EmpowerTours! 🧗 <a href=\"{EXPLORER_URL}/tx/{tx_hash}\">Tx: {escape_html(tx_hash)}</a>"
                         await send_notification(CHAT_HANDLE, message)
@@ -3169,6 +3310,33 @@ async def submit_tx(request: Request):
                                 f"Approval confirmed! Now open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for climb '{next_tx_data['name']}' ({next_tx_data['difficulty']}) using 10 $TOURS."
                             )
                             logger.info(f"/submit_tx processed approval, next transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
+                            return {"status": "success"}
+                        elif next_tx_data["type"] == "add_journal_entry":
+                            nonce = w3.eth.get_transaction_count(pending["wallet_address"])
+                            tx = contract.functions.addJournalEntryWithDetails(
+                                next_tx_data["content_hash"],
+                                next_tx_data["location"],
+                                next_tx_data["difficulty"],
+                                next_tx_data["is_shared"],
+                                next_tx_data["cast_hash"]
+                            ).build_transaction({
+                                'chainId': 10143,
+                                'from': pending["wallet_address"],
+                                'nonce': nonce,
+                                'gas': 300000,
+                                'gasPrice': w3.eth.gas_price
+                            })
+                            await set_pending_wallet(user_id, {
+                                "awaiting_tx": True,
+                                "tx_data": tx,
+                                "wallet_address": pending["wallet_address"],
+                                "timestamp": time.time()
+                            })
+                            await application.bot.send_message(
+                                user_id,
+                                f"Approval confirmed! Now open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for journal entry using 5 $TOURS."
+                            )
+                            logger.info(f"/submit_tx processed approval, next transaction built for journal, took {time.time() - start_time:.2f} seconds")
                             return {"status": "success"}
                     await delete_pending_wallet(user_id)
                 logger.info(f"/submit_tx confirmed for user {user_id}, took {time.time() - start_time:.2f} seconds")
