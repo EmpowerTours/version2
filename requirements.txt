@@ -8,3 +8,4 @@ psutil>=5.9.8
 setuptools>=65.5.0
 python-socketio>=5.7.2
 asyncpg==0.29.0
+tenacity>=8.5.0
