@@ -2882,16 +2882,13 @@ async def mypurchases(update: Update, context: ContextTypes.DEFAULT_TYPE):
         wallet_address = w3.to_checksum_address(session["wallet_address"])
         logger.info(f"Fetching purchases for wallet {wallet_address}")
 
-        # Create an event filter for LocationPurchased events
-        latest_block = await w3.eth.block_number
-        from_block = max(0, latest_block - 10000)  # Limit to recent 10,000 blocks to avoid timeout
-        event_filter = await contract.events.LocationPurchased.create_filter(
-            fromBlock=from_block,
-            toBlock=latest_block,
-            argument_filters={'buyer': wallet_address}
-        )
-        purchase_events = await event_filter.get_all_entries()
-        location_ids = [event.args.locationId for event in purchase_events]
+        # Fetch location_ids from DB
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT location_id FROM purchases WHERE user_id = $1 ORDER BY timestamp DESC",
+                str(update.effective_user.id)
+            )
+        location_ids = [row['location_id'] for row in rows]
 
         # Fetch climbing location details asynchronously
         coros = [contract.functions.getClimbingLocation(loc_id).call() for loc_id in location_ids]
@@ -2922,7 +2919,7 @@ async def mypurchases(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
         logger.info(f"/mypurchases failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
-
+        
 async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
@@ -3051,6 +3048,10 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                         if log.address.lower() == (w3.to_checksum_address(CONTRACT_ADDRESS)).lower():
                             try:
                                 event_map = {
+                                    (w3.keccak(text="LocationPurchased(uint256,address,uint256)")).hex(): (
+                                        contract.events.LocationPurchased,
+                                        lambda e: f"Climb #{e.args.locationId} purchased by <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> on EmpowerTours! 🪙"
+                                    ),
                                     (w3.keccak(text="ProfileCreated(address,uint256)")).hex(): (
                                         contract.events.ProfileCreated,
                                         lambda e: f"New climber joined EmpowerTours! 🧗 Address: <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a>"
@@ -3141,6 +3142,17 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                                             user_id = reverse_sessions[checksum_user_address]
                                             user_message = f"Your action succeeded! {message.replace('<a href=', '[Tx: ').replace('</a>', ']')} 🪙 Check details on {EXPLORER_URL}/tx/{receipt.transactionHash.hex()}"
                                             await application.bot.send_message(user_id, user_message, parse_mode="Markdown")
+                                    # Store purchase in DB if LocationPurchased
+                                    if log.topics[0].hex() == (w3.keccak(text="LocationPurchased(uint256,address,uint256)")).hex():
+                                        buyer = event.args.buyer
+                                        checksum_buyer = w3.to_checksum_address(buyer)
+                                        if checksum_buyer in reverse_sessions:
+                                            user_id = reverse_sessions[checksum_buyer]
+                                            async with pool.acquire() as conn:
+                                                await conn.execute(
+                                                    "INSERT INTO purchases (user_id, wallet_address, location_id, timestamp) VALUES ($1, $2, $3, $4)",
+                                                    user_id, checksum_buyer, event.args.locationId, event.args.timestamp
+                                                )
                             except Exception as e:
                                 logger.error(f"Error processing event in block {block_number}: {str(e)}")
         last_processed_block = end_block - 1
@@ -3213,7 +3225,6 @@ async def delete_journal_data(user_id):
     async with pool.acquire() as conn:
         await conn.execute("DELETE FROM journal_data WHERE user_id = $1", user_id)
 
-@app.on_event("startup")
 async def startup_event():
     start_time = time.time()
     global application, webhook_failed, pool, sessions, reverse_sessions, pending_wallets, journal_data
@@ -3249,6 +3260,14 @@ async def startup_event():
                 user_id TEXT NOT NULL,
                 entry_type TEXT NOT NULL,
                 entry_id INTEGER
+            )
+            """)
+            await conn.execute("""
+            CREATE TABLE IF NOT EXISTS purchases (
+                user_id TEXT,
+                wallet_address TEXT,
+                location_id INTEGER,
+                timestamp INTEGER
             )
             """)
 
