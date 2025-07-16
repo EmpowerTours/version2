@@ -3285,7 +3285,7 @@ async def startup_event():
                     journal_data[row['user_id']] = json.loads(row['data'])
                     journal_data[row['user_id']]['timestamp'] = row['timestamp']
 
-       logger.info(f"Loaded from DB: {len(sessions)} sessions, {len(pending_wallets)} pending_wallets, {len(journal_data)} journal_data")
+            logger.info(f"Loaded from DB: {len(sessions)} sessions, {len(pending_wallets)} pending_wallets, {len(journal_data)} journal_data")
 
         # One-time historical backfill for purchases
         if w3 and contract:
