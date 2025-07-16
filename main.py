@@ -2882,13 +2882,11 @@ async def mypurchases(update: Update, context: ContextTypes.DEFAULT_TYPE):
         wallet_address = w3.to_checksum_address(session["wallet_address"])
         logger.info(f"Fetching purchases for wallet {wallet_address}")
 
-        # Fetch location_ids from DB
-        async with pool.acquire() as conn:
-            rows = await conn.fetch(
-                "SELECT location_id FROM purchases WHERE user_id = $1 ORDER BY timestamp DESC",
-                str(update.effective_user.id)
-            )
-        location_ids = [row['location_id'] for row in rows]
+        # Create an event filter for LocationPurchased events
+        latest_block = await w3.eth.block_number
+        from_block = max(0, latest_block - 10000)  # Limit to recent 10,000 blocks to avoid timeout
+        purchase_events = await get_purchase_events(wallet_address, from_block, latest_block)
+        location_ids = [event.args.locationId for event in purchase_events]
 
         # Fetch climbing location details asynchronously
         coros = [contract.functions.getClimbingLocation(loc_id).call() for loc_id in location_ids]
@@ -3217,7 +3215,20 @@ async def set_journal_data(user_id, data):
             "INSERT INTO journal_data (user_id, data, timestamp) VALUES ($1, $2, $3) ON CONFLICT (user_id) DO UPDATE SET data = $2, timestamp = $3",
             user_id, json.dumps(data), data['timestamp']
         )
-
+async def get_purchase_events(wallet_address, from_block, to_block, step=1000):
+    events = []
+    for start in range(from_block, to_block + 1, step):
+        end = min(start + step - 1, to_block)
+        event_filter = await contract.events.LocationPurchased.create_filter(
+            fromBlock=start,
+            toBlock=end,
+            argument_filters={'buyer': wallet_address}
+        )
+        batch_events = await event_filter.get_all_entries()
+        events.extend(batch_events)
+        await asyncio.sleep(0.1)  # Small delay to avoid rate limiting
+    return events
+    
 async def delete_journal_data(user_id):
     global journal_data
     if user_id in journal_data:
