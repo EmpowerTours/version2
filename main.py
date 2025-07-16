@@ -3007,147 +3007,142 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
     global last_processed_block
     if not w3 or not contract:
         logger.error("Web3 or contract not initialized, cannot monitor events")
-        logger.info(f"/monitor_events failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        logger.info(f"monitor_events failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
     try:
         latest_block = await w3.eth.get_block_number()
         if last_processed_block == 0:
             last_processed_block = max(0, latest_block - 100)
-        batch_size = 100  # Reduced for faster processing
+        batch_size = 100  # Reduced for faster processing; adjust based on testnet latency
         end_block = min(last_processed_block + batch_size, latest_block + 1)
-        logger.info(f"Processing {end_block - last_processed_block - 1} blocks (from {last_processed_block + 1} to {end_block - 1})")
-            block = await w3.eth.get_block(block_number, full_transactions=True)
-            for tx in block.transactions:
-                receipt = await w3.eth.get_transaction_receipt(tx.hash.hex())
-                if receipt and receipt.status:
-                    for log in receipt.logs:
-                        if log.address.lower() == (w3.to_checksum_address(CONTRACT_ADDRESS)).lower():
-                            try:
-                                event_map = {
-                                    (w3.keccak(text="LocationPurchased(uint256,address,uint256)")).hex(): (
-                                        contract.events.LocationPurchased,
-                                        lambda e: f"Climb #{e.args.locationId} purchased by <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> on EmpowerTours! 🪙"
-                                    ),
-                                    (w3.keccak(text="ProfileCreated(address,uint256)")).hex(): (
-                                        contract.events.ProfileCreated,
-                                        lambda e: f"New climber joined EmpowerTours! 🧗 Address: <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a>"
-                                    ),
-                                    (w3.keccak(text="ProfileCreatedEnhanced(address,uint256,string,uint256)")).hex(): (
-                                        contract.events.ProfileCreatedEnhanced,
-                                        lambda e: f"New climber with Farcaster profile joined EmpowerTours! 🧗 Address: <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a>"
-                                    ),
-                                    (w3.keccak(text="JournalEntryAdded(uint256,address,string,uint256)")).hex(): (
-                                        contract.events.JournalEntryAdded,
-                                        lambda e: f"New journal entry #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.author}\">{e.args.author[:6]}...</a> on EmpowerTours! 📝"
-                                    ),
-                                    (w3.keccak(text="JournalEntryAddedEnhanced(uint256,address,uint256,string,string,string,bool,uint256)")).hex(): (
-                                        contract.events.JournalEntryAddedEnhanced,
-                                        lambda e: f"New enhanced journal entry #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.author}\">{e.args.author[:6]}...</a> on EmpowerTours! 📝"
-                                    ),
-                                    (w3.keccak(text="CommentAdded(uint256,address,string,uint256)")).hex(): (
-                                        contract.events.CommentAdded,
-                                        lambda e: f"New comment on journal #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.commenter}\">{e.args.commenter[:6]}...</a> on EmpowerTours! 🗣️"
-                                    ),
-                                    (w3.keccak(text="CommentAddedEnhanced(uint256,address,uint256,string,string,uint256)")).hex(): (
-                                        contract.events.CommentAddedEnhanced,
-                                        lambda e: f"New enhanced comment on journal #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.commenter}\">{e.args.commenter[:6]}...</a> on EmpowerTours! 🗣️"
-                                    ),
-                                    (w3.keccak(text="ClimbingLocationCreated(uint256,address,string,uint256)")).hex(): (
-                                        contract.events.ClimbingLocationCreated,
-                                        lambda e: f"New climb '{e.args.name}' created by <a href=\"{EXPLORER_URL}/address/{e.args.creator}\">{e.args.creator[:6]}...</a> on EmpowerTours! 🪨"
-                                    ),
-                                    (w3.keccak(text="ClimbingLocationCreatedEnhanced(uint256,address,uint256,string,string,int256,int256,bool,uint256)")).hex(): (
-                                        contract.events.ClimbingLocationCreatedEnhanced,
-                                        lambda e: f"New enhanced climb '{e.args.name}' created by <a href=\"{EXPLORER_URL}/address/{e.args.creator}\">{e.args.creator[:6]}...</a> on EmpowerTours! 🪨"
-                                    ),
-                                    (w3.keccak(text="LocationPurchased(uint256,address,uint256)")).hex(): (
-                                        contract.events.LocationPurchased,
-                                        lambda e: f"Climb #{e.args.locationId} purchased by <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> on EmpowerTours! 🪙"
-                                    ),
-                                    (w3.keccak(text="LocationPurchasedEnhanced(uint256,address,uint256,uint256)")).hex(): (
-                                        contract.events.LocationPurchasedEnhanced,
-                                        lambda e: f"Enhanced climb #{e.args.locationId} purchased by <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> on EmpowerTours! 🪙"
-                                    ),
-                                    (w3.keccak(text="TournamentCreated(uint256,uint256,uint256)")).hex(): (
-                                        contract.events.TournamentCreated,
-                                        lambda e: f"New tournament #{e.args.tournamentId} created on EmpowerTours! 🏆"
-                                    ),
-                                    (w3.keccak(text="TournamentCreatedEmbedded(uint256,address,uint256,string,uint256,uint256)")).hex(): (
-                                        contract.events.TournamentCreatedEmbedded,
-                                        lambda e: f"New enhanced tournament #{e.args.tournamentId} created by <a href=\"{EXPLORER_URL}/address/{e.args.creator}\">{e.args.creator[:6]}...</a> on EmpowerTours! 🏆"
-                                    ),
-                                    (w3.keccak(text="TournamentJoined(uint256,address)")).hex(): (
-                                        contract.events.TournamentJoined,
-                                        lambda e: f"Climber <a href=\"{EXPLORER_URL}/address/{e.args.participant}\">{e.args.participant[:6]}...</a> joined tournament #{e.args.tournamentId} on EmpowerTours! 🏆"
-                                    ),
-                                    (w3.keccak(text="TournamentJoinedEnhanced(uint256,address,uint256)")).hex(): (
-                                        contract.events.TournamentJoinedEnhanced,
-                                        lambda e: f"Climber <a href=\"{EXPLORER_URL}/address/{e.args.participant}\">{e.args.participant[:6]}...</a> joined enhanced tournament #{e.args.tournamentId} on EmpowerTours! 🏆"
-                                    ),
-                                    (w3.keccak(text="TournamentEnded(uint256,address,uint256)")).hex(): (
-                                        contract.events.TournamentEnded,
-                                        lambda e: f"Tournament #{e.args.tournamentId} ended! Winner: <a href=\"{EXPLORER_URL}/address/{e.args.winner}\">{e.args.winner[:6]}...</a> Prize: {e.args.pot / 10**18} $TOURS 🏆"
-                                    ),
-                                    (w3.keccak(text="TournamentEndedEnhanced(uint256,address,uint256,uint256)")).hex(): (
-                                        contract.events.TournamentEndedEnhanced,
-                                        lambda e: f"Enhanced tournament #{e.args.tournamentId} ended! Winner: <a href=\"{EXPLORER_URL}/address/{e.args.winner}\">{e.args.winner[:6]}...</a> Prize: {e.args.pot / 10**18} $TOURS 🏆"
-                                    ),
-                                    (w3.keccak(text="FarcasterCastShared(address,uint256,string,string,uint256,uint256)")).hex(): (
-                                        contract.events.FarcasterCastShared,
-                                        lambda e: f"New Farcaster cast shared by <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a> for {e.args.contentType} #{e.args.contentId} on EmpowerTours! 📢"
-                                    ),
-                                    (w3.keccak(text="FarcasterProfileUpdated(address,uint256,string,string,uint256)")).hex(): (
-                                        contract.events.FarcasterProfileUpdated,
-                                        lambda e: f"Farcaster profile updated by <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a> on EmpowerTours! 📢"
-                                    ),
-                                    (w3.keccak(text="TokensPurchased(address,uint256,uint256)")).hex(): (contract.events.TokensPurchased,
-                                        lambda e: f"User <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> bought {e.args.amount / 10**18} $TOURS on EmpowerTours! 🪙"
-                                    ),
-                                }
-                                if log.topics[0].hex() in event_map:
-                                    event_class, message_fn = event_map[log.topics[0].hex()]
-                                    event = event_class().process_log(log)
-                                    message = message_fn(event)
-                                    # Auto-announce to group
-                                    await send_notification(CHAT_HANDLE, message)
-                                    # New: PM user if wallet matches an event arg
-                                    user_address = event.args.get('user') or event.args.get('creator') or event.args.get('author') or event.args.get('buyer') or event.args.get('commenter') or event.args.get('participant') or event.args.get('winner')
-                                    if user_address:
-                                        checksum_user_address = w3.to_checksum_address(user_address)
-                                        if checksum_user_address in reverse_sessions:
-                                            user_id = reverse_sessions[checksum_user_address]
-                                            user_message = f"Your action succeeded! {message.replace('<a href=', '[Tx: ').replace('</a>', ']')} 🪙 Check details on {EXPLORER_URL}/tx/{receipt.transactionHash.hex()}"
-                                            await application.bot.send_message(user_id, user_message, parse_mode="Markdown")
-                                    # Store purchase in DB if LocationPurchased
-                                    if log.topics[0].hex() == (w3.keccak(text="LocationPurchased(uint256,address,uint256)")).hex():
-                                        buyer = event.args.buyer
-                                        checksum_buyer = w3.to_checksum_address(buyer)
-                                        if checksum_buyer in reverse_sessions:
-                                            user_id = reverse_sessions[checksum_buyer]
-                                            async with pool.acquire() as conn:
-                                                await conn.execute(
-                                                    "INSERT INTO purchases (user_id, wallet_address, location_id, timestamp) VALUES ($1, $2, $3, $4)",
-                                                    user_id, checksum_buyer, event.args.locationId, event.args.timestamp
-                                                )
-                            except Exception as e:
-                                logger.error(f"Error processing event in block {block_number}: {str(e)}")
+        num_blocks = end_block - last_processed_block - 1
+        if num_blocks <= 0:
+            logger.info(f"No new blocks to process, took {time.time() - start_time:.2f} seconds")
+            return
+        logger.info(f"Processing {num_blocks} blocks (from {last_processed_block + 1} to {end_block - 1})")
+
+        # Fetch all logs from the contract in the block range (efficient alternative to per-block fetching)
+        logs = await w3.eth.get_logs({
+            'fromBlock': last_processed_block + 1,
+            'toBlock': end_block - 1,
+            'address': w3.to_checksum_address(CONTRACT_ADDRESS)
+        })
+
+        # Event map with corrected signatures, hashes, and lambdas (hashes computed from ABI signatures)
+        event_map = {
+            "b092b68cd4087066d88561f213472db328f688a8993b20e9eab36fee4d6679fd": (  # LocationPurchased(uint256,address,uint256)
+                contract.events.LocationPurchased,
+                lambda e: f"Climb #{e.args.locationId} purchased by <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> on EmpowerTours! 🪙"
+            ),
+            "aa3a75c48d1cad3bf60136ab33bc8fd62f31c2b25812d8604da0b7e7fc6d7271": (  # ProfileCreated(address,uint256)
+                contract.events.ProfileCreated,
+                lambda e: f"New climber joined EmpowerTours! 🧗 Address: <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a>"
+            ),
+            "dbf3456d5f59d51cf0e4442bf1c140db5b4b3bd090be958900af45a8310f3deb": (  # ProfileCreatedEnhanced(address,uint256,string,uint256)
+                contract.events.ProfileCreatedEnhanced,
+                lambda e: f"New climber with Farcaster profile joined EmpowerTours! 🧗 Address: <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a>"
+            ),
+            "1f6c34ae7cdb1fe8d152ff37aa480fa0c07f0e0345571e5854cf2b1d4baa75b2": (  # JournalEntryAdded(uint256,address,string,uint256)
+                contract.events.JournalEntryAdded,
+                lambda e: f"New journal entry #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.author}\">{e.args.author[:6]}...</a> on EmpowerTours! 📝"
+            ),
+            "8949aebb3586111f1bb264e765b7b0ef7414304cd8c9f061c1c5c56fdcb81862": (  # JournalEntryAddedEnhanced(uint256,address,uint256,string,string,string,bool,uint256)
+                contract.events.JournalEntryAddedEnhanced,
+                lambda e: f"New enhanced journal entry #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.author}\">{e.args.author[:6]}...</a> on EmpowerTours! 📝"
+            ),
+            "e22806c8e7df3b9bb5e604a064687dd40d114ccb9b5155678fce0139abf40a2e": (  # CommentAdded(uint256,address,string,uint256)
+                contract.events.CommentAdded,
+                lambda e: f"New comment on journal #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.commenter}\">{e.args.commenter[:6]}...</a> on EmpowerTours! 🗣️"
+            ),
+            "0144b9a4c17706f753bf8a43586b92072b9db35f1e038d5c632b9453e38517c7": (  # CommentAddedEnhanced(uint256,address,uint256,string,string,uint256)
+                contract.events.CommentAddedEnhanced,
+                lambda e: f"New enhanced comment on journal #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.commenter}\">{e.args.commenter[:6]}...</a> on EmpowerTours! 🗣️"
+            ),
+            "85a125ab0a37494cb20f1e60f7c4b7ba8f6152e82afbe2fd3250ff83ae3363dc": (  # ClimbingLocationCreated(uint256,address,string,uint256)
+                contract.events.ClimbingLocationCreated,
+                lambda e: f"New climb '{e.args.name}' created by <a href=\"{EXPLORER_URL}/address/{e.args.creator}\">{e.args.creator[:6]}...</a> on EmpowerTours! 🪨"
+            ),
+            "dd0c2d9cafda4b18e58db06355a912e9ab579dee92649495ae4dc3f0365a269a": (  # ClimbingLocationCreatedEnhanced(uint256,address,uint256,string,string,int256,int256,bool,uint256)
+                contract.events.ClimbingLocationCreatedEnhanced,
+                lambda e: f"New enhanced climb '{e.args.name}' created by <a href=\"{EXPLORER_URL}/address/{e.args.creator}\">{e.args.creator[:6]}...</a> on EmpowerTours! 🪨"
+            ),
+            "ad043c04181883ece2f6dc02cf2978a3b453c3d2323bb4bfb95865f910e6c3ce": (  # LocationPurchasedEnhanced(uint256,address,uint256,uint256)
+                contract.events.LocationPurchasedEnhanced,
+                lambda e: f"Enhanced climb #{e.args.locationId} purchased by <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> on EmpowerTours! 🪙"
+            ),
+            "d72d415fee16f78aefb0faa7ae3f5221a8d557570c7db32ed71033c7b1717a41": (  # TournamentCreated(uint256,uint256,uint256)
+                contract.events.TournamentCreated,
+                lambda e: f"New tournament #{e.args.tournamentId} created on EmpowerTours! 🏆"
+            ),
+            "90e52c99bee94da3f2ac65edd364898dc149a6eb3ef4e1b6d0af3f1e6cd1b6a3": (  # TournamentCreatedEnhanced(uint256,address,uint256,string,uint256,uint256)
+                contract.events.TournamentCreatedEnhanced,
+                lambda e: f"New enhanced tournament #{e.args.tournamentId} created by <a href=\"{EXPLORER_URL}/address/{e.args.creator}\">{e.args.creator[:6]}...</a> on EmpowerTours! 🏆"
+            ),
+            "9b71079da01b6505f63bcd5edd4a7a9dbc55173971019151c9654ae29def6bac": (  # TournamentJoined(uint256,address)
+                contract.events.TournamentJoined,
+                lambda e: f"Climber <a href=\"{EXPLORER_URL}/address/{e.args.participant}\">{e.args.participant[:6]}...</a> joined tournament #{e.args.tournamentId} on EmpowerTours! 🏆"
+            ),
+            "2cccfd0c70d5149159c82c9c2d66f2a9874ec2356c5c0788087ec7313916e02e": (  # TournamentJoinedEnhanced(uint256,address,uint256)
+                contract.events.TournamentJoinedEnhanced,
+                lambda e: f"Climber <a href=\"{EXPLORER_URL}/address/{e.args.participant}\">{e.args.participant[:6]}...</a> joined enhanced tournament #{e.args.tournamentId} on EmpowerTours! 🏆"
+            ),
+            "dd7ad4d17119eef4327e49ef4368c3d112ab5b71ee7918afcadc779b78eed9d9": (  # TournamentEnded(uint256,address,uint256)
+                contract.events.TournamentEnded,
+                lambda e: f"Tournament #{e.args.tournamentId} ended! Winner: <a href=\"{EXPLORER_URL}/address/{e.args.winner}\">{e.args.winner[:6]}...</a> Prize: {e.args.pot / 10**18} $TOURS 🏆"
+            ),
+            "f0f0525a5ef10132058aa9a3feb1a1f6d503037788ea59f454076e216da1a741": (  # TournamentEndedEnhanced(uint256,address,uint256,uint256)
+                contract.events.TournamentEndedEnhanced,
+                lambda e: f"Enhanced tournament #{e.args.tournamentId} ended! Winner: <a href=\"{EXPLORER_URL}/address/{e.args.winner}\">{e.args.winner[:6]}...</a> Prize: {e.args.pot / 10**18} $TOURS 🏆"
+            ),
+            "b9f217daf6aa350a9b78812562d0d1afba9439b7b595919c7d9dfc40d2230f35": (  # FarcasterCastShared(address,uint256,string,string,uint256,uint256)
+                contract.events.FarcasterCastShared,
+                lambda e: f"New Farcaster cast shared by <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a> for {e.args.contentType} #{e.args.contentId} on EmpowerTours! 📢"
+            ),
+            "32838cd85a2abed5fd25bfdd6952f7f1d0ca533b1eb897506a812c5ea0a99612": (  # FarcasterProfileUpdated(address,uint256,string,string,uint256)
+                contract.events.FarcasterProfileUpdated,
+                lambda e: f"Farcaster profile updated by <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a> on EmpowerTours! 📢"
+            ),
+            "7c041c6a61b05a6a99f81f2f3338d3911721f95ec7da19a69782e5a887e1340f": (  # ToursPurchased(address,uint256,uint256)
+                contract.events.ToursPurchased,
+                lambda e: f"User <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> bought {e.args.toursAmount / 10**18} $TOURS on EmpowerTours! 🪙"
+            ),
+        }
+
+        for log in logs:
+            try:
+                topic0 = log['topics'][0].hex()
+                if topic0 in event_map:
+                    event_class, message_fn = event_map[topic0]
+                    event = event_class().process_log(log)
+                    message = message_fn(event)
+                    # Auto-announce to group
+                    await send_notification(CHAT_HANDLE, message)
+                    # New: PM user if wallet matches an event arg
+                    user_address = event.args.get('user') or event.args.get('creator') or event.args.get('author') or event.args.get('buyer') or event.args.get('commenter') or event.args.get('participant') or event.args.get('winner')
+                    if user_address:
+                        checksum_user_address = w3.to_checksum_address(user_address)
+                        if checksum_user_address in reverse_sessions:
+                            user_id = reverse_sessions[checksum_user_address]
+                            user_message = f"Your action succeeded! {message.replace('<a href=', '[Tx: ').replace('</a>', ']')} 🪙 Check details on {EXPLORER_URL}/tx/{log['transactionHash'].hex()}"
+                            await application.bot.send_message(user_id, user_message, parse_mode="Markdown")
+                    # Store purchase in DB if LocationPurchased
+                    if topic0 == "b092b68cd4087066d88561f213472db328f688a8993b20e9eab36fee4d6679fd":  # LocationPurchased(uint256,address,uint256)
+                        buyer = event.args.buyer
+                        checksum_buyer = w3.to_checksum_address(buyer)
+                        if checksum_buyer in reverse_sessions:
+                            user_id = reverse_sessions[checksum_buyer]
+                            async with pool.acquire() as conn:
+                                await conn.execute(
+                                    "INSERT INTO purchases (user_id, wallet_address, location_id, timestamp) VALUES ($1, $2, $3, $4)",
+                                    user_id, checksum_buyer, event.args.locationId, event.args.timestamp
+                                )
+            except Exception as e:
+                logger.error(f"Error processing log: {str(e)}")
+
         last_processed_block = end_block - 1
         logger.info(f"Processed events up to block {last_processed_block}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in monitor_events: {str(e)}, took {time.time() - start_time:.2f} seconds")
-
-async def log_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    start_time = time.time()
-    device_info = (
-        f"via_bot={update.message.via_bot.id if update.message.via_bot else 'none'}, "
-        f"chat_type={update.message.chat.type}, "
-        f"platform={getattr(update.message.via_bot, 'platform', 'unknown')}"
-    )
-    logger.info(f"Received text message from user {update.effective_user.id} in chat {update.effective_chat.id}: {update.message.text}, {device_info}")
-    await update.message.reply_text(
-        f"Received message: '{update.message.text}'. Use a valid command like /start or /tutorial. 😅\nDebug: {device_info}"
-    )
-    logger.info(f"Processed non-command text message, took {time.time() - start_time:.2f} seconds")
 
 async def get_session(user_id):
     return sessions.get(user_id)
