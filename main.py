@@ -2454,7 +2454,7 @@ async def purchase_climb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Climb purchase unavailable due to configuration issues. Try again later! 😅")
         logger.info(f"/purchaseclimb failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
         return
-    if not w3 or not contract:
+    if not w3 or not contract or not tours_contract:
         logger.error("Web3 not initialized, /purchaseclimb command disabled")
         await update.message.reply_text("Climb purchase unavailable due to blockchain issues. Try again later! 😅")
         logger.info(f"/purchaseclimb failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
@@ -2474,26 +2474,43 @@ async def purchase_climb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"/purchaseclimb failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
             return
         checksum_address = w3.to_checksum_address(wallet_address)
-        # Simulate to catch InvalidLocationId
-        try:
-            await contract.functions.purchaseClimbingLocation(location_id).call({
+        # Get cost (assume locationCreationCost is the purchase cost too)
+        purchase_cost = await contract.functions.locationCreationCost().call({'gas': 500000})
+        # Check $TOURS balance
+        tours_balance = await tours_contract.functions.balanceOf(checksum_address).call({'gas': 500000})
+        if tours_balance < purchase_cost:
+            await update.message.reply_text(
+                f"Insufficient $TOURS. Need {purchase_cost / 10**18} $TOURS, you have {tours_balance / 10**18}. Buy more with /buyTours! 😅"
+            )
+            logger.info(f"/purchaseclimb failed: insufficient $TOURS for user {user_id}, took {time.time() - start_time:.2f} seconds")
+            return
+        # Check allowance
+        allowance = await tours_contract.functions.allowance(checksum_address, contract.address).call({'gas': 500000})
+        if allowance < purchase_cost:
+            nonce = await w3.eth.get_transaction_count(checksum_address)
+            approve_tx = await tours_contract.functions.approve(contract.address, purchase_cost).build_transaction({
                 'from': checksum_address,
-                'gas': 200000
+                'nonce': nonce,
+                'gas': 100000,
+                'gas_price': await w3.eth.gas_price
             })
-        except Exception as e:
-            revert_reason = str(e)
-            logger.error(f"purchaseClimbingLocation simulation failed: {revert_reason}")
-            if "InvalidLocationId" in revert_reason:
-                await update.message.reply_text("Invalid climb ID. Use /findaclimb to get valid IDs and try again! 😅")
-                logger.info(f"/purchaseclimb failed due to invalid ID, took {time.time() - start_time:.2f} seconds")
-                return
-            else:
-                await update.message.reply_text(
-                    f"Transaction simulation failed: {revert_reason}. Check parameters or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅",
-                    parse_mode="Markdown"
-                )
-                logger.info(f"/purchaseclimb failed due to simulation error, took {time.time() - start_time:.2f} seconds")
-                return
+            await set_pending_wallet(user_id, {
+                "awaiting_tx": True,
+                "tx_data": approve_tx,
+                "wallet_address": checksum_address,
+                "timestamp": time.time(),
+                "next_tx": {
+                    "type": "purchase_climbing_location",
+                    "location_id": location_id
+                }
+            })
+            await update.message.reply_text(
+                f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to approve {purchase_cost / 10**18} $TOURS for climb purchase using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})). After approval, you'll sign the purchase transaction.",
+                parse_mode="Markdown"
+            )
+            logger.info(f"/purchaseclimb initiated approval for user {user_id}, took {time.time() - start_time:.2f} seconds")
+            return
+        # If allowance OK, build purchase tx
         nonce = await w3.eth.get_transaction_count(checksum_address)
         tx = await contract.functions.purchaseClimbingLocation(location_id).build_transaction({
             'from': checksum_address,
@@ -3572,6 +3589,27 @@ async def submit_tx(request: Request):
                                 f"Approval confirmed! Now open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for journal entry using 5 $TOURS."
                             )
                             logger.info(f"/submit_tx processed approval, next transaction built for journal, took {time.time() - start_time:.2f} seconds")
+                            return {"status": "success"}
+                        elif next_tx_data["type"] == "purchase_climbing_location":
+                            nonce = await w3.eth.get_transaction_count(pending["wallet_address"])
+                            tx = await contract.functions.purchaseClimbingLocation(next_tx_data["location_id"]).build_transaction({
+                                'from': pending["wallet_address"],
+                                'nonce': nonce,
+                                'gas': 200000,
+                                'gas_price': await w3.eth.gas_price,
+                                'value': 0
+                            })
+                            await set_pending_wallet(user_id, {
+                                "awaiting_tx": True,
+                                "tx_data": tx,
+                                "wallet_address": pending["wallet_address"],
+                                "timestamp": time.time()
+                            })
+                            await application.bot.send_message(
+                                user_id,
+                                f"Approval confirmed! Now open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for purchasing climb #{next_tx_data['location_id']} using 10 $TOURS."
+                            )
+                            logger.info(f"/submit_tx processed approval, next transaction built for purchase_climb, took {time.time() - start_time:.2f} seconds")
                             return {"status": "success"}
                     await delete_pending_wallet(user_id)
                 logger.info(f"/submit_tx confirmed for user {user_id}, took {time.time() - start_time:.2f} seconds")
