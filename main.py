@@ -2868,28 +2868,35 @@ async def mypurchases(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /mypurchases command from user {update.effective_user.id} in chat {update.effective_chat.id}")
-    if not w3 or not contract:
-        await update.message.reply_text("Blockchain connection unavailable. Try again later! 😅")
-        logger.info(f"/mypurchases failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
-        return
     try:
-        user_id = str(update.effective_user.id)
-        session = await get_session(user_id)
-        wallet_address = session.get("wallet_address") if session else None
-        if not wallet_address:
-            await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
-            logger.info(f"/mypurchases failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
+        session = await get_session(str(update.effective_user.id))
+        if not session or not session.get("wallet_address"):
+            await update.message.reply_text("No wallet connected. Use /connectwallet first! 😅")
+            logger.info(f"/mypurchases no wallet connected for user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
             return
-        checksum_address = w3.to_checksum_address(wallet_address)
-        purchase_filter = contract.events.LocationPurchased.create_filter(fromBlock=0, argument_filters={'buyer': checksum_address})
-        purchase_events = await purchase_filter.get_all_entries()
-        if not purchase_events:
-            await update.message.reply_text("You haven't purchased any climbs yet. Use /findaclimb and /purchaseclimb [id]! 🪙")
-            logger.info(f"/mypurchases no purchases found, took {time.time() - start_time:.2f} seconds")
+        if not w3 or not contract:
+            logger.error("Web3 or contract not initialized, cannot fetch purchases")
+            await update.message.reply_text("Blockchain unavailable. Try again later! 😅")
+            logger.info(f"/mypurchases failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
             return
+        wallet_address = w3.to_checksum_address(session["wallet_address"])
+        logger.info(f"Fetching purchases for wallet {wallet_address}")
+
+        # Create an event filter for LocationPurchased events
+        latest_block = await w3.eth.get_block_number()
+        from_block = max(0, latest_block - 10000)  # Limit to recent 10,000 blocks to avoid timeout
+        event_filter = contract.events.LocationPurchased.create_filter(
+            fromBlock=from_block,
+            toBlock='latest',
+            argument_filters={'buyer': wallet_address}
+        )
+        purchase_events = await event_filter.get_all_entries()
         location_ids = [event.args.locationId for event in purchase_events]
-        coros = [contract.functions.getClimbingLocation(loc_id).call({'gas': 500000}) for loc_id in location_ids]
+
+        # Fetch climbing location details asynchronously
+        coros = [contract.functions.getClimbingLocation(loc_id).call() for loc_id in location_ids]
         locations = await asyncio.gather(*coros, return_exceptions=True)
+        
         my_climbs = []
         for loc_id, location in zip(location_ids, locations):
             if isinstance(location, Exception):
@@ -2903,11 +2910,17 @@ async def mypurchases(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"   Map: https://www.google.com/maps?q={location[3]/1000000:.6f},{location[4]/1000000:.6f}\n"
                 f"   Created: {datetime.fromtimestamp(location[6]).strftime('%Y-%m-%d %H:%M:%S')}"
             )
-        await update.message.reply_text("Your Purchased Climbs:\n\n" + "\n\n".join(my_climbs), parse_mode="Markdown")
+        if not my_climbs:
+            await update.message.reply_text("You haven't purchased any climbs yet. Use /findaclimb to explore! 🧗", parse_mode="Markdown")
+        else:
+            await update.message.reply_text("Your Purchased Climbs:\n\n" + "\n\n".join(my_climbs), parse_mode="Markdown")
         logger.info(f"/mypurchases retrieved {len(my_climbs)} purchases, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Unexpected error in /mypurchases: {str(e)}")
-        await update.message.reply_text(f"Error retrieving purchases: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+        await update.message.reply_text(
+            f"Error retrieving purchases: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅",
+            parse_mode="Markdown"
+        )
         logger.info(f"/mypurchases failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
 
 async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
