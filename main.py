@@ -3074,9 +3074,9 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                 contract.events.TournamentCreated,
                 lambda e: f"New tournament #{e.args.tournamentId} created on EmpowerTours! 🏆"
             ),
-            "90e52c99bee94da3f2ac65edd364898dc149a6eb3ef4e1b6d0af3f1e6cd1b6a3": (  # TournamentCreatedEnhanced(uint256,address,uint256,string,uint256,uint256)
-                contract.events.TournamentCreatedEnhanced,
-                lambda e: f"New enhanced tournament #{e.args.tournamentId} created by <a href=\"{EXPLORER_URL}/address/{e.args.creator}\">{e.args.creator[:6]}...</a> on EmpowerTours! 🏆"
+            "682cad4379e12a2831600094eb5f795719dea3285c32df028adb89bd2b84a571": (  # TournamentCreatedEmbedded(uint256,address,uint256,string,uint256,uint256)
+                contract.events.TournamentCreatedEmbedded,
+                lambda e: f"New embedded tournament #{e.args.tournamentId} created by <a href=\"{EXPLORER_URL}/address/{e.args.creator}\">{e.args.creator[:6]}...</a> on EmpowerTours! 🏆"
             ),
             "9b71079da01b6505f63bcd5edd4a7a9dbc55173971019151c9654ae29def6bac": (  # TournamentJoined(uint256,address)
                 contract.events.TournamentJoined,
