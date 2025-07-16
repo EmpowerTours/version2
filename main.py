@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response, FileResponse
 from contextlib import asynccontextmanager
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity, ReplyKeyboardMarkup, KeyboardButton
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity, ReplyKeyboardMarkup, KeyboardButton, BotCommand
 from telegram.constants import ChatAction
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 import aiohttp
@@ -498,6 +498,29 @@ CONTRACT_ABI = [
             {"indexed": False, "internalType": "uint256", "name": "timestamp", "type": "uint256"}
         ],
         "name": "ProfileCreatedEnhanced",
+        "type": "event"
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True, "internalType": "uint256", "name": "tournamentId", "type": "uint256"},
+            {"indexed": False, "internalType": "uint256", "name": "entryFee", "type": "uint256"},
+            {"indexed": False, "internalType": "uint256", "name": "startTime", "type": "uint256"}
+        ],
+        "name": "TournamentCreated",
+        "type": "event"
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True, "internalType": "uint256", "name": "tournamentId", "type": "uint256"},
+            {"indexed": True, "internalType": "address", "name": "creator", "type": "address"},
+            {"indexed": True, "internalType": "uint256", "name": "farcasterFid", "type": "uint256"},
+            {"indexed": False, "internalType": "string", "name": "tournamentName", "type": "string"},
+            {"indexed": False, "internalType": "uint256", "name": "entryFee", "type": "uint256"},
+            {"indexed": False, "internalType": "uint256", "name": "startTime", "type": "uint256"}
+        ],
+        "name": "TournamentCreatedEnhanced",
         "type": "event"
     },
     {
@@ -1208,19 +1231,88 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/mypurchases - View your purchased climbs\n\n"
             "/createtournament fee - Start a tournament with an entry fee in $TOURS (e.g., /createtournament 10 sets a 10 $TOURS fee per participant)\n\n"
             "/tournaments - List all tournaments with IDs and participant counts\n\n"
-            "/jointournament id - Join a tournament by paying the entry fee in $TOURS\n\n"
-            "/endtournament id winner - End a tournament (owner only) and award the prize pool to the winner’s wallet address (e.g., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725)\n\n"
-            "/balance - Check wallet balance ($MON, $TOURS, profile status)\n\n"
-            "/debug - Check webhook status\n\n"
-            "/forcewebhook - Force reset webhook\n\n"
-            "/clearcache - Clear Telegram cache\n\n"
-            "/ping - Check bot status\n\n"
-            "Join our community at [EmpowerTours Chat](https://t.me/empowertourschat) for support!"
-        )
-        await update.message.reply_text(help_text, parse_mode="Markdown")
-        logger.info(f"Sent /help response to user {update.effective_user.id}: {help_text}, took {time.time() - start_time:.2f} seconds")
+            "/jointournament id - Join a tournament by paying the entry fee i...(truncated 117253 characters)...saction_receipt(tx_hash)
+        if receipt and receipt.status:
+            action = "Action completed"
+            if "createProfile" in pending["tx_data"]["data"]:
+                action = "Profile created with 1 $TOURS funded to your wallet"
+            elif "buyTours" in pending["tx_data"]["data"]:
+                amount = int.from_bytes(bytes.fromhex(pending["tx_data"]["data"][10:]), byteorder='big') / 10**18
+                action = f"Successfully purchased {amount} $TOURS"
+            elif "transfer" in pending["tx_data"]["data"]:
+                action = "Successfully sent $TOURS to the recipient"
+            elif "createClimbingLocation" in pending["tx_data"]["data"]:
+                action = f"Climb '{pending.get('name', 'Unknown')}' ({pending.get('difficulty', 'Unknown')}) created"
+            await update.message.reply_text(f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 {action}.", parse_mode="Markdown")
+            if CHAT_HANDLE and TELEGRAM_TOKEN:
+                message = f"New activity by {escape_html(update.effective_user.username or update.effective_user.first_name)} on EmpowerTours! 🧗 <a href=\"{EXPLORER_URL}/tx/{tx_hash}\">Tx: {escape_html(tx_hash)}</a>"
+                await send_notification(CHAT_HANDLE, message)
+            if pending.get("next_tx"):
+                next_tx_data = pending["next_tx"]
+                if next_tx_data["type"] == "create_climbing_location":
+                    nonce = await w3.eth.get_transaction_count(pending["wallet_address"])
+                    tx = await contract.functions.createClimbingLocation(
+                        next_tx_data["name"],
+                        next_tx_data["difficulty"],
+                        next_tx_data["latitude"],
+                        next_tx_data["longitude"],
+                        next_tx_data["photo_hash"]
+                    ).build_transaction({
+                        'chainId': 10143,
+                        'from': pending["wallet_address"],
+                        'nonce': nonce,
+                        'gas': 500000,
+                        'gas_price': await w3.eth.gas_price
+                    })
+                    await set_pending_wallet(user_id, {
+                        "awaiting_tx": True,
+                        "tx_data": tx,
+                        "wallet_address": pending["wallet_address"],
+                        "timestamp": time.time(),
+                        "name": next_tx_data["name"],
+                        "difficulty": next_tx_data["difficulty"],
+                        "latitude": next_tx_data["latitude"],
+                        "longitude": next_tx_data["longitude"],
+                        "photo_hash": next_tx_data["photo_hash"]
+                    })
+                    await update.message.reply_text(
+                        f"Approval confirmed! Now open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for climb '{next_tx_data['name']}' ({next_tx_data['difficulty']}) using 10 $TOURS."
+                    )
+                    logger.info(f"/handle_tx_hash processed approval, next transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
+                    return
+                elif next_tx_data["type"] == "add_journal_entry":
+                    nonce = await w3.eth.get_transaction_count(pending["wallet_address"])
+                    tx = await contract.functions.addJournalEntryWithDetails(
+                        next_tx_data["content_hash"],
+                        next_tx_data["location"],
+                        next_tx_data["difficulty"],
+                        next_tx_data["is_shared"],
+                        next_tx_data["cast_hash"]
+                    ).build_transaction({
+                        'chainId': 10143,
+                        'from': pending["wallet_address"],
+                        'nonce': nonce,
+                        'gas': 500000,
+                        'gas_price': await w3.eth.gas_price
+                    })
+                    await set_pending_wallet(user_id, {
+                        "awaiting_tx": True,
+                        "tx_data": tx,
+                        "wallet_address": pending["wallet_address"],
+                        "timestamp": time.time()
+                    })
+                    await update.message.reply_text(
+                        f"Approval confirmed! Now open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for journal entry using 5 $TOURS."
+                    )
+                    logger.info(f"/handle_tx_hash processed approval, next transaction built for journal, took {time.time() - start_time:.2f} seconds")
+                    return
+            await delete_pending_wallet(user_id)
+            logger.info(f"/handle_tx_hash confirmed for user {user_id}, took {time.time() - start_time:.2f} seconds")
+        else:
+            await update.message.reply_text("Transaction failed or pending. Check and try again! 😅")
+            logger.info(f"/handle_tx_hash failed or pending, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
-        logger.error(f"Error in /help: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        logger.error(f"Error in handle_tx_hash: {str(e)}, took {time.time() - start_time:.2f} seconds")
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
 async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -3036,7 +3128,7 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                 contract.events.ProfileCreated,
                 lambda e: f"New climber joined EmpowerTours! 🧗 Address: <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a>"
             ),
-            "dbf3456d5f59d51cf0e4442bf1c140db5b4b3bd090be958900af45a8310f3deb": (  # ProfileCreatedEnhanced(address,uint256,string,uint256)
+            "dbf3456d5f59d51cp0e4442bf1c140db5b4b3bd090be958900af45a8310f3deb": (  # ProfileCreatedEnhanced(address,uint256,string,uint256)
                 contract.events.ProfileCreatedEnhanced,
                 lambda e: f"New climber with Farcaster profile joined EmpowerTours! 🧗 Address: <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a>"
             ),
@@ -3381,13 +3473,13 @@ async def startup_event():
         application.add_handler(CommandHandler("buyTours", buy_tours))
         application.add_handler(CommandHandler("sendTours", send_tours))
         application.add_handler(CommandHandler("ping", ping))
-        application.add_handler(CommandHandler("debug", debug_command))
+        application.add_handler(CommandHandler("debug", debug))
         application.add_handler(CommandHandler("forcewebhook", forcewebhook))
         application.add_handler(CommandHandler("clearcache", clearcache))
         application.add_handler(MessageHandler(filters.Regex(r'^0x[a-fA-F0-9]{64}$'), handle_tx_hash))
         application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
         application.add_handler(MessageHandler(filters.LOCATION, handle_location))
-        application.add_handler(MessageHandler(filters.COMMAND, debug_command))
+        application.add_handler(MessageHandler(filters.COMMAND, unknown_command))  # Changed to unknown_command
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, log_message))
         logger.info("Command handlers registered successfully")
 
@@ -3401,6 +3493,37 @@ async def startup_event():
         # Initialize and start application
         await application.initialize()
         logger.info("Application initialized via initialize()")
+
+        # Set bot commands
+        commands = [
+            BotCommand("start", "Welcome message"),
+            BotCommand("tutorial", "Setup guide"),
+            BotCommand("connectwallet", "Connect your wallet"),
+            BotCommand("createprofile", "Create profile"),
+            BotCommand("help", "List all commands"),
+            BotCommand("journal", "Log a climb"),
+            BotCommand("comment", "Comment on a journal"),
+            BotCommand("buildaclimb", "Create a new climb"),
+            BotCommand("purchaseclimb", "Buy a climb"),
+            BotCommand("findaclimb", "List available climbs"),
+            BotCommand("journals", "List all journal entries"),
+            BotCommand("viewjournal", "View a journal entry"),
+            BotCommand("viewclimb", "View a specific climb"),
+            BotCommand("mypurchases", "View your purchased climbs"),
+            BotCommand("createtournament", "Start a tournament"),
+            BotCommand("tournaments", "List all tournaments"),
+            BotCommand("jointournament", "Join a tournament"),
+            BotCommand("endtournament", "End a tournament (owner only)"),
+            BotCommand("balance", "Check your $MON and $TOURS balance"),
+            BotCommand("buytours", "Buy $TOURS tokens"),
+            BotCommand("sendtours", "Send $TOURS to another wallet"),
+            BotCommand("ping", "Check if the bot is running"),
+            BotCommand("debug", "Debug webhook status"),
+            BotCommand("forcewebhook", "Force reset webhook"),
+            BotCommand("clearcache", "Clear Telegram cache")
+        ]
+        await application.bot.set_my_commands(commands)
+        logger.info(f"Set {len(commands)} bot commands successfully")
 
         # Set webhook with increased max_connections
         logger.info("Forcing webhook reset on startup")
