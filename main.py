@@ -953,7 +953,7 @@ journal_cache = None  # Cache for journals
 cache_timestamp = 0
 CACHE_TTL = 300  # 5 minutes
 
-def initialize_web3():
+async def initialize_web3():
     global w3, contract, tours_contract
     if not MONAD_RPC_URL or not CONTRACT_ADDRESS or not TOURS_TOKEN_ADDRESS:
         logger.error("Cannot initialize Web3: missing blockchain-related environment variables")
@@ -965,8 +965,8 @@ def initialize_web3():
             is_connected = await w3.is_connected()
             if is_connected:
                 logger.info("AsyncWeb3 initialized successfully")
-                contract = w3.eth.contract(address=Web3.to_checksum_address(CONTRACT_ADDRESS), abi=CONTRACT_ABI)
-                tours_contract = w3.eth.contract(address=Web3.to_checksum_address(TOURS_TOKEN_ADDRESS), abi=TOURS_ABI)
+                contract = w3.eth.contract(address=AsyncWeb3.to_checksum_address(CONTRACT_ADDRESS), abi=CONTRACT_ABI)
+                tours_contract = w3.eth.contract(address=AsyncWeb3.to_checksum_address(TOURS_TOKEN_ADDRESS), abi=TOURS_ABI)
                 logger.info("Contracts initialized successfully")
                 return True
             else:
@@ -1182,12 +1182,12 @@ async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "- /journals - List all journal entries\n"
             "- /viewjournal id - View a journal entry and its comments\n"
             "- /viewclimb id - View a specific climb\n"
+            "- /mypurchases - View your purchased climbs\n"
             "- /createtournament fee - Start a tournament with an entry fee in $TOURS (e.g., /createtournament 10 for 10 $TOURS per participant)\n"
             "- /tournaments - List all tournaments with IDs and participant counts\n"
             "- /jointournament id - Join a tournament by paying the entry fee\n"
             "- /endtournament id winner - End a tournament (owner only) and award the prize to the winner’s wallet address (e.g., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725)\n"
             "- /balance - Check your $MON and $TOURS balance\n"
-            "- /mypurchases - View your purchased climbs\n"
             "- /help - List all commands\n"
             "Join our community at [EmpowerTours Chat](https://t.me/empowertourschat)! Try /connectwallet!"
         )
@@ -1825,7 +1825,8 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         photo = update.message.photo[-1]
         file_id = photo.file_id
-        photo_hash = await w3.keccak(text=file_id).hex()
+        # Hash the file_id to fixed 32-byte hex (reduces gas/storage) for both journal and climb
+        photo_hash = await w3.keccak(text=file_id).hex()  # Now ~66 chars fixed
         journal = await get_journal_data(user_id)
         entry_type = 'journal' if journal and journal.get("awaiting_photo") else 'climb'
         async with pool.acquire() as conn:
@@ -1891,10 +1892,11 @@ async def add_comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         checksum_address = await w3.to_checksum_address(wallet_address)
         comment_fee = await contract.functions.commentFee().call()
+        nonce = await w3.eth.get_transaction_count(checksum_address)
         tx = await contract.functions.addComment(entry_id, content).build_transaction({
             'from': checksum_address,
             'value': comment_fee,
-            'nonce': await w3.eth.get_transaction_count(checksum_address),
+            'nonce': nonce,
             'gas': 200000,
             'gas_price': await w3.eth.gas_price
         })
@@ -2321,6 +2323,7 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 logger.info(f"/handle_location failed due to journal tx build, took {time.time() - start_time:.2f} seconds")
                 return
         elif 'pending_climb' in context.user_data:
+            # Existing climb logic
             pending_climb = context.user_data['pending_climb']
             if pending_climb['user_id'] != user_id:
                 await update.message.reply_text("Pending climb belongs to another user. Start with /buildaclimb. 😅")
@@ -2559,8 +2562,10 @@ async def findaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 photo_info = " (has photo)" if location[5] else ""
                 tour_list.append(
                     f"🧗 Climb ID: {i} - {location[1]}{photo_info} ({location[2]}) by [{location[0][:6]}...]({EXPLORER_URL}/address/{location[0]})\n"
-                    f"Location: {location[3]/1000000:.6f},{location[4]/1000000:.6f}\n"
-                    f"Purchases: {location[10]}\n"
+                    f"   Location: {location[3]/1000000:.6f},{location[4]/1000000:.6f}\n"
+                    f"   Map: https://www.google.com/maps?q={location[3]/1000000:.6f},{location[4]/1000000:.6f}\n"
+                    f"   Created: {datetime.fromtimestamp(location[6]).strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    f"   Purchases: {location[10]}"
                 )
             climb_cache = tour_list
             cache_timestamp = current_time
@@ -2839,7 +2844,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"/balance failed due to balance error, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Unexpected error in /balance for user {user_id}: {str(e)}")
-        await update.message.reply_text(f"Unexpected error: {str(e)}. Try againor contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+        await update.message.reply_text(f"Unexpected error: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
         logger.info(f"/balance failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
 
 async def mypurchases(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -3013,20 +3018,92 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                 receipt = await w3.eth.get_transaction_receipt(tx.hash.hex())
                 if receipt and receipt.status:
                     for log in receipt.logs:
-                        if log.address.lower() == await w3.to_checksum_address(CONTRACT_ADDRESS).lower():
+                        if log.address.lower() == (await w3.to_checksum_address(CONTRACT_ADDRESS)).lower():
                             try:
                                 event_map = {
-                                    await w3.keccak(text="ProfileCreated(address,uint256)").hex(): (
+                                    (await w3.keccak(text="ProfileCreated(address,uint256)")).hex(): (
                                         contract.events.ProfileCreated,
                                         lambda e: f"New climber joined EmpowerTours! 🧗 Address: <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a>"
                                     ),
-                                    # ... (add other events similarly, omitting for brevity)
+                                    (await w3.keccak(text="ProfileCreatedEnhanced(address,uint256,string,uint256)")).hex(): (
+                                        contract.events.ProfileCreatedEnhanced,
+                                        lambda e: f"New climber with Farcaster profile joined EmpowerTours! 🧗 Address: <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a>"
+                                    ),
+                                    (await w3.keccak(text="JournalEntryAdded(uint256,address,string,uint256)")).hex(): (
+                                        contract.events.JournalEntryAdded,
+                                        lambda e: f"New journal entry #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.author}\">{e.args.author[:6]}...</a> on EmpowerTours! 📝"
+                                    ),
+                                    (await w3.keccak(text="JournalEntryAddedEnhanced(uint256,address,uint256,string,string,string,bool,uint256)")).hex(): (
+                                        contract.events.JournalEntryAddedEnhanced,
+                                        lambda e: f"New enhanced journal entry #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.author}\">{e.args.author[:6]}...</a> on EmpowerTours! 📝"
+                                    ),
+                                    (await w3.keccak(text="CommentAdded(uint256,address,string,uint256)")).hex(): (
+                                        contract.events.CommentAdded,
+                                        lambda e: f"New comment on journal #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.commenter}\">{e.args.commenter[:6]}...</a> on EmpowerTours! 🗣️"
+                                    ),
+                                    (await w3.keccak(text="CommentAddedEnhanced(uint256,address,uint256,string,string,uint256)")).hex(): (
+                                        contract.events.CommentAddedEnhanced,
+                                        lambda e: f"New enhanced comment on journal #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.commenter}\">{e.args.commenter[:6]}...</a> on EmpowerTours! 🗣️"
+                                    ),
+                                    (await w3.keccak(text="ClimbingLocationCreated(uint256,address,string,uint256)")).hex(): (
+                                        contract.events.ClimbingLocationCreated,
+                                        lambda e: f"New climb '{e.args.name}' created by <a href=\"{EXPLORER_URL}/address/{e.args.creator}\">{e.args.creator[:6]}...</a> on EmpowerTours! 🪨"
+                                    ),
+                                    (await w3.keccak(text="ClimbingLocationCreatedEnhanced(uint256,address,uint256,string,string,int256,int256,bool,uint256)")).hex(): (
+                                        contract.events.ClimbingLocationCreatedEnhanced,
+                                        lambda e: f"New enhanced climb '{e.args.name}' created by <a href=\"{EXPLORER_URL}/address/{e.args.creator}\">{e.args.creator[:6]}...</a> on EmpowerTours! 🪨"
+                                    ),
+                                    (await w3.keccak(text="LocationPurchased(uint256,address,uint256)")).hex(): (
+                                        contract.events.LocationPurchased,
+                                        lambda e: f"Climb #{e.args.locationId} purchased by <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> on EmpowerTours! 🪙"
+                                    ),
+                                    (await w3.keccak(text="LocationPurchasedEnhanced(uint256,address,uint256,uint256)")).hex(): (
+                                        contract.events.LocationPurchasedEnhanced,
+                                        lambda e: f"Enhanced climb #{e.args.locationId} purchased by <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> on EmpowerTours! 🪙"
+                                    ),
+                                    (await w3.keccak(text="TournamentCreated(uint256,uint256,uint256)")).hex(): (
+                                        contract.events.TournamentCreated,
+                                        lambda e: f"New tournament #{e.args.tournamentId} created on EmpowerTours! 🏆"
+                                    ),
+                                    (await w3.keccak(text="TournamentCreatedEmbedded(uint256,address,uint256,string,uint256,uint256)")).hex(): (
+                                        contract.events.TournamentCreatedEmbedded,
+                                        lambda e: f"New enhanced tournament #{e.args.tournamentId} created by <a href=\"{EXPLORER_URL}/address/{e.args.creator}\">{e.args.creator[:6]}...</a> on EmpowerTours! 🏆"
+                                    ),
+                                    (await w3.keccak(text="TournamentJoined(uint256,address)")).hex(): (
+                                        contract.events.TournamentJoined,
+                                        lambda e: f"Climber <a href=\"{EXPLORER_URL}/address/{e.args.participant}\">{e.args.participant[:6]}...</a> joined tournament #{e.args.tournamentId} on EmpowerTours! 🏆"
+                                    ),
+                                    (await w3.keccak(text="TournamentJoinedEnhanced(uint256,address,uint256)")).hex(): (
+                                        contract.events.TournamentJoinedEnhanced,
+                                        lambda e: f"Climber <a href=\"{EXPLORER_URL}/address/{e.args.participant}\">{e.args.participant[:6]}...</a> joined enhanced tournament #{e.args.tournamentId} on EmpowerTours! 🏆"
+                                    ),
+                                    (await w3.keccak(text="TournamentEnded(uint256,address,uint256)")).hex(): (
+                                        contract.events.TournamentEnded,
+                                        lambda e: f"Tournament #{e.args.tournamentId} ended! Winner: <a href=\"{EXPLORER_URL}/address/{e.args.winner}\">{e.args.winner[:6]}...</a> Prize: {e.args.pot / 10**18} $TOURS 🏆"
+                                    ),
+                                    (await w3.keccak(text="TournamentEndedEnhanced(uint256,address,uint256,uint256)")).hex(): (
+                                        contract.events.TournamentEndedEnhanced,
+                                        lambda e: f"Enhanced tournament #{e.args.tournamentId} ended! Winner: <a href=\"{EXPLORER_URL}/address/{e.args.winner}\">{e.args.winner[:6]}...</a> Prize: {e.args.pot / 10**18} $TOURS 🏆"
+                                    ),
+                                    (await w3.keccak(text="FarcasterCastShared(address,uint256,string,string,uint256,uint256)")).hex(): (
+                                        contract.events.FarcasterCastShared,
+                                        lambda e: f"New Farcaster cast shared by <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a> for {e.args.contentType} #{e.args.contentId} on EmpowerTours! 📢"
+                                    ),
+                                    (await w3.keccak(text="FarcasterProfileUpdated(address,uint256,string,string,uint256)")).hex(): (
+                                        contract.events.FarcasterProfileUpdated,
+                                        lambda e: f"Farcaster profile updated by <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a> on EmpowerTours! 📢"
+                                    ),
+                                    (await w3.keccak(text="TokensPurchased(address,uint256,uint256)")).hex(): (contract.events.TokensPurchased,
+                                        lambda e: f"User <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> bought {e.args.amount / 10**18} $TOURS on EmpowerTours! 🪙"
+                                    ),
                                 }
                                 if log.topics[0].hex() in event_map:
                                     event_class, message_fn = event_map[log.topics[0].hex()]
                                     event = event_class().process_log(log)
                                     message = message_fn(event)
+                                    # Auto-announce to group
                                     await send_notification(CHAT_HANDLE, message)
+                                    # New: PM user if wallet matches an event arg
                                     user_address = event.args.get('user') or event.args.get('creator') or event.args.get('author') or event.args.get('buyer') or event.args.get('commenter') or event.args.get('participant') or event.args.get('winner')
                                     if user_address:
                                         checksum_user_address = await w3.to_checksum_address(user_address)
@@ -3212,7 +3289,7 @@ async def startup_event():
             webhook_failed = True
 
         logger.info("Starting bot initialization")
-        initialize_web3()
+        await initialize_web3()
 
         # Initialize Telegram Application
         application = Application.builder().token(TELEGRAM_TOKEN).build()
@@ -3264,55 +3341,8 @@ async def startup_event():
 
         # Set webhook with increased max_connections
         logger.info("Forcing webhook reset on startup")
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
-            webhook_success = False
-            retries = 5
-            for attempt in range(1, retries + 1):
-                try:
-                    logger.info(f"Webhook reset attempt {attempt}/{retries}")
-                    async with session.post(
-                        f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/deleteWebhook",
-                        json={"drop_pending_updates": True}
-                    ) as response:
-                        status = response.status
-                        delete_data = await response.json()
-                        logger.info(f"Webhook cleared: status={status}, response={delete_data}")
-                        if not delete_data.get("ok"):
-                            logger.error(f"Failed to delete webhook: status={status}, response={delete_data}")
-                            continue
-                    webhook_url = f"{API_BASE_URL.rstrip('/')}/webhook"
-                    logger.info(f"Setting webhook to {webhook_url}")
-                    async with session.post(
-                        f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/setWebhook",
-                        json={"url": webhook_url, "max_connections": 100, "drop_pending_updates": True}
-                    ) as response:
-                        status = response.status
-                        set_data = await response.json()
-                        logger.info(f"Webhook set: status={status}, response={set_data}")
-                        if set_data.get("ok"):
-                            logger.info("Verifying webhook after setting")
-                            webhook_ok = await check_webhook()
-                            if webhook_ok:
-                                logger.info("Webhook verified successfully")
-                                webhook_success = True
-                                break
-                            else:
-                                logger.error("Webhook verification failed after setting")
-                        if set_data.get("error_code") == 429:
-                            retry_after = set_data.get("parameters", {}).get("retry_after", 1)
-                            logger.warning(f"Rate limited by Telegram, retrying after {retry_after} seconds")
-                            await asyncio.sleep(retry_after)
-                            continue
-                        logger.error(f"Failed to set webhook: status={status}, response={set_data}")
-                except Exception as e:
-                    logger.error(f"Error resetting webhook on attempt {attempt}/{retries}: {str(e)}")
-                    if attempt < retries:
-                        await asyncio.sleep(2 ** attempt)
-            if not webhook_success:
-                logger.error("All webhook reset attempts failed. Forcing polling mode.")
-                webhook_failed = True
-
-        if not webhook_success or webhook_failed:
+        webhook_success = await reset_webhook()
+        if not webhook_success:
             logger.info("Webhook failed or not set, starting polling")
             await application.start()
             await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
