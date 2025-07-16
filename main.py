@@ -1121,20 +1121,22 @@ async def forcewebhook(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error in /forcewebhook: {str(e)}, took {time.time() - start_time:.2f} seconds")
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
-async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
-    logger.info(f"Received /debug command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    msg, msg_type = get_message(update)
+    command_text = msg.text if msg else "Unknown command"
+    logger.info(f"Received command: {command_text} from user {update.effective_user.id} in chat {update.effective_chat.id} (type: {msg_type})")
     try:
         webhook_ok = await check_webhook()
         if webhook_ok:
-            await update.message.reply_text("Webhook is correctly set to https://version1-production.up.railway.app/webhook")
+            await update.effective_message.reply_text("Webhook is correctly set to https://version1-production.up.railway.app/webhook")
         else:
-            await update.message.reply_text("Webhook is not correctly set. Use /forcewebhook to reset or check logs.")
+            await update.effective_message.reply_text("Webhook is not correctly set. Use /forcewebhook to reset or check logs.")
         logger.info(f"Sent /debug response to user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /debug: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        await update.effective_message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
 async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
@@ -3011,9 +3013,9 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
         latest_block = await w3.eth.get_block_number()
         if last_processed_block == 0:
             last_processed_block = max(0, latest_block - 100)
-        end_block = min(last_processed_block + 500, latest_block + 1)
-        for block_number in range(last_processed_block + 1, end_block):
-            logger.info(f"Processing block {block_number}")
+        batch_size = 100  # Reduced for faster processing
+        end_block = min(last_processed_block + batch_size, latest_block + 1)
+        logger.info(f"Processing {end_block - last_processed_block - 1} blocks (from {last_processed_block + 1} to {end_block - 1})")
             block = await w3.eth.get_block(block_number, full_transactions=True)
             for tx in block.transactions:
                 receipt = await w3.eth.get_transaction_receipt(tx.hash.hex())
