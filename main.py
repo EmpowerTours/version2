@@ -2639,137 +2639,77 @@ async def tournaments(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
     logger.info(f"Received /tournaments command from user {update.effective_user.id} in chat {update.effective_chat.id}")
-    if not w3 or not contract:
-        await update.message.reply_text("Blockchain unavailable. Try again later! 😅")
-        logger.info(f"/tournaments failed due to blockchain issues, took {time.time() - start_time:.2f} seconds")
-        return
     try:
-        count = await contract.functions.getTournamentCount().call()
-        if count == 0:
-            await update.message.reply_text("No tournaments created yet. Start one with /createtournament fee! 🏆")
-            logger.info(f"/tournaments: No tournaments found, took {time.time() - start_time:.2f} seconds")
+        if not w3 or not contract:
+            await update.message.reply_text("Blockchain unavailable. Try again! 😅")
+            logger.info(f"/tournaments failed due to blockchain unavailable, took {time.time() - start_time:.2f} seconds")
             return
-        coros = [contract.functions.tournaments(i).call() for i in range(count)]
-        tournaments_data = await asyncio.gather(*coros, return_exceptions=True)
-        msg = "**Tournaments List:**\n"
-        for i, t in enumerate(tournaments_data):
-            if isinstance(t, Exception):
-                logger.error(f"Error retrieving tournament {i}: {str(t)}")
-                continue
-            entry_fee = t[0] / 10**18
-            pot = t[1] / 10**18
-            winner = t[2]
-            active = t[3]
-            name = t[7] if len(t) > 7 else "Unnamed"
-            participants = pot / entry_fee if entry_fee > 0 else 0
-            status = "Active" if active else f"Ended (Winner: {winner[:6]}...{winner[-4:]})"
-            msg += f"#{i}: {name} - Fee: {entry_fee} $TOURS, Pot: {pot} $TOURS, Participants: {int(participants)}, Status: {status}\n"
-        await update.message.reply_text(msg, parse_mode="Markdown")
+        count = contract.functions.getTournamentCount().call()
+        tours = []
+        for i in range(count):
+            tournament = contract.functions.tournaments(i).call()
+            status = "Active" if tournament[3] else "Ended"
+            participants = tournament[1] // tournament[0] if tournament[0] > 0 else 0  # totalPot / entryFee
+            tours.append(f"#{i}: Fee {tournament[0]/10**18} $TOURS, Pot {tournament[1]/10**18} $TOURS, {status}, Participants: {participants}")
+        await update.message.reply_text("\n".join(tours) or "No tournaments. Create one with /createtournament!")
         logger.info(f"/tournaments listed {count} tournaments, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /tournaments: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error listing tournaments: {str(e)}. Try again! 😅")
+        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
-async def join_tournament_tx(wallet_address, tournament_id, user):
-    if not w3 or not contract or not tours_contract:
-        return {'status': 'error', 'message': "Blockchain connection unavailable. Try again later! 😅"}
+async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /jointournament command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    if not API_BASE_URL:
+        logger.error("API_BASE_URL missing, /jointournament command disabled")
+        await update.message.reply_text("Tournament joining unavailable due to configuration issues. Try again later! 😅")
+        logger.info(f"/jointournament failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
+        return
+    if not w3 or not contract:
+        logger.error("Web3 not initialized, /jointournament command disabled")
+        await update.message.reply_text("Tournament joining unavailable due to blockchain issues. Try again later! 😅")
+        logger.info(f"/jointournament failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        return
     try:
-        # Check expiry
-        cursor.execute("SELECT connected_at FROM sessions WHERE user_id = ?", (str(user.id),))
-        row = cursor.fetchone()
-        if not row or time.time() - row[0] > EXPIRY_SECONDS:
-            return {'status': 'error', 'message': "Session expired; please reconnect your wallet! 🔄"}
-
-        profile = contract.functions.profiles(wallet_address).call()
-        if not profile[0]:
-            return {'status': 'error', 'message': "You need to create a profile first with /createprofile! 🪙"}
-        
-        tournament = contract.functions.tournaments(tournament_id).call()
-        if not tournament[3]:  # Check if isActive
-            return {'status': 'error', 'message': "Tournament not active. Use /tournaments to find active ones! 😅"}
-        
+        user_id = str(update.effective_user.id)
+        args = context.args
+        if len(args) < 1:
+            await update.message.reply_text("Use: /jointournament [id] 🏆")
+            logger.info(f"/jointournament failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
+            return
+        tournament_id = int(args[0])
+        session = await get_session(user_id)
+        wallet_address = session.get("wallet_address") if session else None
+        if not wallet_address:
+            await update.message.reply_text("Use /connectwallet! 🪙")
+            logger.info(f"/jointournament failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
+            return
+        checksum_address = w3.to_checksum_address(wallet_address)
+        tournament = await contract.functions.tournaments(tournament_id).call()
         entry_fee = tournament[0]
-        balance = tours_contract.functions.balanceOf(wallet_address).call()
-        allowance = tours_contract.functions.allowance(wallet_address, CONTRACT_ADDRESS).call()
-        if balance < entry_fee:
-            return {
-                'status': 'error',
-                'message': (
-                    f"Need {entry_fee/10**18} $TOURS to join tournament. "
-                    f"Your balance: {balance/10**18} $TOURS. Top up your wallet! 🪙"
-                )
-            }
-        if allowance < entry_fee:
-            gas_fees = await get_gas_fees(wallet_address)
-            nonce = w3.eth.get_transaction_count(wallet_address)
-            approve_tx = tours_contract.functions.approve(CONTRACT_ADDRESS, entry_fee).build_transaction({
-                'chainId': 10143,
-                'from': wallet_address,
-                'nonce': nonce,
-                'gas': 100000,
-                'maxFeePerGas': gas_fees['maxFeePerGas'],
-                'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
-            })
-            try:
-                cursor.execute(
-                    "INSERT INTO pending_txs (user_id, tx_type, tx_data, tournament_id) VALUES (?, ?, ?, ?)",
-                    (str(user.id), 'approve_tours', json.dumps(approve_tx), tournament_id)
-                )
-                conn.commit()
-            except sqlite3.IntegrityError:
-                return {'status': 'error', 'message': "Approval transaction already pending! Complete it first. 🔄"}
-
-            return {
-                'status': 'success',
-                'tx_type': 'approve_tours',
-                'tx_data': approve_tx,
-                'next_tx': {
-                    'type': 'join_tournament',
-                    'tournament_id': tournament_id
-                }
-            }
-        
-        try:
-            w3.eth.call({
-                'from': wallet_address,
-                'to': CONTRACT_ADDRESS,
-                'data': contract.encodeABI(
-                    fn_name='joinTournament',
-                    args=[tournament_id]
-                )
-            })
-        except ContractLogicError as e:
-            logger.error(f"Simulation error in joinTournament: {str(e)}")
-            return {'status': 'error', 'message': f"Contract error: {str(e)}. Ensure the tournament ID is valid. 😅"}
-        
-        gas_estimate = contract.functions.joinTournament(tournament_id).estimate_gas({'from': wallet_address})
-        gas_limit = int(gas_estimate * 1.2)
-        gas_fees = await get_gas_fees(wallet_address)
-        nonce = w3.eth.get_transaction_count(wallet_address)
-        tx = contract.functions.joinTournament(tournament_id).build_transaction({
-            'chainId': 10143,
-            'from': wallet_address,
+        nonce = await w3.eth.get_transaction_count(checksum_address)
+        tx = await contract.functions.joinTournament(tournament_id).build_transaction({
+            'from': checksum_address,
             'nonce': nonce,
-            'gas': gas_limit,
-            'maxFeePerGas': gas_fees['maxFeePerGas'],
-            'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
+            'gas': 200000,
+            'gas_price': await w3.eth.gas_price,
+            'value': 0
         })
-        try:
-            cursor.execute(
-                "INSERT INTO pending_txs (user_id, tx_type, tx_data, tournament_id) VALUES (?, ?, ?, ?)",
-                (str(user.id), 'join_tournament', json.dumps(tx), tournament_id)
-            )
-            conn.commit()
-        except sqlite3.IntegrityError:
-            return {'status': 'error', 'message': "Join tournament transaction already pending! Complete it first. 🔄"}
-
-        return {'status': 'success', 'tx_type': 'join_tournament', 'tx_data': tx}
-    except ContractLogicError as e:
-        logger.error(f"Contract error in joinTournament: {str(e)}")
-        return {'status': 'error', 'message': f"Contract error: {str(e)}. Ensure the tournament ID is valid. 😅"}
+        await update.message.reply_text(
+            f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for joining tournament #{tournament_id} ({entry_fee / 10**18} $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
+            parse_mode="Markdown"
+        )
+        await set_pending_wallet(user_id, {
+            "awaiting_tx": True,
+            "tx_data": tx,
+            "wallet_address": checksum_address,
+            "timestamp": time.time()
+        })
+        logger.info(f"/jointournament transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
-        logger.error(f"Error in join_tournament_tx: {str(e)}")
-        return {'status': 'error', 'message': f"Oops, something went wrong: {str(e)}. Try again! 😅"}
+        logger.error(f"Error in /jointournament: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
 async def endtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
