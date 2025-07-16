@@ -3510,7 +3510,7 @@ async def submit_wallet(request: Request):
             await set_session(user_id, checksum_address)
             await application.bot.send_message(
                 user_id,
-                f"Wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}) connected!Use /createprofile to create your profile or /balance to check your status. 🪙",
+                f"Wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}) connected! Use /createprofile to create your profile or /balance to check your status. 🪙",
                 parse_mode="Markdown"
             )
             await delete_pending_wallet(user_id)
