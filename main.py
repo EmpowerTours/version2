@@ -1124,7 +1124,9 @@ async def forcewebhook(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
-    logger.info(f"Received /debug command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    msg, msg_type = get_message(update)
+    command_text = msg.text if msg else "Unknown command"
+    logger.info(f"Received command: {command_text} from user {update.effective_user.id} in chat {update.effective_chat.id} (type: {msg_type})")
     try:
         webhook_ok = await check_webhook()
         if webhook_ok:
