@@ -1465,17 +1465,17 @@ async def join_tournament_tx(wallet_address, tournament_id, user):
         if not row or time.time() - row[0] > EXPIRY_SECONDS:
             return {'status': 'error', 'message': "Session expired; please reconnect your wallet! 🔄"}
 
-        profile = contract.functions.profiles(wallet_address).call()
+        profile = await contract.functions.profiles(wallet_address).call()
         if not profile[0]:
             return {'status': 'error', 'message': "You need to create a profile first with /createprofile! 🪙"}
         
-        tournament = contract.functions.tournaments(tournament_id).call()
+        tournament = await contract.functions.tournaments(tournament_id).call()
         if not tournament[3]:  # Check if isActive
             return {'status': 'error', 'message': "Tournament not active. Use /tournaments to find active ones! 😅"}
         
         entry_fee = tournament[0]
-        balance = tours_contract.functions.balanceOf(wallet_address).call()
-        allowance = tours_contract.functions.allowance(wallet_address, CONTRACT_ADDRESS).call()
+        balance = await tours_contract.functions.balanceOf(wallet_address).call()
+        allowance = await tours_contract.functions.allowance(wallet_address, CONTRACT_ADDRESS).call()
         if balance < entry_fee:
             return {
                 'status': 'error',
@@ -1486,8 +1486,8 @@ async def join_tournament_tx(wallet_address, tournament_id, user):
             }
         if allowance < entry_fee:
             gas_fees = await get_gas_fees(wallet_address)
-            nonce = w3.eth.get_transaction_count(wallet_address)
-            approve_tx = tours_contract.functions.approve(CONTRACT_ADDRESS, entry_fee).build_transaction({
+            nonce = w3.eth.get_transaction_count(wallet_address)  # Note: get_transaction_count is sync in AsyncWeb3? If async, await it.
+            approve_tx = await tours_contract.functions.approve(CONTRACT_ADDRESS, entry_fee).build_transaction({
                 'chainId': 10143,
                 'from': wallet_address,
                 'nonce': nonce,
@@ -1515,7 +1515,7 @@ async def join_tournament_tx(wallet_address, tournament_id, user):
             }
         
         try:
-            w3.eth.call({
+            await w3.eth.call({
                 'from': wallet_address,
                 'to': CONTRACT_ADDRESS,
                 'data': contract.encodeABI(
@@ -1526,6 +1526,35 @@ async def join_tournament_tx(wallet_address, tournament_id, user):
         except ContractLogicError as e:
             logger.error(f"Simulation error in joinTournament: {str(e)}")
             return {'status': 'error', 'message': f"Contract error: {str(e)}. Ensure the tournament ID is valid. 😅"}
+        
+        gas_estimate = await contract.functions.joinTournament(tournament_id).estimate_gas({'from': wallet_address})
+        gas_limit = int(gas_estimate * 1.2)
+        gas_fees = await get_gas_fees(wallet_address)
+        nonce = w3.eth.get_transaction_count(wallet_address)  # Await if async
+        tx = await contract.functions.joinTournament(tournament_id).build_transaction({
+            'chainId': 10143,
+            'from': wallet_address,
+            'nonce': nonce,
+            'gas': gas_limit,
+            'maxFeePerGas': gas_fees['maxFeePerGas'],
+            'maxPriorityFeePerGas': gas_fees['maxPriorityFeePerGas']
+        })
+        try:
+            cursor.execute(
+                "INSERT INTO pending_txs (user_id, tx_type, tx_data, tournament_id) VALUES (?, ?, ?, ?)",
+                (str(user.id), 'join_tournament', json.dumps(tx), tournament_id)
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            return {'status': 'error', 'message': "Join tournament transaction already pending! Complete it first. 🔄"}
+
+        return {'status': 'success', 'tx_type': 'join_tournament', 'tx_data': tx}
+    except ContractLogicError as e:
+        logger.error(f"Contract error in joinTournament: {str(e)}")
+        return {'status': 'error', 'message': f"Contract error: {str(e)}. Ensure the tournament ID is valid. 😅"}
+    except Exception as e:
+        logger.error(f"Error in join_tournament_tx: {str(e)}")
+        return {'status': 'error', 'message': f"Oops, something went wrong: {str(e)}. Try again! 😅"}
         
         gas_estimate = contract.functions.joinTournament(tournament_id).estimate_gas({'from': wallet_address})
         gas_limit = int(gas_estimate * 1.2)
