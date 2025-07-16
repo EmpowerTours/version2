@@ -1791,7 +1791,7 @@ async def broadcast_transaction(signed_tx_hex, pending_tx, user, context):
                 tournament_id = contract.functions.getTournamentCount().call() - 1
                 return {
                     'status': 'success',
-                    'message': f"Tournament #{tournament_id} created, {user.first_name}! 🏆 <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>",
+                    'message': f"Tournament #{tournament_id} created, {user.first_name}! 🏆 Share this ID with others to join using /jointournament {tournament_id}. <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>",
                     'group_message': (
                         f"New tournament #{tournament_id} by {user.username or user.first_name}! 🏆\n"
                         f"Join with /jointournament {tournament_id}\n"
