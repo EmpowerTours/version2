@@ -3510,7 +3510,7 @@ async def submit_wallet(request: Request):
             await set_session(user_id, checksum_address)
             await application.bot.send_message(
                 user_id,
-                f"Wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}) connected! Use /createprofile to create your profile or /balance to check your status. 🪙",
+                f"Wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}) connected!Use /createprofile to create your profile or /balance to check your status. 🪙",
                 parse_mode="Markdown"
             )
             await delete_pending_wallet(user_id)
@@ -3561,7 +3561,7 @@ async def submit_tx(request: Request):
                     elif input_data.startswith('0xfe985ae0'):  # createClimbingLocation
                         success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Climb '{pending.get('name', 'Unknown')}' ({pending.get('difficulty', 'Unknown')}) created!"
                     elif input_data.startswith('0x6b8b0b0a'):  # addJournalEntryWithDetails, check the selector
-                        success_message = f"Transaction confirmed![Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Journal entry added!"
+                        success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Journal entry added!"
                     if CHAT_HANDLE and TELEGRAM_TOKEN:
                         message = f"New activity by user {user_id} on EmpowerTours! 🧗 <a href=\"{EXPLORER_URL}/tx/{tx_hash}\">Tx: {escape_html(tx_hash)}</a>"
                         await send_notification(CHAT_HANDLE, message)
