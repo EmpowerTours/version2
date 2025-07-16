@@ -3011,7 +3011,7 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
         latest_block = await w3.eth.get_block_number()
         if last_processed_block == 0:
             last_processed_block = max(0, latest_block - 100)
-        end_block = min(last_processed_block + 10, latest_block + 1)
+        end_block = min(last_processed_block + 500, latest_block + 1)
         for block_number in range(last_processed_block + 1, end_block):
             logger.info(f"Processing block {block_number}")
             block = await w3.eth.get_block(block_number, full_transactions=True)
@@ -3386,7 +3386,7 @@ async def startup_event():
         # Schedule monitor_events with 60-second interval
         if application.job_queue:
             logger.info("JobQueue available, scheduling monitor_events")
-            application.job_queue.run_repeating(monitor_events, interval=60, first=10)
+            application.job_queue.run_repeating(monitor_events, interval=30, first=10)
         else:
             logger.warning("JobQueue not available, monitor_events not scheduled")
 
