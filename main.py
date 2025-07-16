@@ -3521,7 +3521,7 @@ async def startup_event():
         application.add_handler(CommandHandler("buyTours", buy_tours))
         application.add_handler(CommandHandler("sendTours", send_tours))
         application.add_handler(CommandHandler("ping", ping))
-        application.add_handler(CommandHandler("debug", debug_command))
+        application.add_handler(CommandHandler("debug", debug))
         application.add_handler(CommandHandler("forcewebhook", forcewebhook))
         application.add_handler(CommandHandler("clearcache", clearcache))
         application.add_handler(MessageHandler(filters.Regex(r'^0x[a-fA-F0-9]{64}$'), handle_tx_hash))
