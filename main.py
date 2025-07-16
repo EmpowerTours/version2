@@ -2644,10 +2644,10 @@ async def tournaments(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Blockchain unavailable. Try again! 😅")
             logger.info(f"/tournaments failed due to blockchain unavailable, took {time.time() - start_time:.2f} seconds")
             return
-        count = contract.functions.getTournamentCount().call()
+        count = await contract.functions.getTournamentCount().call()
         tours = []
         for i in range(count):
-            tournament = contract.functions.tournaments(i).call()
+            tournament = await contract.functions.tournaments(i).call()
             status = "Active" if tournament[3] else "Ended"
             participants = tournament[1] // tournament[0] if tournament[0] > 0 else 0  # totalPot / entryFee
             tours.append(f"#{i}: Fee {tournament[0]/10**18} $TOURS, Pot {tournament[1]/10**18} $TOURS, {status}, Participants: {participants}")
@@ -2655,6 +2655,159 @@ async def tournaments(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"/tournaments listed {count} tournaments, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /tournaments: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+
+async def findaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /findaclimb command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    try:
+        if not w3 or not contract:
+            await update.message.reply_text("Blockchain unavailable. Try again! 😅")
+            logger.info(f"/findaclimb failed due to blockchain unavailable, took {time.time() - start_time:.2f} seconds")
+            return
+        count = await contract.functions.getClimbingLocationCount().call()
+        logger.info(f"Climbing location count: {count}")
+        climbs = []
+        for i in range(count):
+            climb = await contract.functions.getClimbingLocation(i).call()
+            climbs.append(
+                f"#{i}: {escape_html(climb[1])} ({escape_html(climb[2])}) by {climb[0][:6]}...\n"
+                f"Location: ({climb[3]/10**6:.4f}, {climb[4]/10**6:.4f})\n"
+                f"Purchases: {climb[10]}"
+            )
+        await update.message.reply_text("\n\n".join(climbs) or "No climbs. Create one with /buildaclimb!")
+        logger.info(f"/findaclimb retrieved {count} climbs, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /findaclimb: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+
+async def journals(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /journals command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    try:
+        if not w3 or not contract:
+            await update.message.reply_text("Blockchain unavailable. Try again! 😅")
+            logger.info(f"/journals failed due to blockchain unavailable, took {time.time() - start_time:.2f} seconds")
+            return
+        count = await contract.functions.getJournalEntryCount().call()
+        entries = []
+        for i in range(count):
+            entry = await contract.functions.getJournalEntry(i).call()
+            entries.append(
+                f"#{i}: By {entry[0][:6]}... at {datetime.fromtimestamp(entry[2]).strftime('%Y-%m-%d %H:%M')}\n"
+                f"Content: {escape_html(entry[1])}\n"
+                f"Location: {escape_html(entry[5])}, Difficulty: {escape_html(entry[6])}"
+            )
+        await update.message.reply_text("\n\n".join(entries) or "No journals. Add one with /journal!")
+        logger.info(f"/journals retrieved {count} entries, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /journals: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+
+async def viewjournal(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    args = context.args
+    logger.info(f"Received /viewjournal command from user {update.effective_user.id} in chat {update.effective_chat.id} with args {args}")
+    if not args or not args[0].isdigit():
+        await update.message.reply_text("Usage: /viewjournal <id>. Use /journals to find IDs.")
+        logger.info(f"/viewjournal failed due to invalid args, took {time.time() - start_time:.2f} seconds")
+        return
+    entry_id = int(args[0])
+    try:
+        if not w3 or not contract:
+            await update.message.reply_text("Blockchain unavailable. Try again! 😅")
+            logger.info(f"/viewjournal failed due to blockchain unavailable, took {time.time() - start_time:.2f} seconds")
+            return
+        entry = await contract.functions.getJournalEntry(entry_id).call()
+        if not entry:
+            await update.message.reply_text(f"Journal #{entry_id} not found. Use /journals to check.")
+            logger.info(f"/viewjournal failed, entry not found, took {time.time() - start_time:.2f} seconds")
+            return
+        comment_count = await contract.functions.getCommentCount(entry_id).call()
+        comments = []
+        for j in range(comment_count):
+            comment = await contract.functions.journalComments(entry_id, j).call()
+            comments.append(f"Comment #{j}: {escape_html(comment[1])} by {comment[0][:6]}...")
+        journal_text = (
+            f"Journal #{entry_id}:\n"
+            f"Author: {entry[0][:6]}...\n"
+            f"Content: {escape_html(entry[1])}\n"
+            f"Timestamp: {datetime.fromtimestamp(entry[2]).strftime('%Y-%m-%d %H:%M')}\n"
+            f"Location: {escape_html(entry[5])}\n"
+            f"Difficulty: {escape_html(entry[6])}\n\n"
+            f"Comments ({comment_count}):\n" + "\n".join(comments) or "No comments."
+        )
+        await update.message.reply_text(journal_text)
+        logger.info(f"/viewjournal retrieved entry {entry_id} with {comment_count} comments, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /viewjournal: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+
+async def viewclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    args = context.args
+    logger.info(f"Received /viewclimb command from user {update.effective_user.id} in chat {update.effective_chat.id} with args {args}")
+    if not args or not args[0].isdigit():
+        await update.message.reply_text("Usage: /viewclimb <id>. Use /findaclimb to find IDs.")
+        logger.info(f"/viewclimb failed due to invalid args, took {time.time() - start_time:.2f} seconds")
+        return
+    climb_id = int(args[0])
+    try:
+        if not w3 or not contract:
+            await update.message.reply_text("Blockchain unavailable. Try again! 😅")
+            logger.info(f"/viewclimb failed due to blockchain unavailable, took {time.time() - start_time:.2f} seconds")
+            return
+        climb = await contract.functions.getClimbingLocation(climb_id).call()
+        if not climb:
+            await update.message.reply_text(f"Climb #{climb_id} not found. Use /findaclimb to check.")
+            logger.info(f"/viewclimb failed, climb not found, took {time.time() - start_time:.2f} seconds")
+            return
+        climb_text = (
+            f"Climb #{climb_id}:\n"
+            f"Name: {escape_html(climb[1])}\n"
+            f"Difficulty: {escape_html(climb[2])}\n"
+            f"Creator: {climb[0][:6]}...\n"
+            f"Location: ({climb[3]/10**6:.4f}, {climb[4]/10**6:.4f})\n"
+            f"Photo Hash: {escape_html(climb[5])}\n"
+            f"Timestamp: {datetime.fromtimestamp(climb[6]).strftime('%Y-%m-%d %H:%M')}\n"
+            f"Purchases: {climb[10]}"
+        )
+        await update.message.reply_text(climb_text)
+        logger.info(f"/viewclimb retrieved climb {climb_id}, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /viewclimb: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+
+async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /balance command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    try:
+        session = await get_session(str(update.effective_user.id))
+        if not session or not session.get("wallet_address"):
+            await update.message.reply_text("Wallet not connected. Use /connectwallet first! 😅")
+            logger.info(f"/balance failed due to no wallet, took {time.time() - start_time:.2f} seconds")
+            return
+        wallet_address = session["wallet_address"]
+        if not w3 or not tours_contract:
+            await update.message.reply_text("Blockchain unavailable. Try again! 😅")
+            logger.info(f"/balance failed due to blockchain unavailable, took {time.time() - start_time:.2f} seconds")
+            return
+        mon_balance = await w3.eth.get_balance(wallet_address)
+        tours_balance = await tours_contract.functions.balanceOf(wallet_address).call()
+        balance_text = (
+            f"Wallet: [{wallet_address[:6]}...]({EXPLORER_URL}/address/{wallet_address})\n"
+            f"$MON: {mon_balance / 10**18:.4f}\n"
+            f"$TOURS: {tours_balance / 10**18:.4f}"
+        )
+        await update.message.reply_text(balance_text, parse_mode="Markdown")
+        logger.info(f"/balance retrieved for user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /balance: {str(e)}, took {time.time() - start_time:.2f} seconds")
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
 async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
