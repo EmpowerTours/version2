@@ -21,6 +21,7 @@ import json
 import subprocess
 from datetime import datetime
 import asyncpg  # Added for Postgres
+from tenacity import retry, wait_exponential, stop_after_attempt  # Added for retries
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -948,35 +949,26 @@ journal_cache = None  # Cache for journals
 cache_timestamp = 0
 CACHE_TTL = 300  # 5 minutes
 
+@retry(wait=wait_exponential(multiplier=1, min=4, max=10), stop=stop_after_attempt(5))
 async def initialize_web3():
     global w3, contract, tours_contract
     if not MONAD_RPC_URL or not CONTRACT_ADDRESS or not TOURS_TOKEN_ADDRESS:
         logger.error("Cannot initialize Web3: missing blockchain-related environment variables")
         return False
-    retries = 3
-    for attempt in range(1, retries + 1):
-        try:
-            w3 = AsyncWeb3(AsyncHTTPProvider(MONAD_RPC_URL))
-            is_connected = await w3.is_connected()
-            if is_connected:
-                logger.info("AsyncWeb3 initialized successfully")
-                contract = w3.eth.contract(address=w3.to_checksum_address(CONTRACT_ADDRESS), abi=CONTRACT_ABI)
-                tours_contract = w3.eth.contract(address=w3.to_checksum_address(TOURS_TOKEN_ADDRESS), abi=TOURS_ABI)
-                logger.info("Contracts initialized successfully")
-                return True
-            else:
-                logger.warning(f"Web3 connection failed on attempt {attempt}/{retries}: not connected")
-                if attempt < retries:
-                    time.sleep(5)
-        except Exception as e:
-            logger.error(f"Error initializing Web3 on attempt {attempt}/{retries}: {str(e)}")
-            if attempt < retries:
-                time.sleep(5)
-    logger.error("All Web3 initialization attempts failed. Proceeding without blockchain functionality.")
-    w3 = None
-    contract = None
-    tours_contract = None
-    return False
+    try:
+        w3 = AsyncWeb3(AsyncHTTPProvider(MONAD_RPC_URL))
+        is_connected = await w3.is_connected()
+        if is_connected:
+            logger.info("AsyncWeb3 initialized successfully")
+            contract = w3.eth.contract(address=w3.to_checksum_address(CONTRACT_ADDRESS), abi=CONTRACT_ABI)
+            tours_contract = w3.eth.contract(address=w3.to_checksum_address(TOURS_TOKEN_ADDRESS), abi=TOURS_ABI)
+            logger.info("Contracts initialized successfully")
+            return True
+        else:
+            raise Exception("Web3 not connected")
+    except Exception as e:
+        logger.error(f"Error initializing Web3: {str(e)}")
+        raise
 
 def escape_html(text):
     if not text:
@@ -2866,52 +2858,41 @@ async def mypurchases(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         session = await get_session(str(update.effective_user.id))
         if not session or not session.get("wallet_address"):
-            await update.message.reply_text("No wallet connected. Use /connectwallet first! 😅")
-            logger.info(f"/mypurchases no wallet connected for user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
+            await update.message.reply_text("Connect your wallet with /connectwallet first! 😅")
+            logger.info(f"/mypurchases failed due to no wallet, took {time.time() - start_time:.2f} seconds")
             return
-        if not w3 or not contract:
-            logger.error("Web3 or contract not initialized, cannot fetch purchases")
-            await update.message.reply_text("Blockchain unavailable. Try again later! 😅")
-            logger.info(f"/mypurchases failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
-            return
-        wallet_address = w3.to_checksum_address(session["wallet_address"])
-        logger.info(f"Fetching purchases for wallet {wallet_address}")
+        wallet_address = session["wallet_address"]
+        checksum_address = w3.to_checksum_address(wallet_address) if w3 else wallet_address  # Fallback if w3 unavailable
 
-        # Create an event filter for LocationPurchased events
-        latest_block = await w3.eth.block_number
-        from_block = max(0, latest_block - 10000)  # Limit to recent 10,000 blocks to avoid timeout
-        purchase_events = await get_purchase_events(wallet_address, from_block, latest_block)
-        location_ids = [event.args.locationId for event in purchase_events]
-
-        # Fetch climbing location details asynchronously
-        coros = [contract.functions.getClimbingLocation(loc_id).call() for loc_id in location_ids]
-        locations = await asyncio.gather(*coros, return_exceptions=True)
-        
-        my_climbs = []
-        for loc_id, location in zip(location_ids, locations):
-            if isinstance(location, Exception):
-                logger.error(f"Error retrieving purchased climb {loc_id}: {str(location)}")
-                my_climbs.append(f"Climb ID: {loc_id} - Error fetching details")
-                continue
-            photo_info = " (has photo)" if location[5] else ""
-            my_climbs.append(
-                f"🧗 Purchased Climb ID: {loc_id} - {location[1]}{photo_info} ({location[2]}) by [{location[0][:6]}...]({EXPLORER_URL}/address/{location[0]})\n"
-                f"   Location: {location[3]/1000000:.6f},{location[4]/1000000:.6f}\n"
-                f"   Map: https://www.google.com/maps?q={location[3]/1000000:.6f},{location[4]/1000000:.6f}\n"
-                f"   Created: {datetime.fromtimestamp(location[6]).strftime('%Y-%m-%d %H:%M:%S')}"
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT location_id, timestamp FROM purchases WHERE wallet_address = $1 ORDER BY timestamp DESC",
+                checksum_address
             )
-        if not my_climbs:
-            await update.message.reply_text("You haven't purchased any climbs yet. Use /findaclimb to explore! 🧗", parse_mode="Markdown")
-        else:
-            await update.message.reply_text("Your Purchased Climbs:\n\n" + "\n\n".join(my_climbs), parse_mode="Markdown")
-        logger.info(f"/mypurchases retrieved {len(my_climbs)} purchases, took {time.time() - start_time:.2f} seconds")
+
+        if not rows:
+            await update.message.reply_text("No purchased climbs found. Use /purchaseclimb to buy one! 😅")
+            logger.info(f"/mypurchases no purchases found, took {time.time() - start_time:.2f} seconds")
+            return
+
+        message = "Your purchased climbs:\n"
+        for row in rows:
+            if not contract:
+                message += f"🏔️ #{row['location_id']} - Purchased {datetime.fromtimestamp(row['timestamp']).strftime('%Y-%m-%d %H:%M')}\n"
+                continue
+            climb = await contract.functions.getClimbingLocation(row['location_id']).call()
+            message += f"🏔️ #{row['location_id']} {escape_html(climb[1])} ({escape_html(climb[2])}) - Purchased {datetime.fromtimestamp(row['timestamp']).strftime('%Y-%m-%d %H:%M')}\n"
+            message += f"   Creator: <a href=\"{EXPLORER_URL}/address/{climb[0]}\">{climb[0][:6]}...</a>\n"
+            message += f"   Location: ({climb[3]/10**6:.4f}, {climb[4]/10**6:.4f})\n"
+            message += f"   Map: https://www.google.com/maps?q={climb[3]/10**6},{climb[4]/10**6}\n"
+            message += f"   Photo Hash: {escape_html(climb[5])}\n"
+            message += f"   Purchases: {climb[10]}\n\n"
+
+        await update.message.reply_text(message, parse_mode="HTML")
+        logger.info(f"/mypurchases success with {len(rows)} purchases, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
-        logger.error(f"Unexpected error in /mypurchases: {str(e)}")
-        await update.message.reply_text(
-            f"Error retrieving purchases: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅",
-            parse_mode="Markdown"
-        )
-        logger.info(f"/mypurchases failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
+        logger.error(f"Unexpected error in /mypurchases: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        await update.message.reply_text(f"Error retrieving purchases: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
         
 async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
@@ -3210,17 +3191,20 @@ async def set_journal_data(user_id, data):
             "INSERT INTO journal_data (user_id, data, timestamp) VALUES ($1, $2, $3) ON CONFLICT (user_id) DO UPDATE SET data = $2, timestamp = $3",
             user_id, json.dumps(data), data['timestamp']
         )
-async def get_purchase_events(wallet_address, from_block, to_block, step=1000):
+async def get_purchase_events(wallet_address, from_block, to_block, step=500):  # Reduced step to avoid 413
     events = []
     for start in range(from_block, to_block + 1, step):
         end = min(start + step - 1, to_block)
-        event_filter = await contract.events.LocationPurchased.create_filter(
-            fromBlock=start,
-            toBlock=end,
-            argument_filters={'buyer': wallet_address}
-        )
-        batch_events = await event_filter.get_all_entries()
-        events.extend(batch_events)
+        try:
+            event_filter = await contract.events.LocationPurchased.create_filter(
+                fromBlock=start,
+                toBlock=end,
+                argument_filters={'buyer': wallet_address} if wallet_address else None
+            )
+            batch_events = await event_filter.get_all_entries()
+            events.extend(batch_events)
+        except Exception as e:
+            logger.warning(f"Error fetching events for batch {start}-{end}: {str(e)}. Skipping batch.")
         await asyncio.sleep(0.1)  # Small delay to avoid rate limiting
     return events
     
@@ -3301,7 +3285,23 @@ async def startup_event():
                     journal_data[row['user_id']] = json.loads(row['data'])
                     journal_data[row['user_id']]['timestamp'] = row['timestamp']
 
-        logger.info(f"Loaded from DB: {len(sessions)} sessions, {len(pending_wallets)} pending_wallets, {len(journal_data)} journal_data")
+       logger.info(f"Loaded from DB: {len(sessions)} sessions, {len(pending_wallets)} pending_wallets, {len(journal_data)} journal_data")
+
+        # One-time historical backfill for purchases
+        if w3 and contract:
+            logger.info("Starting historical backfill for LocationPurchased events")
+            latest_block = await w3.eth.get_block_number()
+            all_events = await get_purchase_events(None, 0, latest_block)  # No buyer filter for full backfill
+            async with pool.acquire() as conn:
+                for event in all_events:
+                    checksum_buyer = w3.to_checksum_address(event.args.buyer)
+                    if checksum_buyer in reverse_sessions:
+                        user_id = reverse_sessions[checksum_buyer]
+                        await conn.execute(
+                            "INSERT INTO purchases (user_id, wallet_address, location_id, timestamp) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+                            user_id, checksum_buyer, event.args.locationId, event.args.timestamp
+                        )
+            logger.info(f"Backfill complete: Processed {len(all_events)} events")
 
         # Check and free port
         port = int(os.getenv("PORT", 8080))
