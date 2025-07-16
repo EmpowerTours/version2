@@ -3147,6 +3147,19 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
 async def get_session(user_id):
     return sessions.get(user_id)
 
+async def log_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    start_time = time.time()
+    device_info = (
+        f"via_bot={update.message.via_bot.id if update.message.via_bot else 'none'}, "
+        f"chat_type={update.message.chat.type}, "
+        f"platform={getattr(update.message.via_bot, 'platform', 'unknown')}"
+    )
+    logger.info(f"Received text message from user {update.effective_user.id} in chat {update.effective_chat.id}: {update.message.text}, {device_info}")
+    await update.message.reply_text(
+        f"Received message: '{update.message.text}'. Use a valid command like /start or /tutorial. 😅\nDebug: {device_info}"
+    )
+    logger.info(f"Processed non-command text message, took {time.time() - start_time:.2f} seconds")
+    
 async def set_session(user_id, wallet_address):
     global sessions, reverse_sessions
     sessions[user_id] = {"wallet_address": wallet_address}
