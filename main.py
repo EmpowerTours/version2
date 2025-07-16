@@ -6,6 +6,7 @@ import time
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response, FileResponse
+from contextlib import asynccontextmanager
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity, ReplyKeyboardMarkup, KeyboardButton
 from telegram.constants import ChatAction
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
@@ -24,12 +25,6 @@ import asyncpg  # Added for Postgres
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
-# Initialize FastAPI app
-app = FastAPI()
-
-# Mount static files
-app.mount("/public", StaticFiles(directory="public", html=True), name="public")
 
 # Global variables
 application = None
@@ -642,9 +637,9 @@ CONTRACT_ABI = [
             {"internalType": "string", "name": "photoHash", "type": "string"},
             {"internalType": "uint256", "name": "timestamp", "type": "uint256"},
             {"internalType": "uint256", "name": "farcasterFid", "type": "uint256"},
-            {"indexed": False, "internalType": "string", "name": "farcasterCastHash", "type": "string"},
-            {"indexed": False, "internalType": "bool", "name": "isSharedOnFarcaster", "type": "bool"},
-            {"indexed": False, "internalType": "uint256", "name": "purchaseCount", "type": "uint256"}
+            {"internalType": "string", "name": "farcasterCastHash", "type": "string"},
+            {"internalType": "bool", "name": "isSharedOnFarcaster", "type": "bool"},
+            {"internalType": "uint256", "name": "purchaseCount", "type": "uint256"}
         ],
         "stateMutability": "view",
         "type": "function"
@@ -1680,7 +1675,7 @@ async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         logger.warning(f"Profile check failed after {max_retries} attempts")
                     await asyncio.sleep(3)
 
-        # Check transaction history for ProfileCreated events
+        # Check ProfileCreated events
         if not profile_exists:
             try:
                 profile_created_event = contract.events.ProfileCreated.create_filter(
@@ -3418,7 +3413,6 @@ async def startup_event():
         webhook_failed = True
         raise
 
-@app.on_event("shutdown")
 async def shutdown_event():
     start_time = time.time()
     global application, pool
@@ -3433,6 +3427,18 @@ async def shutdown_event():
     if pool:
         await pool.close()
         logger.info("Postgres pool closed")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await startup_event()
+    yield
+    await shutdown_event()
+
+# Initialize FastAPI app
+app = FastAPI(lifespan=lifespan)
+
+# Mount static files
+app.mount("/public", StaticFiles(directory="public", html=True), name="public")
 
 @app.get("/public/{path:path}")
 async def log_static_access(path: str, request: Request):
@@ -3555,7 +3561,7 @@ async def submit_tx(request: Request):
                     elif input_data.startswith('0xfe985ae0'):  # createClimbingLocation
                         success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Climb '{pending.get('name', 'Unknown')}' ({pending.get('difficulty', 'Unknown')}) created!"
                     elif input_data.startswith('0x6b8b0b0a'):  # addJournalEntryWithDetails, check the selector
-                        success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Journal entry added!"
+                        success_message = f"Transaction confirmed![Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Journal entry added!"
                     if CHAT_HANDLE and TELEGRAM_TOKEN:
                         message = f"New activity by user {user_id} on EmpowerTours! 🧗 <a href=\"{EXPLORER_URL}/tx/{tx_hash}\">Tx: {escape_html(tx_hash)}</a>"
                         await send_notification(CHAT_HANDLE, message)
