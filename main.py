@@ -1391,7 +1391,7 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not profile_exists:
             try:
                 profile_created_event = contract.events.ProfileCreated.create_filter(
-                    from_block=0,
+                    fromBlock=0,
                     argument_filters={'user': checksum_address}
                 )
                 events = await profile_created_event.get_all_entries()
@@ -1684,7 +1684,7 @@ async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not profile_exists:
             try:
                 profile_created_event = contract.events.ProfileCreated.create_filter(
-                    from_block=0,
+                    fromBlock=0,
                     argument_filters={'user': checksum_address}
                 )
                 events = await profile_created_event.get_all_entries()
@@ -2141,7 +2141,7 @@ async def buildaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not profile_exists:
             try:
                 profile_created_event = contract.events.ProfileCreated.create_filter(
-                    from_block=0,
+                    fromBlock=0,
                     argument_filters={'user': checksum_address}
                 )
                 events = await profile_created_event.get_all_entries()
@@ -2553,7 +2553,7 @@ async def findaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if location_count == 0:
                 try:
                     events = await contract.events.ClimbingLocationCreated.create_filter(
-                        from_block=0,
+                        fromBlock=0,
                         argument_filters={'creator': None}
                     ).get_all_entries()
                     logger.info(f"Found {len(events)} ClimbingLocationCreated events")
@@ -2881,7 +2881,7 @@ async def mypurchases(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"/mypurchases failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
             return
         checksum_address = w3.to_checksum_address(wallet_address)
-        purchase_filter = contract.events.LocationPurchased.create_filter(from_block=0, argument_filters={'buyer': checksum_address})
+        purchase_filter = contract.events.LocationPurchased.create_filter(fromBlock=0, argument_filters={'buyer': checksum_address})
         purchase_events = await purchase_filter.get_all_entries()
         if not purchase_events:
             await update.message.reply_text("You haven't purchased any climbs yet. Use /findaclimb and /purchaseclimb [id]! 🪙")
