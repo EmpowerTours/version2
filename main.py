@@ -965,8 +965,8 @@ async def initialize_web3():
             is_connected = await w3.is_connected()
             if is_connected:
                 logger.info("AsyncWeb3 initialized successfully")
-                contract = w3.eth.contract(address=AsyncWeb3.to_checksum_address(CONTRACT_ADDRESS), abi=CONTRACT_ABI)
-                tours_contract = w3.eth.contract(address=AsyncWeb3.to_checksum_address(TOURS_TOKEN_ADDRESS), abi=TOURS_ABI)
+                contract = w3.eth.contract(address=w3.to_checksum_address(CONTRACT_ADDRESS), abi=CONTRACT_ABI)
+                tours_contract = w3.eth.contract(address=w3.to_checksum_address(TOURS_TOKEN_ADDRESS), abi=TOURS_ABI)
                 logger.info("Contracts initialized successfully")
                 return True
             else:
@@ -1292,8 +1292,8 @@ async def handle_wallet_address(user_id: str, wallet_address: str, context: Cont
         logger.info(f"/handle_wallet_address failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
         return
     try:
-        if w3 and await w3.is_address(wallet_address):
-            checksum_address = await w3.to_checksum_address(wallet_address)
+        if w3 and w3.is_address(wallet_address):
+            checksum_address = w3.to_checksum_address(wallet_address)
             await set_session(user_id, checksum_address)
             await context.bot.send_message(user_id, f"Wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address}) connected! Try /createprofile. 🪙", parse_mode="Markdown")
             await delete_pending_wallet(user_id)
@@ -1352,7 +1352,7 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Ensure checksum address
         try:
-            checksum_address = await w3.to_checksum_address(wallet_address)
+            checksum_address = w3.to_checksum_address(wallet_address)
             logger.info(f"Using contract address: {contract.address}")
         except Exception as e:
             logger.error(f"Error converting wallet address to checksum: {str(e)}")
@@ -1546,8 +1546,8 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Ensure checksum addresses
         try:
-            checksum_address = await w3.to_checksum_address(wallet_address)
-            recipient_checksum_address = await w3.to_checksum_address(recipient)
+            checksum_address = w3.to_checksum_address(wallet_address)
+            recipient_checksum_address = w3.to_checksum_address(recipient)
         except Exception as e:
             logger.error(f"Error converting addresses to checksum: {str(e)}")
             await update.message.reply_text(f"Invalid wallet or recipient address format: {str(e)}. Check the address and try again. 😅")
@@ -1633,7 +1633,7 @@ async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Ensure checksum address
         try:
-            checksum_address = await w3.to_checksum_address(wallet_address)
+            checksum_address = w3.to_checksum_address(wallet_address)
             logger.info(f"Using contract address: {contract.address}")
         except Exception as e:
             logger.error(f"Error converting wallet address to checksum: {str(e)}")
@@ -1826,7 +1826,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         photo = update.message.photo[-1]
         file_id = photo.file_id
         # Hash the file_id to fixed 32-byte hex (reduces gas/storage) for both journal and climb
-        photo_hash = await w3.keccak(text=file_id).hex()  # Now ~66 chars fixed
+        photo_hash = w3.keccak(text=file_id).hex()  # Now ~66 chars fixed
         journal = await get_journal_data(user_id)
         entry_type = 'journal' if journal and journal.get("awaiting_photo") else 'climb'
         async with pool.acquire() as conn:
@@ -1890,7 +1890,7 @@ async def add_comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Use /connectwallet! 🪙")
             logger.info(f"/comment failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
             return
-        checksum_address = await w3.to_checksum_address(wallet_address)
+        checksum_address = w3.to_checksum_address(wallet_address)
         comment_fee = await contract.functions.commentFee().call()
         nonce = await w3.eth.get_transaction_count(checksum_address)
         tx = await contract.functions.addComment(entry_id, content).build_transaction({
@@ -2102,7 +2102,7 @@ async def buildaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Ensure checksum address
         try:
-            checksum_address = await w3.to_checksum_address(wallet_address)
+            checksum_address = w3.to_checksum_address(wallet_address)
             logger.info(f"Using contract address: {contract.address}")
         except Exception as e:
             logger.error(f"Error converting wallet address to checksum: {str(e)}")
@@ -2230,7 +2230,7 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
                 logger.info(f"/handle_location failed due to missing wallet for journal, took {time.time() - start_time:.2f} seconds")
                 return
-            checksum_address = await w3.to_checksum_address(wallet_address)
+            checksum_address = w3.to_checksum_address(wallet_address)
             # Check profile existence
             profile_exists = False
             try:
@@ -2473,7 +2473,7 @@ async def purchase_climb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Use /connectwallet! 🪙")
             logger.info(f"/purchaseclimb failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
             return
-        checksum_address = await w3.to_checksum_address(wallet_address)
+        checksum_address = w3.to_checksum_address(wallet_address)
         # Simulate to catch InvalidLocationId
         try:
             await contract.functions.purchaseClimbingLocation(location_id).call({
@@ -2607,7 +2607,7 @@ async def createtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Use /connectwallet! 🪙")
             logger.info(f"/createtournament failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
             return
-        checksum_address = await w3.to_checksum_address(wallet_address)
+        checksum_address = w3.to_checksum_address(wallet_address)
         nonce = await w3.eth.get_transaction_count(checksum_address)
         tx = await contract.functions.createTournament(entry_fee).build_transaction({
             'from': checksum_address,
@@ -2694,7 +2694,7 @@ async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Use /connectwallet! 🪙")
             logger.info(f"/jointournament failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
             return
-        checksum_address = await w3.to_checksum_address(wallet_address)
+        checksum_address = w3.to_checksum_address(wallet_address)
         tournament = await contract.functions.tournaments(tournament_id).call()
         entry_fee = tournament[0]
         nonce = await w3.eth.get_transaction_count(checksum_address)
@@ -2749,12 +2749,12 @@ async def endtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Use /connectwallet! 🪙")
             logger.info(f"/endtournament failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
             return
-        checksum_address = await w3.to_checksum_address(wallet_address)
+        checksum_address = w3.to_checksum_address(wallet_address)
         if checksum_address.lower() != OWNER_ADDRESS.lower():
             await update.message.reply_text("Only the owner can end tournaments! 😅")
             logger.info(f"/endtournament failed due to non-owner, took {time.time() - start_time:.2f} seconds")
             return
-        winner_checksum_address = await w3.to_checksum_address(winner_address)
+        winner_checksum_address = w3.to_checksum_address(winner_address)
         nonce = await w3.eth.get_transaction_count(checksum_address)
         tx = await contract.functions.endTournament(tournament_id, winner_checksum_address).build_transaction({
             'from': checksum_address,
@@ -2802,7 +2802,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Ensure checksum address
         try:
-            checksum_address = await w3.to_checksum_address(wallet_address)
+            checksum_address = w3.to_checksum_address(wallet_address)
         except Exception as e:
             logger.error(f"Error converting wallet address to checksum: {str(e)}")
             await update.message.reply_text(f"Invalid wallet address format: {str(e)}. Try /connectwallet again. 😅")
@@ -2863,7 +2863,7 @@ async def mypurchases(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
             logger.info(f"/mypurchases failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
             return
-        checksum_address = await w3.to_checksum_address(wallet_address)
+        checksum_address = w3.to_checksum_address(wallet_address)
         purchase_filter = contract.events.LocationPurchased.create_filter(from_block=0, argument_filters={'buyer': checksum_address})
         purchase_events = await purchase_filter.get_all_entries()
         if not purchase_events:
@@ -3018,82 +3018,82 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                 receipt = await w3.eth.get_transaction_receipt(tx.hash.hex())
                 if receipt and receipt.status:
                     for log in receipt.logs:
-                        if log.address.lower() == (await w3.to_checksum_address(CONTRACT_ADDRESS)).lower():
+                        if log.address.lower() == (w3.to_checksum_address(CONTRACT_ADDRESS)).lower():
                             try:
                                 event_map = {
-                                    (await w3.keccak(text="ProfileCreated(address,uint256)")).hex(): (
+                                    (w3.keccak(text="ProfileCreated(address,uint256)")).hex(): (
                                         contract.events.ProfileCreated,
                                         lambda e: f"New climber joined EmpowerTours! 🧗 Address: <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a>"
                                     ),
-                                    (await w3.keccak(text="ProfileCreatedEnhanced(address,uint256,string,uint256)")).hex(): (
+                                    (w3.keccak(text="ProfileCreatedEnhanced(address,uint256,string,uint256)")).hex(): (
                                         contract.events.ProfileCreatedEnhanced,
                                         lambda e: f"New climber with Farcaster profile joined EmpowerTours! 🧗 Address: <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a>"
                                     ),
-                                    (await w3.keccak(text="JournalEntryAdded(uint256,address,string,uint256)")).hex(): (
+                                    (w3.keccak(text="JournalEntryAdded(uint256,address,string,uint256)")).hex(): (
                                         contract.events.JournalEntryAdded,
                                         lambda e: f"New journal entry #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.author}\">{e.args.author[:6]}...</a> on EmpowerTours! 📝"
                                     ),
-                                    (await w3.keccak(text="JournalEntryAddedEnhanced(uint256,address,uint256,string,string,string,bool,uint256)")).hex(): (
+                                    (w3.keccak(text="JournalEntryAddedEnhanced(uint256,address,uint256,string,string,string,bool,uint256)")).hex(): (
                                         contract.events.JournalEntryAddedEnhanced,
                                         lambda e: f"New enhanced journal entry #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.author}\">{e.args.author[:6]}...</a> on EmpowerTours! 📝"
                                     ),
-                                    (await w3.keccak(text="CommentAdded(uint256,address,string,uint256)")).hex(): (
+                                    (w3.keccak(text="CommentAdded(uint256,address,string,uint256)")).hex(): (
                                         contract.events.CommentAdded,
                                         lambda e: f"New comment on journal #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.commenter}\">{e.args.commenter[:6]}...</a> on EmpowerTours! 🗣️"
                                     ),
-                                    (await w3.keccak(text="CommentAddedEnhanced(uint256,address,uint256,string,string,uint256)")).hex(): (
+                                    (w3.keccak(text="CommentAddedEnhanced(uint256,address,uint256,string,string,uint256)")).hex(): (
                                         contract.events.CommentAddedEnhanced,
                                         lambda e: f"New enhanced comment on journal #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.commenter}\">{e.args.commenter[:6]}...</a> on EmpowerTours! 🗣️"
                                     ),
-                                    (await w3.keccak(text="ClimbingLocationCreated(uint256,address,string,uint256)")).hex(): (
+                                    (w3.keccak(text="ClimbingLocationCreated(uint256,address,string,uint256)")).hex(): (
                                         contract.events.ClimbingLocationCreated,
                                         lambda e: f"New climb '{e.args.name}' created by <a href=\"{EXPLORER_URL}/address/{e.args.creator}\">{e.args.creator[:6]}...</a> on EmpowerTours! 🪨"
                                     ),
-                                    (await w3.keccak(text="ClimbingLocationCreatedEnhanced(uint256,address,uint256,string,string,int256,int256,bool,uint256)")).hex(): (
+                                    (w3.keccak(text="ClimbingLocationCreatedEnhanced(uint256,address,uint256,string,string,int256,int256,bool,uint256)")).hex(): (
                                         contract.events.ClimbingLocationCreatedEnhanced,
                                         lambda e: f"New enhanced climb '{e.args.name}' created by <a href=\"{EXPLORER_URL}/address/{e.args.creator}\">{e.args.creator[:6]}...</a> on EmpowerTours! 🪨"
                                     ),
-                                    (await w3.keccak(text="LocationPurchased(uint256,address,uint256)")).hex(): (
+                                    (w3.keccak(text="LocationPurchased(uint256,address,uint256)")).hex(): (
                                         contract.events.LocationPurchased,
                                         lambda e: f"Climb #{e.args.locationId} purchased by <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> on EmpowerTours! 🪙"
                                     ),
-                                    (await w3.keccak(text="LocationPurchasedEnhanced(uint256,address,uint256,uint256)")).hex(): (
+                                    (w3.keccak(text="LocationPurchasedEnhanced(uint256,address,uint256,uint256)")).hex(): (
                                         contract.events.LocationPurchasedEnhanced,
                                         lambda e: f"Enhanced climb #{e.args.locationId} purchased by <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> on EmpowerTours! 🪙"
                                     ),
-                                    (await w3.keccak(text="TournamentCreated(uint256,uint256,uint256)")).hex(): (
+                                    (w3.keccak(text="TournamentCreated(uint256,uint256,uint256)")).hex(): (
                                         contract.events.TournamentCreated,
                                         lambda e: f"New tournament #{e.args.tournamentId} created on EmpowerTours! 🏆"
                                     ),
-                                    (await w3.keccak(text="TournamentCreatedEmbedded(uint256,address,uint256,string,uint256,uint256)")).hex(): (
+                                    (w3.keccak(text="TournamentCreatedEmbedded(uint256,address,uint256,string,uint256,uint256)")).hex(): (
                                         contract.events.TournamentCreatedEmbedded,
                                         lambda e: f"New enhanced tournament #{e.args.tournamentId} created by <a href=\"{EXPLORER_URL}/address/{e.args.creator}\">{e.args.creator[:6]}...</a> on EmpowerTours! 🏆"
                                     ),
-                                    (await w3.keccak(text="TournamentJoined(uint256,address)")).hex(): (
+                                    (w3.keccak(text="TournamentJoined(uint256,address)")).hex(): (
                                         contract.events.TournamentJoined,
                                         lambda e: f"Climber <a href=\"{EXPLORER_URL}/address/{e.args.participant}\">{e.args.participant[:6]}...</a> joined tournament #{e.args.tournamentId} on EmpowerTours! 🏆"
                                     ),
-                                    (await w3.keccak(text="TournamentJoinedEnhanced(uint256,address,uint256)")).hex(): (
+                                    (w3.keccak(text="TournamentJoinedEnhanced(uint256,address,uint256)")).hex(): (
                                         contract.events.TournamentJoinedEnhanced,
                                         lambda e: f"Climber <a href=\"{EXPLORER_URL}/address/{e.args.participant}\">{e.args.participant[:6]}...</a> joined enhanced tournament #{e.args.tournamentId} on EmpowerTours! 🏆"
                                     ),
-                                    (await w3.keccak(text="TournamentEnded(uint256,address,uint256)")).hex(): (
+                                    (w3.keccak(text="TournamentEnded(uint256,address,uint256)")).hex(): (
                                         contract.events.TournamentEnded,
                                         lambda e: f"Tournament #{e.args.tournamentId} ended! Winner: <a href=\"{EXPLORER_URL}/address/{e.args.winner}\">{e.args.winner[:6]}...</a> Prize: {e.args.pot / 10**18} $TOURS 🏆"
                                     ),
-                                    (await w3.keccak(text="TournamentEndedEnhanced(uint256,address,uint256,uint256)")).hex(): (
+                                    (w3.keccak(text="TournamentEndedEnhanced(uint256,address,uint256,uint256)")).hex(): (
                                         contract.events.TournamentEndedEnhanced,
                                         lambda e: f"Enhanced tournament #{e.args.tournamentId} ended! Winner: <a href=\"{EXPLORER_URL}/address/{e.args.winner}\">{e.args.winner[:6]}...</a> Prize: {e.args.pot / 10**18} $TOURS 🏆"
                                     ),
-                                    (await w3.keccak(text="FarcasterCastShared(address,uint256,string,string,uint256,uint256)")).hex(): (
+                                    (w3.keccak(text="FarcasterCastShared(address,uint256,string,string,uint256,uint256)")).hex(): (
                                         contract.events.FarcasterCastShared,
                                         lambda e: f"New Farcaster cast shared by <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a> for {e.args.contentType} #{e.args.contentId} on EmpowerTours! 📢"
                                     ),
-                                    (await w3.keccak(text="FarcasterProfileUpdated(address,uint256,string,string,uint256)")).hex(): (
+                                    (w3.keccak(text="FarcasterProfileUpdated(address,uint256,string,string,uint256)")).hex(): (
                                         contract.events.FarcasterProfileUpdated,
                                         lambda e: f"Farcaster profile updated by <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a> on EmpowerTours! 📢"
                                     ),
-                                    (await w3.keccak(text="TokensPurchased(address,uint256,uint256)")).hex(): (contract.events.TokensPurchased,
+                                    (w3.keccak(text="TokensPurchased(address,uint256,uint256)")).hex(): (contract.events.TokensPurchased,
                                         lambda e: f"User <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> bought {e.args.amount / 10**18} $TOURS on EmpowerTours! 🪙"
                                     ),
                                 }
@@ -3106,7 +3106,7 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                                     # New: PM user if wallet matches an event arg
                                     user_address = event.args.get('user') or event.args.get('creator') or event.args.get('author') or event.args.get('buyer') or event.args.get('commenter') or event.args.get('participant') or event.args.get('winner')
                                     if user_address:
-                                        checksum_user_address = await w3.to_checksum_address(user_address)
+                                        checksum_user_address = w3.to_checksum_address(user_address)
                                         if checksum_user_address in reverse_sessions:
                                             user_id = reverse_sessions[checksum_user_address]
                                             user_message = f"Your action succeeded! {message.replace('<a href=', '[Tx: ').replace('</a>', ']')} 🪙 Check details on {EXPLORER_URL}/tx/{receipt.transactionHash.hex()}"
@@ -3428,7 +3428,7 @@ async def submit_wallet(request: Request):
         logger.info(f"Received wallet submission for user {user_id}: {wallet_address}")
         
         # Validate wallet address
-        if not w3 or not await w3.is_address(wallet_address):
+        if not w3 or not w3.is_address(wallet_address):
             logger.error(f"Invalid wallet address or Web3 not initialized: {wallet_address}")
             await application.bot.send_message(user_id, "Invalid wallet address or blockchain unavailable. Try /connectwallet again. 😅")
             logger.info(f"/submit_wallet failed due to invalid address or Web3, took {time.time() - start_time:.2f} seconds")
@@ -3440,7 +3440,7 @@ async def submit_wallet(request: Request):
             logger.warning(f"No pending wallet connection for user {user_id}, proceeding anyway")
         
         try:
-            checksum_address = await w3.to_checksum_address(wallet_address)
+            checksum_address = w3.to_checksum_address(wallet_address)
             await set_session(user_id, checksum_address)
             await application.bot.send_message(
                 user_id,
@@ -3602,11 +3602,11 @@ async def submit_tx(request: Request):
                             'gas': tx['gas']
                         })
                     elif input_data.startswith('0xfe985ae0'):  # createClimbingLocation
-                        name = await w3.to_text(bytes.fromhex(input_data[74:138])).rstrip('\x00')
-                        difficulty = await w3.to_text(bytes.fromhex(input_data[202:234])).rstrip('\x00')
+                        name = w3.to_text(bytes.fromhex(input_data[74:138])).rstrip('\x00')
+                        difficulty = w3.to_text(bytes.fromhex(input_data[202:234])).rstrip('\x00')
                         latitude = int.from_bytes(bytes.fromhex(input_data[138:170]), byteorder='big', signed=True)
                         longitude = int.from_bytes(bytes.fromhex(input_data[170:202]), byteorder='big', signed=True)
-                        photo_hash = await w3.to_text(bytes.fromhex(input_data[266:])).rstrip('\x00')
+                        photo_hash = w3.to_text(bytes.fromhex(input_data[266:])).rstrip('\x00')
                         await contract.functions.createClimbingLocation(name, difficulty, latitude, longitude, photo_hash).call({
                             'from': tx['from'],
                             'gas': tx['gas']
