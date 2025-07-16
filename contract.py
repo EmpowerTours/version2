@@ -1465,17 +1465,14 @@ async def join_tournament_tx(wallet_address, tournament_id, user):
         if not row or time.time() - row[0] > EXPIRY_SECONDS:
             return {'status': 'error', 'message': "Session expired; please reconnect your wallet! 🔄"}
 
-        profile = await contract.functions.profiles(wallet_address).call()
+        profile = contract.functions.profiles(wallet_address).call()
         if not profile[0]:
             return {'status': 'error', 'message': "You need to create a profile first with /createprofile! 🪙"}
         
-        tournament = await contract.functions.tournaments(tournament_id).call()
-        if not tournament[3]:  # Check if isActive
-            return {'status': 'error', 'message': "Tournament not active. Use /tournaments to find active ones! 😅"}
-        
+        tournament = contract.functions.tournaments(tournament_id).call()
         entry_fee = tournament[0]
-        balance = await tours_contract.functions.balanceOf(wallet_address).call()
-        allowance = await tours_contract.functions.allowance(wallet_address, CONTRACT_ADDRESS).call()
+        balance = tours_contract.functions.balanceOf(wallet_address).call()
+        allowance = tours_contract.functions.allowance(wallet_address, CONTRACT_ADDRESS).call()
         if balance < entry_fee:
             return {
                 'status': 'error',
@@ -1515,7 +1512,7 @@ async def join_tournament_tx(wallet_address, tournament_id, user):
             }
         
         try:
-            await w3.eth.call({  # Add await here to actually run the simulation
+            w3.eth.call({
                 'from': wallet_address,
                 'to': CONTRACT_ADDRESS,
                 'data': contract.encodeABI(
@@ -1794,7 +1791,7 @@ async def broadcast_transaction(signed_tx_hex, pending_tx, user, context):
                 tournament_id = contract.functions.getTournamentCount().call() - 1
                 return {
                     'status': 'success',
-                    'message': f"Tournament #{tournament_id} created, {user.first_name}! 🏆 Share this ID with others to join using /jointournament {tournament_id}. <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>",
+                    'message': f"Tournament #{tournament_id} created, {user.first_name}! 🏆 <a href='{explorer_url}'>Tx: {tx_hash.hex()}</a>",
                     'group_message': (
                         f"New tournament #{tournament_id} by {user.username or user.first_name}! 🏆\n"
                         f"Join with /jointournament {tournament_id}\n"
