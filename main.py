@@ -2882,18 +2882,16 @@ async def mypurchases(update: Update, context: ContextTypes.DEFAULT_TYPE):
         wallet_address = w3.to_checksum_address(session["wallet_address"])
         logger.info(f"Fetching purchases for wallet {wallet_address}")
 
-        # Create an async event filter for LocationPurchased events
-        latest_block = await w3.eth.get_block_number()
-        from_block = max(0, latest_block - 10000)  # Limit to recent 10,000 blocks
-        event_filter = contract.events.LocationPurchased.create_filter(
+        # Create an event filter for LocationPurchased events
+        latest_block = await w3.eth.block_number
+        from_block = max(0, latest_block - 10000)  # Limit to recent 10,000 blocks to avoid timeout
+        event_filter = await contract.events.LocationPurchased.create_filter(
             fromBlock=from_block,
-            toBlock='latest',
+            toBlock=latest_block,
             argument_filters={'buyer': wallet_address}
         )
-        # Fetch events asynchronously
         purchase_events = await event_filter.get_all_entries()
         location_ids = [event.args.locationId for event in purchase_events]
-        logger.info(f"Found {len(location_ids)} LocationPurchased events for wallet {wallet_address}")
 
         # Fetch climbing location details asynchronously
         coros = [contract.functions.getClimbingLocation(loc_id).call() for loc_id in location_ids]
