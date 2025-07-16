@@ -1470,6 +1470,9 @@ async def join_tournament_tx(wallet_address, tournament_id, user):
             return {'status': 'error', 'message': "You need to create a profile first with /createprofile! 🪙"}
         
         tournament = contract.functions.tournaments(tournament_id).call()
+        if not tournament[3]:  # Check if isActive
+            return {'status': 'error', 'message': "Tournament not active. Use /tournaments to find active ones! 😅"}
+        
         entry_fee = tournament[0]
         balance = tours_contract.functions.balanceOf(wallet_address).call()
         allowance = tours_contract.functions.allowance(wallet_address, CONTRACT_ADDRESS).call()
