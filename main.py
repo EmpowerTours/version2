@@ -1241,7 +1241,1339 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error in /help for user {update.effective_user.id}: {str(e)}, took {time.time() - start_time:.2f} seconds")
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+
+async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /createprofile command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    if not API_BASE_URL:
+        logger.error("API_BASE_URL missing, /createprofile command disabled")
+        await update.message.reply_text("Profile creation unavailable due to configuration issues. Try again later! 😅")
+        logger.info(f"/createprofile failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
+        return
+    if not w3 or not contract or not tours_contract:
+        logger.error("Web3 or contract not initialized, /createprofile command disabled")
+        await update.message.reply_text("Profile creation unavailable due to blockchain issues. Try again later! 😅")
+        logger.info(f"/createprofile failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        user_id = str(update.effective_user.id)
+        session = await get_session(user_id)
+        wallet_address = session.get("wallet_address") if session else None
+        if not wallet_address:
+            logger.warning(f"No wallet found for user {user_id}")
+            await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
+            logger.info(f"/createprofile failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
+            return
+        logger.info(f"Wallet address for user {user_id}: {wallet_address}")
         
+        # Verify Web3 connection
+        is_connected = await w3.is_connected()
+        if not is_connected:
+            logger.error("Web3 not connected to Monad testnet")
+            await update.message.reply_text("Blockchain connection failed. Try again later or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+            logger.info(f"/createprofile failed due to Web3 connection, took {time.time() - start_time:.2f} seconds")
+            return
+
+        # Ensure checksum address
+        try:
+            checksum_address = w3.to_checksum_address(wallet_address)
+            logger.info(f"Using contract address: {contract.address}")
+        except Exception as e:
+            logger.error(f"Error converting wallet address to checksum: {str(e)}")
+            await update.message.reply_text(f"Invalid wallet address format: {str(e)}. Try /connectwallet again. 😅")
+            logger.info(f"/createprofile failed due to checksum error, took {time.time() - start_time:.2f} seconds")
+            return
+
+        # Check $TOURS balance as primary indicator
+        profile_exists = False
+        try:
+            tours_balance = await tours_contract.functions.balanceOf(checksum_address).call({'gas': 500000})
+            logger.info(f"$TOURS balance for {checksum_address}: {tours_balance / 10**18} $TOURS")
+            if tours_balance > 0:
+                profile_exists = True
+                logger.info(f"Profile assumed to exist due to non-zero $TOURS balance: {tours_balance / 10**18}")
+                await update.message.reply_text(
+                    f"A profile already exists for wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})! Use /balance to check your status or try commands like /journal, /buildaclimb, /buyTours, or /createtournament. Contact support at [EmpowerTours Chat](https://t.me/empowertourschat) if needed. 😅",
+                    parse_mode="Markdown"
+                )
+                logger.info(f"/createprofile failed: profile exists for user {user_id}, wallet {checksum_address}, took {time.time() - start_time:.2f} seconds")
+                return
+        except Exception as e:
+            logger.error(f"Error checking $TOURS balance: {str(e)}")
+
+        # Fallback: Check profile with reduced retries
+        if not profile_exists:
+            max_retries = 3
+            for attempt in range(1, max_retries + 1):
+                try:
+                    profile = await contract.functions.profiles(checksum_address).call({'gas': 500000})
+                    logger.info(f"Profile check attempt {attempt}/{max_retries} for {checksum_address}: {profile}")
+                    if profile[0]:
+                        profile_exists = True
+                        await update.message.reply_text(
+                            f"A profile already exists for wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})! Use /balance to check your status or try commands like /journal, /buildaclimb, /buyTours, or /createtournament. Contact support at [EmpowerTours Chat](https://t.me/empowertourschat) if needed. 😅",
+                            parse_mode="Markdown"
+                        )
+                        logger.info(f"/createprofile failed: profile exists for user {user_id}, wallet {checksum_address}, took {time.time() - start_time:.2f} seconds")
+                        return
+                    break
+                except Exception as e:
+                    logger.error(f"Error checking profile existence (attempt {attempt}/{max_retries}): {str(e)}")
+                    if attempt == max_retries:
+                        logger.warning(f"Profile check failed after {max_retries} attempts")
+                    await asyncio.sleep(3)
+
+        # Check ProfileCreated events
+        if not profile_exists:
+            try:
+                profile_created_event = contract.events.ProfileCreated.create_filter(
+                    fromBlock=0,
+                    argument_filters={'user': checksum_address}
+                )
+                events = await profile_created_event.get_all_entries()
+                if events:
+                    profile_exists = True
+                    logger.info(f"Profile confirmed via ProfileCreated event for {checksum_address}: {len(events)} events found")
+                    await update.message.reply_text(
+                        f"A profile already exists for wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})! Use /balance to check your status or try commands like /journal or /buildaclimb. Contact support at [EmpowerTours Chat](https://t.me/empowertourschat) if needed. 😅",
+                        parse_mode="Markdown"
+                    )
+                    logger.info(f"/createprofile failed: profile exists for user {user_id}, wallet {checksum_address}, took {time.time() - start_time:.2f} seconds")
+                    return
+            except Exception as e:
+                logger.error(f"Error checking ProfileCreated events: {str(e)}")
+
+        # Simulate createProfile as final check
+        if not profile_exists:
+            try:
+                await contract.functions.createProfile().call({
+                    'from': checksum_address,
+                    'value': w3.to_wei(1, 'ether'),
+                    'gas': 500000
+                })
+            except Exception as e:
+                revert_reason = str(e)
+                logger.error(f"createProfile simulation failed: {revert_reason}")
+                if "ProfileExists" in revert_reason:
+                    profile_exists = True
+                    await update.message.reply_text(
+                        f"A profile already exists for wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})! Use /balance to check your status or try commands like /journal or /buildaclimb. Contact support at [EmpowerTours Chat](https://t.me/empowertourschat) if needed. 😅",
+                        parse_mode="Markdown"
+                    )
+                    logger.info(f"/createprofile failed: profile exists for user {user_id}, wallet {checksum_address}, took {time.time() - start_time:.2f} seconds")
+                    return
+
+        # Get profile fee (1 $MON)
+        try:
+            profile_fee = await contract.functions.profileFee().call({'gas': 500000})
+            logger.info(f"Profile fee retrieved: {profile_fee} wei")
+            expected_fee = w3.to_wei(1, 'ether')
+            if profile_fee != expected_fee:
+                logger.warning(f"Profile fee is {profile_fee} wei, expected {expected_fee} wei")
+        except Exception as e:
+            logger.error(f"Error calling profileFee(): {str(e)}")
+            await update.message.reply_text(f"Failed to retrieve profile fee: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+            logger.info(f"/createprofile failed due to profileFee error, took {time.time() - start_time:.2f} seconds")
+            return
+
+        # Check $MON balance
+        try:
+            mon_balance = await w3.eth.get_balance(checksum_address)
+            logger.info(f"$MON balance for {checksum_address}: {mon_balance / 10**18} $MON")
+            if mon_balance < profile_fee + (300000 * await w3.eth.gas_price):
+                await update.message.reply_text(
+                    f"Insufficient $MON balance. You have {mon_balance / 10**18} $MON, need {profile_fee / 10**18} $MON plus gas (~0.015 $MON). Top up at https://testnet.monad.xyz/faucet. 😅"
+                )
+                logger.info(f"/createprofile failed due to insufficient $MON, took {time.time() - start_time:.2f} seconds")
+                return
+        except Exception as e:
+            logger.error(f"Error checking $MON balance: {str(e)}")
+            await update.message.reply_text(f"Failed to check $MON balance: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+            logger.info(f"/createprofile failed due to balance check error, took {time.time() - start_time:.2f} seconds")
+            return
+
+        # Build transaction
+        try:
+            nonce = await w3.eth.get_transaction_count(checksum_address)
+            tx = await contract.functions.createProfile().build_transaction({
+                'from': checksum_address,
+                'value': profile_fee,
+                'nonce': nonce,
+                'gas': 300000,
+                'gas_price': await w3.eth.gas_price
+            })
+            logger.info(f"Transaction built for user {user_id}: {json.dumps(tx, default=str)}")
+            await set_pending_wallet(user_id, {
+                "awaiting_tx": True,
+                "tx_data": tx,
+                "wallet_address": checksum_address,
+                "timestamp": time.time()
+            })
+            await update.message.reply_text(
+                f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} in your browser to sign the transaction for profile creation (1 $MON). You will receive 1 $TOURS upon confirmation. After signing."
+            )
+            logger.info(f"/createprofile transaction built, awaiting signing for user {user_id}, took {time.time() - start_time:.2f} seconds")
+        except Exception as e:
+            logger.error(f"Error building transaction for user {user_id}: {str(e)}")
+            await update.message.reply_text(f"Failed to build transaction: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+            logger.info(f"/createprofile failed due to transaction build error, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Unexpected error in /createprofile for user {user_id}: {str(e)}")
+        await update.message.reply_text(f"Unexpected error: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+        logger.info(f"/createprofile failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
+
+async def journal_entry(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /journal command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    if not API_BASE_URL:
+        logger.error("API_BASE_URL missing, /journal command disabled")
+        await update.message.reply_text("Journal entry unavailable due to configuration issues. Try again later! 😅")
+        logger.info(f"/journal failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
+        return
+    if not w3 or not contract:
+        logger.error("Web3 not initialized, /journal command disabled")
+        await update.message.reply_text("Journal entry unavailable due to blockchain issues. Try again later! 😅")
+        logger.info(f"/journal failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        user_id = str(update.effective_user.id)
+        content = " ".join(context.args)
+        if not content:
+            await update.message.reply_text("Use: /journal [your journal entry] Then photo. 📸")
+            logger.info(f"/journal failed due to missing content, took {time.time() - start_time:.2f} seconds")
+            return
+        await update.message.reply_text(f"Great, {update.effective_user.first_name}! Send photo. 🌟")
+        await set_journal_data(user_id, {"content": content, "awaiting_photo": True, "timestamp": time.time()})
+        logger.info(f"/journal initiated for user {user_id}, awaiting photo, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /journal: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.UPLOAD_PHOTO)
+    start_time = time.time()
+    user_id = str(update.effective_user.id)
+    logger.info(f"Received photo from user {user_id} in chat {update.effective_chat.id}")
+    if not API_BASE_URL:
+        logger.error("API_BASE_URL missing, photo handling disabled")
+        await update.message.reply_text("Photo processing unavailable due to configuration issues. Try again later! 😅")
+        logger.info(f"/handle_photo failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
+        return
+    if not w3 or not contract:
+        logger.error("Web3 not initialized, photo handling disabled")
+        await update.message.reply_text("Photo processing unavailable due to blockchain issues. Try again later! 😅")
+        logger.info(f"/handle_photo failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        photo = update.message.photo[-1]
+        file_id = photo.file_id
+        # Hash the file_id to fixed 32-byte hex (reduces gas/storage) for both journal and climb
+        photo_hash = w3.keccak(text=file_id).hex()  # Now ~66 chars fixed
+        journal = await get_journal_data(user_id)
+        entry_type = 'journal' if journal and journal.get("awaiting_photo") else 'climb'
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO media_files (hash, file_id, user_id, entry_type, entry_id) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (hash) DO NOTHING",
+                photo_hash, file_id, user_id, entry_type, None
+            )
+        if journal and journal.get("awaiting_photo"):
+            journal["photo_hash"] = photo_hash
+            journal["awaiting_location"] = True
+            del journal["awaiting_photo"]
+            await set_journal_data(user_id, journal)
+            await update.message.reply_text("Photo received (hashed for efficiency)! Now send the location using the paperclip icon > Location.")
+            logger.info(f"/handle_photo processed for journal, awaiting location for user {user_id}, took {time.time() - start_time:.2f} seconds")
+        elif 'pending_climb' in context.user_data:
+            pending_climb = context.user_data['pending_climb']
+            if pending_climb['user_id'] != user_id:
+                await update.message.reply_text("Pending climb belongs to another user. Start with /buildaclimb. 😅")
+                logger.info(f"/handle_photo failed: user mismatch for user {user_id}, took {time.time() - start_time:.2f} seconds")
+                return
+            pending_climb['photo_hash'] = photo_hash
+            await update.message.reply_text(
+                "Photo received (hashed for efficiency)! 📸 Please share the location of the climb (latitude, longitude).",
+                reply_markup=ReplyKeyboardMarkup([[KeyboardButton("Share Location", request_location=True)]], one_time_keyboard=True)
+            )
+            logger.info(f"/handle_photo processed for climb, awaiting location for user {user_id}, took {time.time() - start_time:.2f} seconds")
+        else:
+            await update.message.reply_text("No climb or journal creation in progress. Start with /buildaclimb or /journal. 😅")
+            logger.info(f"/handle_photo failed: no pending climb or journal for user {user_id}, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /handle_photo for user {user_id}: {str(e)}")
+        await update.message.reply_text(f"Error processing photo: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+        logger.info(f"/handle_photo failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
+
+async def add_comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /comment command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    if not API_BASE_URL:
+        logger.error("API_BASE_URL missing, /comment command disabled")
+        await update.message.reply_text("Commenting unavailable due to configuration issues. Try again later! 😅")
+        logger.info(f"/comment failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
+        return
+    if not w3 or not contract:
+        logger.error("Web3 not initialized, /comment command disabled")
+        await update.message.reply_text("Commenting unavailable due to blockchain issues. Try again later! 😅")
+        logger.info(f"/comment failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        user_id = str(update.effective_user.id)
+        args = context.args
+        if len(args) < 2:
+            await update.message.reply_text("Use: /comment [id] [your comment] (0.1 $MON) 🗣️")
+            logger.info(f"/comment failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
+            return
+        entry_id = int(args[0])
+        content = " ".join(args[1:])
+        session = await get_session(user_id)
+        wallet_address = session.get("wallet_address") if session else None
+        if not wallet_address:
+            await update.message.reply_text("Use /connectwallet! 🪙")
+            logger.info(f"/comment failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
+            return
+        checksum_address = w3.to_checksum_address(wallet_address)
+        comment_fee = await contract.functions.commentFee().call()
+        nonce = await w3.eth.get_transaction_count(checksum_address)
+        tx = await contract.functions.addComment(entry_id, content).build_transaction({
+            'from': checksum_address,
+            'value': comment_fee,
+            'nonce': nonce,
+            'gas': 200000,
+            'gas_price': await w3.eth.gas_price
+        })
+        await update.message.reply_text(
+            f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for comment (0.1 $MON) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
+            parse_mode="Markdown"
+        )
+        await set_pending_wallet(user_id, {
+            "awaiting_tx": True,
+            "tx_data": tx,
+            "wallet_address": checksum_address,
+            "timestamp": time.time()
+        })
+        logger.info(f"/comment transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /comment: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+
+async def journals(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /journals command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    if not w3 or not contract:
+        await update.message.reply_text("Blockchain connection unavailable. Try again later! 😅")
+        logger.info(f"/journals failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        global journal_cache, cache_timestamp
+        current_time = time.time()
+        if journal_cache and current_time - cache_timestamp < CACHE_TTL:
+            entry_list = journal_cache
+        else:
+            entry_count = await contract.functions.getJournalEntryCount().call({'gas': 500000})
+            logger.info(f"Journal entry count: {entry_count}")
+            if entry_count == 0:
+                await update.message.reply_text("No journal entries found. Create one with /journal! 📝")
+                logger.info(f"/journals found no entries, took {time.time() - start_time:.2f} seconds")
+                return
+            coros = [contract.functions.getJournalEntry(i).call({'gas': 500000}) for i in range(entry_count)]
+            entries = await asyncio.gather(*coros, return_exceptions=True)
+            entry_list = []
+            for i, entry in enumerate(entries):
+                if isinstance(entry, Exception):
+                    logger.error(f"Error retrieving journal {i}: {str(entry)}")
+                    continue
+                content = entry[1]
+                has_photo = False
+                if ' (photo: ' in content:
+                    has_photo = True
+                    content = content.rsplit(' (photo: ', 1)[0]
+                entry_list.append(
+                    f"📝 Entry #{i} by [{entry[0][:6]}...]({EXPLORER_URL}/address/{entry[0]})\n"
+                    f"   Content: {content}{' (has photo)' if has_photo else ''}\n"
+                    f"   Location: {entry[5]}\n"
+                    f"   Difficulty: {entry[6]}\n"
+                    f"   Created: {datetime.fromtimestamp(entry[2]).strftime('%Y-%m-%d %H:%M:%S')}"
+                )
+            journal_cache = entry_list
+            cache_timestamp = current_time
+        if not entry_list:
+            await update.message.reply_text("No journal entries found. Create one with /journal! 📝")
+        else:
+            await update.message.reply_text("\n\n".join(entry_list), parse_mode="Markdown")
+        logger.info(f"/journals retrieved {len(entry_list)} entries, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Unexpected error in /journals: {str(e)}")
+        await update.message.reply_text(f"Error retrieving journals: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+        logger.info(f"/journals failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
+
+async def viewjournal(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /viewjournal command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    if not w3 or not contract:
+        await update.message.reply_text("Blockchain connection unavailable. Try again later! 😅")
+        logger.info(f"/viewjournal failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        args = context.args
+        if len(args) < 1:
+            await update.message.reply_text("Use: /viewjournal [id] 📝")
+            logger.info(f"/viewjournal failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
+            return
+        entry_id = int(args[0])
+        entry = await contract.functions.getJournalEntry(entry_id).call({'gas': 500000})
+        content = entry[1]
+        photo_hash = None
+        if ' (photo: ' in content:
+            photo_hash = content.split(' (photo: ')[-1].rstrip(')')
+            content = content.split(' (photo: ')[0]
+        message = (
+            f"📝 Journal Entry #{entry_id} by [{entry[0][:6]}...]({EXPLORER_URL}/address/{entry[0]})\n"
+            f"Content: {content}\n"
+            f"Location: {entry[5]}\n"
+            f"Difficulty: {entry[6]}\n"
+            f"Created: {datetime.fromtimestamp(entry[2]).strftime('%Y-%m-%d %H:%M:%S')}\n"
+        )
+        await update.message.reply_text(message, parse_mode="Markdown")
+        if photo_hash:
+            async with pool.acquire() as conn:
+                row = await conn.fetchrow("SELECT file_id FROM media_files WHERE hash = $1", photo_hash)
+            if row:
+                await context.bot.send_photo(chat_id=update.effective_chat.id, photo=row['file_id'], caption="Photo for this journal entry")
+            else:
+                await update.message.reply_text("Photo not found in database.")
+        comment_count = await contract.functions.getCommentCount(entry_id).call({'gas': 500000})
+        coros = [contract.functions.journalComments(entry_id, j).call({'gas': 500000}) for j in range(comment_count)]
+        comments_data = await asyncio.gather(*coros, return_exceptions=True)
+        comments = []
+        for j, comment in enumerate(comments_data):
+            if isinstance(comment, Exception):
+                logger.error(f"Error retrieving comment {j} for entry {entry_id}: {str(comment)}")
+                continue
+            comments.append(
+                f"   - Comment by [{comment[0][:6]}...]: {comment[1]} ({datetime.fromtimestamp(comment[2]).strftime('%Y-%m-%d %H:%M:%S')})"
+            )
+        if comments:
+            await update.message.reply_text(f"Comments ({comment_count}):\n" + "\n".join(comments), parse_mode="Markdown")
+        logger.info(f"/viewjournal details for {entry_id}, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /viewjournal: {str(e)}")
+        await update.message.reply_text(f"Error retrieving entry: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+        logger.info(f"/viewjournal failed due to error, took {time.time() - start_time:.2f} seconds")
+
+async def viewclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /viewclimb command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    if not w3 or not contract:
+        await update.message.reply_text("Blockchain connection unavailable. Try again later! 😅")
+        logger.info(f"/viewclimb failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        if not context.args:
+            await update.message.reply_text("Usage: /viewclimb <id>")
+            logger.info(f"/viewclimb failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
+            return
+        loc_id = int(context.args[0])
+        location = await contract.functions.getClimbingLocation(loc_id).call({'gas': 500000})
+        if not location[1]:
+            await update.message.reply_text("Climb not found.")
+            logger.info(f"/viewclimb failed: climb not found, took {time.time() - start_time:.2f} seconds")
+            return
+        photo_hash = location[5]
+        has_photo = photo_hash != ''
+        message = f"🧗 Climb ID: {loc_id} - {location[1]} ({location[2]}) by [{location[0][:6]}...]({EXPLORER_URL}/address/{location[0]})\n   Location: {location[3]/1000000:.6f}, {location[4]/1000000:.6f}\n   Map: https://www.google.com/maps?q={location[3]/1000000:.6f},{location[4]/1000000:.6f}\n   Photo: {'Yes' if has_photo else 'No'}\n   Purchases: {location[10]}\n   Created: {datetime.fromtimestamp(location[6]).strftime('%Y-%m-%d %H:%M:%S')}"
+        await update.message.reply_text(message, parse_mode="Markdown")
+        if has_photo:
+            async with pool.acquire() as conn:
+                row = await conn.fetchrow("SELECT file_id FROM media_files WHERE hash = $1", photo_hash)
+            if row:
+                await context.bot.send_photo(chat_id=update.effective_chat.id, photo=row['file_id'], caption="Photo for this climb")
+            else:
+                await update.message.reply_text("Photo not found in database.")
+        logger.info(f"/viewclimb details for {loc_id}, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /viewclimb: {str(e)}")
+        await update.message.reply_text(f"Error retrieving climb: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+        logger.info(f"/viewclimb failed due to error, took {time.time() - start_time:.2f} seconds")
+
+async def buildaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /buildaclimb command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    if not API_BASE_URL:
+        logger.error("API_BASE_URL missing, /buildaclimb command disabled")
+        await update.message.reply_text("Climb creation unavailable due to configuration issues. Try again later! 😅")
+        logger.info(f"/buildaclimb failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
+        return
+    if not w3 or not contract or not tours_contract:
+        logger.error("Web3 or contract not initialized, /buildaclimb command disabled")
+        await update.message.reply_text("Climb creation unavailable due to blockchain issues. Try again later! 😅")
+        logger.info(f"/buildaclimb failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        user_id = str(update.effective_user.id)
+        args = context.args
+        if len(args) < 2:
+            await update.message.reply_text("Use: /buildaclimb [name] [difficulty] 🪨 (e.g., /buildaclimb TestClimb Easy)")
+            logger.info(f"/buildaclimb failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
+            return
+        name = args[0]
+        difficulty = args[1]
+        if len(name) > 32 or len(difficulty) > 16:
+            await update.message.reply_text("Name (max 32 chars) or difficulty (max 16 chars) too long. Try again! 😅")
+            logger.info(f"/buildaclimb failed due to invalid name or difficulty length, took {time.time() - start_time:.2f} seconds")
+            return
+        session = await get_session(user_id)
+        wallet_address = session.get("wallet_address") if session else None
+        if not wallet_address:
+            await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
+            logger.info(f"/buildaclimb failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
+            return
+        logger.info(f"Wallet address for user {user_id}: {wallet_address}")
+
+        # Verify Web3 connection
+        is_connected = await w3.is_connected()
+        if not is_connected:
+            logger.error("Web3 not connected to Monad testnet")
+            await update.message.reply_text("Blockchain connection failed. Try again later or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+            logger.info(f"/buildaclimb failed due to Web3 connection, took {time.time() - start_time:.2f} seconds")
+            return
+
+        # Ensure checksum address
+        try:
+            checksum_address = w3.to_checksum_address(wallet_address)
+            logger.info(f"Using contract address: {contract.address}")
+        except Exception as e:
+            logger.error(f"Error converting wallet address to checksum: {str(e)}")
+            await update.message.reply_text(f"Invalid wallet address format: {str(e)}. Try /connectwallet again. 😅")
+            logger.info(f"/buildaclimb failed due to checksum error, took {time.time() - start_time:.2f} seconds")
+            return
+
+        # Check profile existence with $TOURS balance first
+        profile_exists = False
+        try:
+            tours_balance = await tours_contract.functions.balanceOf(checksum_address).call({'gas': 500000})
+            logger.info(f"$TOURS balance for {checksum_address}: {tours_balance / 10**18} $TOURS")
+            if tours_balance > 0:
+                profile_exists = True
+                logger.info(f"Profile assumed to exist due to non-zero $TOURS balance: {tours_balance / 10**18}")
+        except Exception as e:
+            logger.error(f"Error checking $TOURS balance: {str(e)}")
+
+        # Fallback: Check profile with reduced retries
+        if not profile_exists:
+            max_retries = 3
+            for attempt in range(1, max_retries + 1):
+                try:
+                    profile = await contract.functions.profiles(checksum_address).call({'gas': 500000})
+                    logger.info(f"Profile check attempt {attempt}/{max_retries} for {checksum_address}: {profile}")
+                    if profile[0]:
+                        profile_exists = True
+                        break
+                except Exception as e:
+                    logger.error(f"Error checking profile existence (attempt {attempt}/{max_retries}): {str(e)}")
+                    if attempt == max_retries:
+                        logger.warning(f"Profile check failed after {max_retries} attempts")
+                    await asyncio.sleep(3)
+
+        # Check ProfileCreated events
+        if not profile_exists:
+            try:
+                profile_created_event = contract.events.ProfileCreated.create_filter(
+                    fromBlock=0,
+                    argument_filters={'user': checksum_address}
+                )
+                events = await profile_created_event.get_all_entries()
+                if events:
+                    profile_exists = True
+                    logger.info(f"Profile confirmed via ProfileCreated event for {checksum_address}: {len(events)} events found")
+            except Exception as e:
+                logger.error(f"Error checking ProfileCreated events: {str(e)}")
+
+        if not profile_exists:
+            await update.message.reply_text(
+                f"No profile exists for wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})! Use /createprofile to create a profile before building a climb. Contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅",
+                parse_mode="Markdown"
+            )
+            logger.info(f"/buildaclimb failed: no profile for user {user_id}, wallet {checksum_address}, took {time.time() - start_time:.2f} seconds")
+            return
+
+        # Check for duplicate climb name
+        try:
+            location_count = await contract.functions.getClimbingLocationCount().call({'gas': 500000})
+            coros = [contract.functions.climbingLocations(i).call({'gas': 500000}) for i in range(location_count)]
+            locations = await asyncio.gather(*coros, return_exceptions=True)
+            for location in locations:
+                if isinstance(location, Exception):
+                    continue
+                if location[1].lower() == name.lower():
+                    await update.message.reply_text(
+                        f"Climb name '{name}' already exists. Choose a unique name (e.g., {name}2025). 😅"
+                    )
+                    logger.info(f"/buildaclimb failed: duplicate name {name}, took {time.time() - start_time:.2f} seconds")
+                    return
+        except Exception as e:
+            logger.error(f"Error checking existing climbs: {str(e)}")
+
+        # Store pending climb request
+        context.user_data['pending_climb'] = {
+            'name': name,
+            'difficulty': difficulty,
+            'user_id': user_id,
+            'wallet_address': checksum_address,
+            'timestamp': time.time()
+        }
+        await update.message.reply_text(
+            f"Please send a photo for the climb '{name}' ({difficulty}). 📸"
+        )
+        logger.info(f"/buildaclimb initiated for user {user_id}, awaiting photo, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Unexpected error in /buildaclimb for user {user_id}: {str(e)}")
+        await update.message.reply_text(f"Unexpected error: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+        logger.info(f"/buildaclimb failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
+
+async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.FIND_LOCATION)
+    start_time = time.time()
+    logger.info(f"Received location from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    if not update.message.location:
+        logger.info(f"No location in message, ignoring, took {time.time() - start_time:.2f} seconds")
+        await update.message.reply_text("No location received. Please share a valid location. 😅")
+        return
+    if not API_BASE_URL:
+        logger.error("API_BASE_URL missing, location handling disabled")
+        await update.message.reply_text("Location processing unavailable due to configuration issues. Try again later! 😅")
+        logger.info(f"/handle_location failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
+        return
+    if not w3 or not contract or not tours_contract:
+        logger.error("Web3 not initialized, location handling disabled")
+        await update.message.reply_text("Location processing unavailable due to blockchain issues. Try again later! 😅")
+        logger.info(f"/handle_location failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        user_id = str(update.effective_user.id)
+        journal = await get_journal_data(user_id)
+        if journal and journal.get("awaiting_location"):
+            latitude = update.message.location.latitude
+            longitude = update.message.location.longitude
+            location_str = f"{latitude},{longitude}"
+            content_hash = journal["content"]
+            if "photo_hash" in journal:
+                content_hash += f" (photo: {journal['photo_hash']})"
+            difficulty = ''  # Empty as not provided
+            is_shared = False
+            cast_hash = ''
+            session = await get_session(user_id)
+            wallet_address = session.get("wallet_address") if session else None
+            if not wallet_address:
+                await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
+                logger.info(f"/handle_location failed due to missing wallet for journal, took {time.time() - start_time:.2f} seconds")
+                return
+            checksum_address = w3.to_checksum_address(wallet_address)
+            # Check profile existence
+            profile_exists = False
+            try:
+                tours_balance = await tours_contract.functions.balanceOf(checksum_address).call({'gas': 500000})
+                if tours_balance > 0:
+                    profile_exists = True
+            except Exception as e:
+                logger.error(f"Error checking profile for journal: {str(e)}")
+            if not profile_exists:
+                await update.message.reply_text(
+                    f"No profile exists for wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})! Use /createprofile first. 😅",
+                    parse_mode="Markdown"
+                )
+                logger.info(f"/handle_location failed: no profile for journal, took {time.time() - start_time:.2f} seconds")
+                return
+            # Check $TOURS balance and allowance
+            try:
+                journal_cost = await contract.functions.journalReward().call({'gas': 500000})
+                tours_balance = await tours_contract.functions.balanceOf(checksum_address).call({'gas': 500000})
+                if tours_balance < journal_cost:
+                    await update.message.reply_text(
+                        f"Insufficient $TOURS. Need {journal_cost / 10**18} $TOURS, you have {tours_balance / 10**18}. Buy more with /buyTours! 😅"
+                    )
+                    logger.info(f"/handle_location failed: insufficient $TOURS for journal, took {time.time() - start_time:.2f} seconds")
+                    return
+                allowance = await tours_contract.functions.allowance(checksum_address, contract.address).call({'gas': 500000})
+                if allowance < journal_cost:
+                    nonce = await w3.eth.get_transaction_count(checksum_address)
+                    approve_tx = await tours_contract.functions.approve(contract.address, journal_cost).build_transaction({
+                        'chainId': 10143,
+                        'from': checksum_address,
+                        'nonce': nonce,
+                        'gas': 100000,
+                        'gas_price': await w3.eth.gas_price
+                    })
+                    await set_pending_wallet(user_id, {
+                        "awaiting_tx": True,
+                        "tx_data": approve_tx,
+                        "wallet_address": checksum_address,
+                        "timestamp": time.time(),
+                        "next_tx": {
+                            "type": "add_journal_entry",
+                            "content_hash": content_hash,
+                            "location": location_str,
+                            "difficulty": difficulty,
+                            "is_shared": is_shared,
+                            "cast_hash": cast_hash
+                        },
+                        "entry_type": "journal",
+                        "photo_hash": journal.get("photo_hash")
+                    })
+                    await update.message.reply_text(
+                        f"Please open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to approve {journal_cost / 10**18} $TOURS for journal entry."
+                    )
+                    logger.info(f"/handle_location initiated approval for journal, took {time.time() - start_time:.2f} seconds")
+                    return
+            except Exception as e:
+                logger.error(f"Error checking $TOURS for journal: {str(e)}")
+                await update.message.reply_text(f"Failed to check $TOURS for journal: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+                logger.info(f"/handle_location failed due to $TOURS check for journal, took {time.time() - start_time:.2f} seconds")
+                return
+
+            # Build transaction for journal
+            try:
+                nonce = await w3.eth.get_transaction_count(checksum_address)
+                tx = await contract.functions.addJournalEntryWithDetails(content_hash, location_str, difficulty, is_shared, cast_hash).build_transaction({
+                    'chainId': 10143,
+                    'from': checksum_address,
+                    'nonce': nonce,
+                    'gas': 500000,  # Increased gas limit
+                    'gas_price': await w3.eth.gas_price
+                })
+                await set_pending_wallet(user_id, {
+                    "awaiting_tx": True,
+                    "tx_data": tx,
+                    "wallet_address": checksum_address,
+                    "timestamp": time.time(),
+                    "entry_type": "journal",
+                    "photo_hash": journal.get("photo_hash")
+                })
+                await update.message.reply_text(
+                    f"Please open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for journal entry using 5 $TOURS."
+                )
+                await delete_journal_data(user_id)
+                logger.info(f"/handle_location processed for journal, transaction built, took {time.time() - start_time:.2f} seconds")
+                return
+            except Exception as e:
+                logger.error(f"Error building journal transaction: {str(e)}")
+                await update.message.reply_text(f"Failed to build journal transaction: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+                logger.info(f"/handle_location failed due to journal tx build, took {time.time() - start_time:.2f} seconds")
+                return
+        elif 'pending_climb' in context.user_data:
+            # Existing climb logic
+            pending_climb = context.user_data['pending_climb']
+            if pending_climb['user_id'] != user_id:
+                await update.message.reply_text("Pending climb belongs to another user. Start with /buildaclimb. 😅")
+                logger.info(f"/handle_location failed: user mismatch for user {user_id}, took {time.time() - start_time:.2f} seconds")
+                return
+            latitude = int(update.message.location.latitude * 10**6)
+            longitude = int(update.message.location.longitude * 10**6)
+            if not (-90 * 10**6 <= latitude <= 90 * 10**6 and -180 * 10**6 <= longitude <= 180 * 10**6):
+                await update.message.reply_text("Invalid coordinates. Latitude must be -90 to 90, longitude -180 to 180. Try again! 😅")
+                logger.info(f"/handle_location failed: invalid coordinates for user {user_id}, took {time.time() - start_time:.2f} seconds")
+                return
+            checksum_address = pending_climb['wallet_address']
+            name = pending_climb['name']
+            difficulty = pending_climb['difficulty']
+            photo_hash = pending_climb.get('photo_hash', '')
+
+            # Check $TOURS balance and allowance
+            try:
+                location_cost = await contract.functions.locationCreationCost().call({'gas': 500000})
+                tours_balance = await tours_contract.functions.balanceOf(checksum_address).call({'gas': 500000})
+                logger.info(f"$TOURS balance for {checksum_address}: {tours_balance / 10**18} $TOURS")
+                if tours_balance < location_cost:
+                    await update.message.reply_text(
+                        f"Insufficient $TOURS. Need {location_cost / 10**18} $TOURS, you have {tours_balance / 10**18}. Buy more with /buyTours! 😅"
+                    )
+                    logger.info(f"/handle_location failed: insufficient $TOURS for user {user_id}, took {time.time() - start_time:.2f} seconds")
+                    return
+                allowance = await tours_contract.functions.allowance(checksum_address, contract.address).call({'gas': 500000})
+                logger.info(f"$TOURS allowance for {checksum_address}: {allowance / 10**18} $TOURS")
+                if allowance < location_cost:
+                    nonce = await w3.eth.get_transaction_count(checksum_address)
+                    approve_tx = await tours_contract.functions.approve(contract.address, location_cost).build_transaction({
+                        'chainId': 10143,
+                        'from': checksum_address,
+                        'nonce': nonce,
+                        'gas': 100000,
+                        'gas_price': await w3.eth.gas_price
+                    })
+                    await set_pending_wallet(user_id, {
+                        "awaiting_tx": True,
+                        "tx_data": approve_tx,
+                        "wallet_address": checksum_address,
+                        "timestamp": time.time(),
+                        "next_tx": {
+                            "type": "create_climbing_location",
+                            "name": name,
+                            "difficulty": difficulty,
+                            "latitude": latitude,
+                            "longitude": longitude,
+                            "photo_hash": photo_hash
+                        },
+                        "entry_type": "climb",
+                        "photo_hash": photo_hash
+                    })
+                    await update.message.reply_text(
+                        f"Please open https://version1-production.up.railway.app/public/connect.html?userId={user_id} in MetaMask’s browser to approve {location_cost / 10**18} $TOURS for climb creation."
+                    )
+                    logger.info(f"/handle_location initiated approval for user {user_id}, took {time.time() - start_time:.2f} seconds")
+                    return
+            except Exception as e:
+                logger.error(f"Error checking $TOURS balance or allowance: {str(e)}")
+                await update.message.reply_text(f"Failed to check $TOURS balance or allowance: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+                logger.info(f"/handle_location failed due to balance/allowance error, took {time.time() - start_time:.2f} seconds")
+                return
+
+            # Simulate createClimbingLocation
+            try:
+                await contract.functions.createClimbingLocation(name, difficulty, latitude, longitude, photo_hash).call({
+                    'from': checksum_address,
+                    'gas': 500000
+                })
+            except Exception as e:
+                revert_reason = str(e)
+                logger.error(f"createClimbingLocation simulation failed: {revert_reason}")
+                await update.message.reply_text(
+                    f"Transaction simulation failed: {revert_reason}. Check parameters (name, difficulty, coordinates) or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅",
+                    parse_mode="Markdown"
+                )
+                logger.info(f"/handle_location failed due to simulation error, took {time.time() - start_time:.2f} seconds")
+                return
+
+            # Build transaction with increased gas
+            try:
+                nonce = await w3.eth.get_transaction_count(checksum_address)
+                tx = await contract.functions.createClimbingLocation(name, difficulty, latitude, longitude, photo_hash).build_transaction({
+                    'chainId': 10143,
+                    'from': checksum_address,
+                    'nonce': nonce,
+                    'gas': 500000,  # Increased gas limit
+                    'gas_price': await w3.eth.gas_price
+                })
+                logger.info(f"Transaction built for user {user_id}: {json.dumps(tx, default=str)}")
+                await set_pending_wallet(user_id, {
+                    "awaiting_tx": True,
+                    "tx_data": tx,
+                    "wallet_address": checksum_address,
+                    "timestamp": time.time(),
+                    "name": name,
+                    "difficulty": difficulty,
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "photo_hash": photo_hash,
+                    "entry_type": "climb",
+                    "photo_hash": photo_hash
+                })
+                await update.message.reply_text(
+                    f"Please open https://version1-production.up.railway.app/public/connect.html?userId={user_id} in MetaMask’s browser to sign the transaction for climb '{name}' ({difficulty}) using 10 $TOURS."
+                )
+                logger.info(f"/handle_location processed, transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
+            except Exception as e:
+                logger.error(f"Error building transaction for user {user_id}: {str(e)}")
+                await update.message.reply_text(f"Failed to build transaction: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+                logger.info(f"/handle_location failed due to transaction build error, took {time.time() - start_time:.2f} seconds")
+        else:
+            await update.message.reply_text("No climb or journal creation in progress. Start with /buildaclimb or /journal. 😅")
+            logger.info(f"/handle_location failed: no pending climb or journal for user {user_id}, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Unexpected error in /handle_location for user {user_id}: {str(e)}")
+        await update.message.reply_text(f"Unexpected error: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+        logger.info(f"/handle_location failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
+
+async def purchase_climb(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /purchaseclimb command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    if not API_BASE_URL:
+        logger.error("API_BASE_URL missing, /purchaseclimb command disabled")
+        await update.message.reply_text("Climb purchase unavailable due to configuration issues. Try again later! 😅")
+        logger.info(f"/purchaseclimb failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
+        return
+    if not w3 or not contract or not tours_contract:
+        logger.error("Web3 not initialized, /purchaseclimb command disabled")
+        await update.message.reply_text("Climb purchase unavailable due to blockchain issues. Try again later! 😅")
+        logger.info(f"/purchaseclimb failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        user_id = str(update.effective_user.id)
+        args = context.args
+        if len(args) < 1:
+            await update.message.reply_text("Use: /purchaseclimb [id] 🪙")
+            logger.info(f"/purchaseclimb failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
+            return
+        location_id = int(args[0])
+        session = await get_session(user_id)
+        wallet_address = session.get("wallet_address") if session else None
+        if not wallet_address:
+            await update.message.reply_text("Use /connectwallet! 🪙")
+            logger.info(f"/purchaseclimb failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
+            return
+        checksum_address = w3.to_checksum_address(wallet_address)
+        # Get cost (assume locationCreationCost is the purchase cost too)
+        purchase_cost = await contract.functions.locationCreationCost().call({'gas': 500000})
+        # Check $TOURS balance
+        tours_balance = await tours_contract.functions.balanceOf(checksum_address).call({'gas': 500000})
+        if tours_balance < purchase_cost:
+            await update.message.reply_text(
+                f"Insufficient $TOURS. Need {purchase_cost / 10**18} $TOURS, you have {tours_balance / 10**18}. Buy more with /buyTours! 😅"
+            )
+            logger.info(f"/purchaseclimb failed: insufficient $TOURS for user {user_id}, took {time.time() - start_time:.2f} seconds")
+            return
+        # Check allowance
+        allowance = await tours_contract.functions.allowance(checksum_address, contract.address).call({'gas': 500000})
+        if allowance < purchase_cost:
+            nonce = await w3.eth.get_transaction_count(checksum_address)
+            approve_tx = await tours_contract.functions.approve(contract.address, purchase_cost).build_transaction({
+                'from': checksum_address,
+                'nonce': nonce,
+                'gas': 100000,
+                'gas_price': await w3.eth.gas_price
+            })
+            await set_pending_wallet(user_id, {
+                "awaiting_tx": True,
+                "tx_data": approve_tx,
+                "wallet_address": checksum_address,
+                "timestamp": time.time(),
+                "next_tx": {
+                    "type": "purchase_climbing_location",
+                    "location_id": location_id
+                }
+            })
+            await update.message.reply_text(
+                f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to approve {purchase_cost / 10**18} $TOURS for climb purchase using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})). After approval, you'll sign the purchase transaction.",
+                parse_mode="Markdown"
+            )
+            logger.info(f"/purchaseclimb initiated approval for user {user_id}, took {time.time() - start_time:.2f} seconds")
+            return
+        # If allowance OK, build purchase tx
+        nonce = await w3.eth.get_transaction_count(checksum_address)
+        tx = await contract.functions.purchaseClimbingLocation(location_id).build_transaction({
+            'from': checksum_address,
+            'nonce': nonce,
+            'gas': 200000,
+            'gas_price': await w3.eth.gas_price,
+            'value': 0
+        })
+        await update.message.reply_text(
+            f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for climb purchase (10 $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
+            parse_mode="Markdown"
+        )
+        await set_pending_wallet(user_id, {
+            "awaiting_tx": True,
+            "tx_data": tx,
+            "wallet_address": checksum_address,
+            "timestamp": time.time()
+        })
+        logger.info(f"/purchaseclimb transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /purchaseclimb: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+
+async def findaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /findaclimb command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    if not w3 or not contract:
+        await update.message.reply_text("Blockchain connection unavailable. Try again later! 😅")
+        logger.info(f"/findaclimb failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        global climb_cache, cache_timestamp
+        current_time = time.time()
+        if climb_cache and current_time - cache_timestamp < CACHE_TTL:
+            tour_list = climb_cache
+        else:
+            location_count = await contract.functions.getClimbingLocationCount().call({'gas': 500000})
+            logger.info(f"Climbing location count: {location_count}")
+            if location_count == 0:
+                try:
+                    events = await contract.events.ClimbingLocationCreated.create_filter(
+                        fromBlock=0,
+                        argument_filters={'creator': None}
+                    ).get_all_entries()
+                    logger.info(f"Found {len(events)} ClimbingLocationCreated events")
+                    if events:
+                        await update.message.reply_text(
+                            f"No climbs found in mapping, but {len(events)} climbs detected via events. Contact support at [EmpowerTours Chat](https://t.me/empowertourschat) to resolve storage issue. 😅",
+                            parse_mode="Markdown"
+                        )
+                        logger.info(f"/findaclimb found events but no climbs in mapping, took {time.time() - start_time:.2f} seconds")
+                        return
+                except Exception as e:
+                    logger.error(f"Error checking ClimbingLocationCreated events: {str(e)}")
+                await update.message.reply_text("No climbs found. Create one with /buildaclimb! 🪨")
+                logger.info(f"/findaclimb found no climbs, took {time.time() - start_time:.2f} seconds")
+                return
+            coros = [contract.functions.climbingLocations(i).call({'gas': 500000}) for i in range(location_count)]
+            locations = await asyncio.gather(*coros, return_exceptions=True)
+            tour_list = []
+            for i, location in enumerate(locations):
+                if isinstance(location, Exception):
+                    logger.error(f"Error retrieving climb {i}: {str(location)}")
+                    continue
+                photo_info = " (has photo)" if location[5] else ""
+                tour_list.append(
+                    f"🧗 Climb ID: {i} - {location[1]}{photo_info} ({location[2]}) by [{location[0][:6]}...]({EXPLORER_URL}/address/{location[0]})\n"
+                    f"   Location: {location[3]/1000000:.6f},{location[4]/1000000:.6f}\n"
+                    f"   Map: https://www.google.com/maps?q={location[3]/1000000:.6f},{location[4]/1000000:.6f}\n"
+                    f"   Created: {datetime.fromtimestamp(location[6]).strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    f"   Purchases: {location[10]}"
+                )
+            climb_cache = tour_list
+            cache_timestamp = current_time
+        if not tour_list:
+            await update.message.reply_text("No climbs found. Create one with /buildaclimb! 🪨")
+        else:
+            await update.message.reply_text("\n\n".join(tour_list), parse_mode="Markdown")
+        logger.info(f"/findaclimb retrieved {len(tour_list)} climbs, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Unexpected error in /findaclimb: {str(e)}")
+        await update.message.reply_text(f"Error retrieving climbs: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+        logger.info(f"/findaclimb failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
+
+async def createtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /createtournament command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    if not API_BASE_URL:
+        logger.error("API_BASE_URL missing, /createtournament command disabled")
+        await update.message.reply_text("Tournament creation unavailable due to configuration issues. Try again later! 😅")
+        logger.info(f"/createtournament failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
+        return
+    if not w3 or not contract:
+        logger.error("Web3 not initialized, /createtournament command disabled")
+        await update.message.reply_text("Tournament creation unavailable due to blockchain issues. Try again later! 😅")
+        logger.info(f"/createtournament failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        user_id = str(update.effective_user.id)
+        args = context.args
+        if len(args) < 1:
+            await update.message.reply_text("Use: /createtournament [fee] 🏆")
+            logger.info(f"/createtournament failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
+            return
+        entry_fee = int(float(args[0]) * 10**18)
+        session = await get_session(user_id)
+        wallet_address = session.get("wallet_address") if session else None
+        if not wallet_address:
+            await update.message.reply_text("Use /connectwallet! 🪙")
+            logger.info(f"/createtournament failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
+            return
+        checksum_address = w3.to_checksum_address(wallet_address)
+        nonce = await w3.eth.get_transaction_count(checksum_address)
+        tx = await contract.functions.createTournament(entry_fee).build_transaction({
+            'from': checksum_address,
+            'nonce': nonce,
+            'gas': 200000,
+            'gas_price': await w3.eth.gas_price,
+            'value': 0
+        })
+        await update.message.reply_text(
+            f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for tournament creation ({entry_fee / 10**18} $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
+            parse_mode="Markdown"
+        )
+        await set_pending_wallet(user_id, {
+            "awaiting_tx": True,
+            "tx_data": tx,
+            "wallet_address": checksum_address,
+            "timestamp": time.time()
+        })
+        logger.info(f"/createtournament transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /createtournament: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+
+async def tournaments(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /tournaments command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    if not w3 or not contract:
+        await update.message.reply_text("Blockchain unavailable. Try again later! 😅")
+        logger.info(f"/tournaments failed due to blockchain issues, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        count = await contract.functions.getTournamentCount().call()
+        if count == 0:
+            await update.message.reply_text("No tournaments created yet. Start one with /createtournament fee! 🏆")
+            logger.info(f"/tournaments: No tournaments found, took {time.time() - start_time:.2f} seconds")
+            return
+        coros = [contract.functions.tournaments(i).call() for i in range(count)]
+        tournaments_data = await asyncio.gather(*coros, return_exceptions=True)
+        msg = "**Tournaments List:**\n"
+        for i, t in enumerate(tournaments_data):
+            if isinstance(t, Exception):
+                logger.error(f"Error retrieving tournament {i}: {str(t)}")
+                continue
+            entry_fee = t[0] / 10**18
+            pot = t[1] / 10**18
+            winner = t[2]
+            active = t[3]
+            name = t[7] if len(t) > 7 else "Unnamed"
+            participants = pot / entry_fee if entry_fee > 0 else 0
+            status = "Active" if active else f"Ended (Winner: {winner[:6]}...{winner[-4:]})"
+            msg += f"#{i}: {name} - Fee: {entry_fee} $TOURS, Pot: {pot} $TOURS, Participants: {int(participants)}, Status: {status}\n"
+        await update.message.reply_text(msg, parse_mode="Markdown")
+        logger.info(f"/tournaments listed {count} tournaments, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /tournaments: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        await update.message.reply_text(f"Error listing tournaments: {str(e)}. Try again! 😅")
+
+async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /jointournament command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    if not API_BASE_URL:
+        logger.error("API_BASE_URL missing, /jointournament command disabled")
+        await update.message.reply_text("Tournament joining unavailable due to configuration issues. Try again later! 😅")
+        logger.info(f"/jointournament failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
+        return
+    if not w3 or not contract:
+        logger.error("Web3 not initialized, /jointournament command disabled")
+        await update.message.reply_text("Tournament joining unavailable due to blockchain issues. Try again later! 😅")
+        logger.info(f"/jointournament failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        user_id = str(update.effective_user.id)
+        args = context.args
+        if len(args) < 1:
+            await update.message.reply_text("Use: /jointournament [id] 🏆")
+            logger.info(f"/jointournament failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
+            return
+        tournament_id = int(args[0])
+        session = await get_session(user_id)
+        wallet_address = session.get("wallet_address") if session else None
+        if not wallet_address:
+            await update.message.reply_text("Use /connectwallet! 🪙")
+            logger.info(f"/jointournament failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
+            return
+        checksum_address = w3.to_checksum_address(wallet_address)
+        tournament = await contract.functions.tournaments(tournament_id).call()
+        entry_fee = tournament[0]
+        nonce = await w3.eth.get_transaction_count(checksum_address)
+        tx = await contract.functions.joinTournament(tournament_id).build_transaction({
+            'from': checksum_address,
+            'nonce': nonce,
+            'gas': 200000,
+            'gas_price': await w3.eth.gas_price,
+            'value': 0
+        })
+        await update.message.reply_text(
+            f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for joining tournament #{tournament_id} ({entry_fee / 10**18} $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
+            parse_mode="Markdown"
+        )
+        await set_pending_wallet(user_id, {
+            "awaiting_tx": True,
+            "tx_data": tx,
+            "wallet_address": checksum_address,
+            "timestamp": time.time()
+        })
+        logger.info(f"/jointournament transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /jointournament: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+
+async def endtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /endtournament command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    if not API_BASE_URL:
+        logger.error("API_BASE_URL missing, /endtournament command disabled")
+        await update.message.reply_text("Tournament ending unavailable due to configuration issues. Try again later! 😅")
+        logger.info(f"/endtournament failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
+        return
+    if not w3 or not contract:
+        logger.error("Web3 not initialized, /endtournament command disabled")
+        await update.message.reply_text("Tournament ending unavailable due to blockchain issues. Try again later! 😅")
+        logger.info(f"/endtournament failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        user_id = str(update.effective_user.id)
+        args = context.args
+        if len(args) < 2:
+            await update.message.reply_text("Use: /endtournament [id] [winner] 🏆")
+            logger.info(f"/endtournament failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
+            return
+        tournament_id = int(args[0])
+        winner_address = args[1]
+        session = await get_session(user_id)
+        wallet_address = session.get("wallet_address") if session else None
+        if not wallet_address:
+            await update.message.reply_text("Use /connectwallet! 🪙")
+            logger.info(f"/endtournament failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
+            return
+        checksum_address = w3.to_checksum_address(wallet_address)
+        if checksum_address.lower() != OWNER_ADDRESS.lower():
+            await update.message.reply_text("Only the owner can end tournaments! 😅")
+            logger.info(f"/endtournament failed due to non-owner, took {time.time() - start_time:.2f} seconds")
+            return
+        winner_checksum_address = w3.to_checksum_address(winner_address)
+        nonce = await w3.eth.get_transaction_count(checksum_address)
+        tx = await contract.functions.endTournament(tournament_id, winner_checksum_address).build_transaction({
+            'from': checksum_address,
+            'nonce': nonce,
+            'gas': 200000,
+            'gas_price': await w3.eth.gas_price,
+            'value': 0
+        })
+        await update.message.reply_text(
+            f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for ending tournament #{tournament_id} using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
+            parse_mode="Markdown"
+        )
+        await set_pending_wallet(user_id, {
+            "awaiting_tx": True,
+            "tx_data": tx,
+            "wallet_address": checksum_address,
+            "timestamp": time.time()
+        })
+        logger.info(f"/endtournament transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /endtournament: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+
+async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /balance command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    try:
+        user_id = str(update.effective_user.id)
+        session = await get_session(user_id)
+        wallet_address = session.get("wallet_address") if session else None
+        if not wallet_address:
+            await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
+            logger.info(f"/balance failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
+            return
+        logger.info(f"Wallet address for user {user_id}: {wallet_address}")
+        
+        # Verify Web3 connection
+        is_connected = await w3.is_connected()
+        if not is_connected:
+            logger.error("Web3 not connected to Monad testnet")
+            await update.message.reply_text("Blockchain connection failed. Try again later or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+            logger.info(f"/balance failed due to Web3 connection, took {time.time() - start_time:.2f} seconds")
+            return
+
+        # Ensure checksum address
+        try:
+            checksum_address = w3.to_checksum_address(wallet_address)
+        except Exception as e:
+            logger.error(f"Error converting wallet address to checksum: {str(e)}")
+            await update.message.reply_text(f"Invalid wallet address format: {str(e)}. Try /connectwallet again. 😅")
+            logger.info(f"/balance failed due to checksum error, took {time.time() - start_time:.2f} seconds")
+            return
+
+        # Check profile status
+        profile_status = "No profile"
+        try:
+            profile = await contract.functions.profiles(checksum_address).call({'gas': 500000})
+            logger.info(f"Profile for {checksum_address}: {profile}")
+            if profile[0]:
+                profile_status = "Profile exists"
+            else:
+                tours_balance = await tours_contract.functions.balanceOf(checksum_address).call()
+                logger.info(f"$TOURS balance for {checksum_address}: {tours_balance / 10**18} $TOURS")
+                if tours_balance > 0:
+                    profile_status = "Profile likely exists (non-zero $TOURS balance)"
+        except Exception as e:
+            logger.error(f"Error checking profile or $TOURS balance: {str(e)}")
+
+        # Get balances
+        try:
+            mon_balance = await w3.eth.get_balance(checksum_address)
+            tours_balance = await tours_contract.functions.balanceOf(checksum_address).call()
+            await update.message.reply_text(
+                f"Wallet Balance:\n"
+                f"- {mon_balance / 10**18} $MON\n"
+                f"- {tours_balance / 10**18} $TOURS\n"
+                f"Address: [{checksum_address}]({EXPLORER_URL}/address/{checksum_address})\n"
+                f"Profile Status: {profile_status}\n"
+                f"Top up $MON at https://testnet.monad.xyz/faucet",
+                parse_mode="Markdown"
+            )
+            logger.info(f"/balance retrieved for user {user_id}, took {time.time() - start_time:.2f} seconds")
+        except Exception as e:
+            logger.error(f"Error retrieving balance for user {user_id}: {str(e)}")
+            await update.message.reply_text(f"Failed to retrieve balance: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+            logger.info(f"/balance failed due to balance error, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Unexpected error in /balance for user {user_id}: {str(e)}")
+        await update.message.reply_text(f"Unexpected error: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+        logger.info(f"/balance failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
+
+async def mypurchases(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /mypurchases command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    try:
+        session = await get_session(str(update.effective_user.id))
+        if not session or not session.get("wallet_address"):
+            await update.message.reply_text("Connect your wallet with /connectwallet first! 😅")
+            logger.info(f"/mypurchases failed due to no wallet, took {time.time() - start_time:.2f} seconds")
+            return
+        wallet_address = session["wallet_address"]
+        checksum_address = w3.to_checksum_address(wallet_address) if w3 else wallet_address  # Fallback if w3 unavailable
+
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT location_id, timestamp FROM purchases WHERE wallet_address = $1 ORDER BY timestamp DESC",
+                checksum_address
+            )
+
+        if not rows:
+            await update.message.reply_text("No purchased climbs found. Use /purchaseclimb to buy one! 😅")
+            logger.info(f"/mypurchases no purchases found, took {time.time() - start_time:.2f} seconds")
+            return
+
+        message = "Your purchased climbs:\n"
+        for row in rows:
+            if not contract:
+                message += f"🏔️ #{row['location_id']} - Purchased {datetime.fromtimestamp(row['timestamp']).strftime('%Y-%m-%d %H:%M')}\n"
+                continue
+            climb = await contract.functions.getClimbingLocation(row['location_id']).call()
+            message += f"🏔️ #{row['location_id']} {escape_html(climb[1])} ({escape_html(climb[2])}) - Purchased {datetime.fromtimestamp(row['timestamp']).strftime('%Y-%m-%d %H:%M')}\n"
+            message += f"   Creator: <a href=\"{EXPLORER_URL}/address/{climb[0]}\">{climb[0][:6]}...</a>\n"
+            message += f"   Location: ({climb[3]/10**6:.4f}, {climb[4]/10**6:.4f})\n"
+            message += f"   Map: https://www.google.com/maps?q={climb[3]/10**6},{climb[4]/10**6}\n"
+            message += f"   Photo Hash: {escape_html(climb[5])}\n"
+            message += f"   Purchases: {climb[10]}\n\n"
+
+        await update.message.reply_text(message, parse_mode="HTML")
+        logger.info(f"/mypurchases success with {len(rows)} purchases, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Unexpected error in /mypurchases: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        await update.message.reply_text(f"Error retrieving purchases: {str(e)}. Try again or contact support at [EmpowerTours Chat](https://t.me/empowertourschat). 😅", parse_mode="Markdown")
+        
+async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    user_id = str(update.effective_user.id)
+    logger.info(f"Received transaction hash from user {user_id}: {update.message.text} in chat {update.effective_chat.id}")
+    pending = await get_pending_wallet(user_id)
+    if not pending or not pending.get("awaiting_tx"):
+        logger.warning(f"No pending transaction for user {user_id}")
+        await update.message.reply_text("No pending transaction found. Use /createprofile, /buyTours, or another command again! 😅")
+        logger.info(f"/handle_tx_hash no pending transaction, took {time.time() - start_time:.2f} seconds")
+        return
+    if not w3:
+        logger.error("Web3 not initialized, transaction handling disabled")
+        await update.message.reply_text("Transaction handling unavailable due to blockchain issues. Try again later! 😅")
+        logger.info(f"/handle_tx_hash failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
+        return
+    tx_hash = update.message.text.strip()
+    if not tx_hash.startswith("0x") or len(tx_hash) != 66:
+        await update.message.reply_text("Invalid transaction hash. Send a valid hash (e.g., 0x123...).")
+        logger.info(f"/handle_tx_hash failed due to invalid hash, took {time.time() - start_time:.2f} seconds")
+        return
+    try:
+        receipt = await w3.eth.get_transaction_receipt(tx_hash)
         if receipt and receipt.status:
             action = "Action completed"
             if "createProfile" in pending["tx_data"]["data"]:
@@ -3102,151 +4434,6 @@ async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error in handle_tx_hash: {str(e)}, took {time.time() - start_time:.2f} seconds")
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
-async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
-    start_time = time.time()
-    global last_processed_block
-    if not w3 or not contract:
-        logger.error("Web3 or contract not initialized, cannot monitor events")
-        logger.info(f"monitor_events failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
-        return
-    try:
-        latest_block = await w3.eth.get_block_number()
-        if last_processed_block == 0:
-            last_processed_block = max(0, latest_block - 100)
-        batch_size = 100  # Reduced for faster processing; adjust based on testnet latency
-        end_block = min(last_processed_block + batch_size, latest_block + 1)
-        num_blocks = end_block - last_processed_block - 1
-        if num_blocks <= 0:
-            logger.info(f"No new blocks to process, took {time.time() - start_time:.2f} seconds")
-            return
-        logger.info(f"Processing {num_blocks} blocks (from {last_processed_block + 1} to {end_block - 1})")
-
-        # Fetch all logs from the contract in the block range (efficient alternative to per-block fetching)
-        logs = await w3.eth.get_logs({
-            'fromBlock': last_processed_block + 1,
-            'toBlock': end_block - 1,
-            'address': w3.to_checksum_address(CONTRACT_ADDRESS)
-        })
-
-        # Event map with corrected signatures, hashes, and lambdas (hashes computed from ABI signatures)
-        event_map = {
-            "b092b68cd4087066d88561f213472db328f688a8993b20e9eab36fee4d6679fd": (  # LocationPurchased(uint256,address,uint256)
-                contract.events.LocationPurchased,
-                lambda e: f"Climb #{e.args.locationId} purchased by <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> on EmpowerTours! 🪙"
-            ),
-            "aa3a75c48d1cad3bf60136ab33bc8fd62f31c2b25812d8604da0b7e7fc6d7271": (  # ProfileCreated(address,uint256)
-                contract.events.ProfileCreated,
-                lambda e: f"New climber joined EmpowerTours! 🧗 Address: <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a>"
-            ),
-            "dbf3456d5f59d51cp0e4442bf1c140db5b4b3bd090be958900af45a8310f3deb": (  # ProfileCreatedEnhanced(address,uint256,string,uint256)
-                contract.events.ProfileCreatedEnhanced,
-                lambda e: f"New climber with Farcaster profile joined EmpowerTours! 🧗 Address: <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a>"
-            ),
-            "1f6c34ae7cdb1fe8d152ff37aa480fa0c07f0e0345571e5854cf2b1d4baa75b2": (  # JournalEntryAdded(uint256,address,string,uint256)
-                contract.events.JournalEntryAdded,
-                lambda e: f"New journal entry #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.author}\">{e.args.author[:6]}...</a> on EmpowerTours! 📝"
-            ),
-            "8949aebb3586111f1bb264e765b7b0ef7414304cd8c9f061c1c5c56fdcb81862": (  # JournalEntryAddedEnhanced(uint256,address,uint256,string,string,string,bool,uint256)
-                contract.events.JournalEntryAddedEnhanced,
-                lambda e: f"New enhanced journal entry #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.author}\">{e.args.author[:6]}...</a> on EmpowerTours! 📝"
-            ),
-            "e22806c8e7df3b9bb5e604a064687dd40d114ccb9b5155678fce0139abf40a2e": (  # CommentAdded(uint256,address,string,uint256)
-                contract.events.CommentAdded,
-                lambda e: f"New comment on journal #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.commenter}\">{e.args.commenter[:6]}...</a> on EmpowerTours! 🗣️"
-            ),
-            "0144b9a4c17706f753bf8a43586b92072b9db35f1e038d5c632b9453e38517c7": (  # CommentAddedEnhanced(uint256,address,uint256,string,string,uint256)
-                contract.events.CommentAddedEnhanced,
-                lambda e: f"New enhanced comment on journal #{e.args.entryId} by <a href=\"{EXPLORER_URL}/address/{e.args.commenter}\">{e.args.commenter[:6]}...</a> on EmpowerTours! 🗣️"
-            ),
-            "85a125ab0a37494cb20f1e60f7c4b7ba8f6152e82afbe2fd3250ff83ae3363dc": (  # ClimbingLocationCreated(uint256,address,string,uint256)
-                contract.events.ClimbingLocationCreated,
-                lambda e: f"New climb '{e.args.name}' created by <a href=\"{EXPLORER_URL}/address/{e.args.creator}\">{e.args.creator[:6]}...</a> on EmpowerTours! 🪨"
-            ),
-            "dd0c2d9cafda4b18e58db06355a912e9ab579dee92649495ae4dc3f0365a269a": (  # ClimbingLocationCreatedEnhanced(uint256,address,uint256,string,string,int256,int256,bool,uint256)
-                contract.events.ClimbingLocationCreatedEnhanced,
-                lambda e: f"New enhanced climb '{e.args.name}' created by <a href=\"{EXPLORER_URL}/address/{e.args.creator}\">{e.args.creator[:6]}...</a> on EmpowerTours! 🪨"
-            ),
-            "ad043c04181883ece2f6dc02cf2978a3b453c3d2323bb4bfb95865f910e6c3ce": (  # LocationPurchasedEnhanced(uint256,address,uint256,uint256)
-                contract.events.LocationPurchasedEnhanced,
-                lambda e: f"Enhanced climb #{e.args.locationId} purchased by <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> on EmpowerTours! 🪙"
-            ),
-            "d72d415fee16f78aefb0faa7ae3f5221a8d557570c7db32ed71033c7b1717a41": (  # TournamentCreated(uint256,uint256,uint256)
-                contract.events.TournamentCreated,
-                lambda e: f"New tournament #{e.args.tournamentId} created on EmpowerTours! 🏆"
-            ),
-            "682cad4379e12a2831600094eb5f795719dea3285c32df028adb89bd2b84a571": (  # TournamentCreatedEmbedded(uint256,address,uint256,string,uint256,uint256)
-                contract.events.TournamentCreatedEmbedded,
-                lambda e: f"New embedded tournament #{e.args.tournamentId} created by <a href=\"{EXPLORER_URL}/address/{e.args.creator}\">{e.args.creator[:6]}...</a> on EmpowerTours! 🏆"
-            ),
-            "9b71079da01b6505f63bcd5edd4a7a9dbc55173971019151c9654ae29def6bac": (  # TournamentJoined(uint256,address)
-                contract.events.TournamentJoined,
-                lambda e: f"Climber <a href=\"{EXPLORER_URL}/address/{e.args.participant}\">{e.args.participant[:6]}...</a> joined tournament #{e.args.tournamentId} on EmpowerTours! 🏆"
-            ),
-            "2cccfd0c70d5149159c82c9c2d66f2a9874ec2356c5c0788087ec7313916e02e": (  # TournamentJoinedEnhanced(uint256,address,uint256)
-                contract.events.TournamentJoinedEnhanced,
-                lambda e: f"Climber <a href=\"{EXPLORER_URL}/address/{e.args.participant}\">{e.args.participant[:6]}...</a> joined enhanced tournament #{e.args.tournamentId} on EmpowerTours! 🏆"
-            ),
-            "dd7ad4d17119eef4327e49ef4368c3d112ab5b71ee7918afcadc779b78eed9d9": (  # TournamentEnded(uint256,address,uint256)
-                contract.events.TournamentEnded,
-                lambda e: f"Tournament #{e.args.tournamentId} ended! Winner: <a href=\"{EXPLORER_URL}/address/{e.args.winner}\">{e.args.winner[:6]}...</a> Prize: {e.args.pot / 10**18} $TOURS 🏆"
-            ),
-            "f0f0525a5ef10132058aa9a3feb1a1f6d503037788ea59f454076e216da1a741": (  # TournamentEndedEnhanced(uint256,address,uint256,uint256)
-                contract.events.TournamentEndedEnhanced,
-                lambda e: f"Enhanced tournament #{e.args.tournamentId} ended! Winner: <a href=\"{EXPLORER_URL}/address/{e.args.winner}\">{e.args.winner[:6]}...</a> Prize: {e.args.pot / 10**18} $TOURS 🏆"
-            ),
-            "b9f217daf6aa350a9b78812562d0d1afba9439b7b595919c7d9dfc40d2230f35": (  # FarcasterCastShared(address,uint256,string,string,uint256,uint256)
-                contract.events.FarcasterCastShared,
-                lambda e: f"New Farcaster cast shared by <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a> for {e.args.contentType} #{e.args.contentId} on EmpowerTours! 📢"
-            ),
-            "32838cd85a2abed5fd25bfdd6952f7f1d0ca533b1eb897506a812c5ea0a99612": (  # FarcasterProfileUpdated(address,uint256,string,string,uint256)
-                contract.events.FarcasterProfileUpdated,
-                lambda e: f"Farcaster profile updated by <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a> on EmpowerTours! 📢"
-            ),
-            "7c041c6a61b05a6a99f81f2f3338d3911721f95ec7da19a69782e5a887e1340f": (  # ToursPurchased(address,uint256,uint256)
-                contract.events.ToursPurchased,
-                lambda e: f"User <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> bought {e.args.toursAmount / 10**18} $TOURS on EmpowerTours! 🪙"
-            ),
-        }
-
-        for log in logs:
-            try:
-                topic0 = log['topics'][0].hex()
-                if topic0 in event_map:
-                    event_class, message_fn = event_map[topic0]
-                    event = event_class().process_log(log)
-                    message = message_fn(event)
-                    # Auto-announce to group
-                    await send_notification(CHAT_HANDLE, message)
-                    # New: PM user if wallet matches an event arg
-                    user_address = event.args.get('user') or event.args.get('creator') or event.args.get('author') or event.args.get('buyer') or event.args.get('commenter') or event.args.get('participant') or event.args.get('winner')
-                    if user_address:
-                        checksum_user_address = w3.to_checksum_address(user_address)
-                        if checksum_user_address in reverse_sessions:
-                            user_id = reverse_sessions[checksum_user_address]
-                            user_message = f"Your action succeeded! {message.replace('<a href=', '[Tx: ').replace('</a>', ']')} 🪙 Check details on {EXPLORER_URL}/tx/{log['transactionHash'].hex()}"
-                            await application.bot.send_message(user_id, user_message, parse_mode="Markdown")
-                    # Store purchase in DB if LocationPurchased
-                    if topic0 == "b092b68cd4087066d88561f213472db328f688a8993b20e9eab36fee4d6679fd":  # LocationPurchased(uint256,address,uint256)
-                        buyer = event.args.buyer
-                        checksum_buyer = w3.to_checksum_address(buyer)
-                        if checksum_buyer in reverse_sessions:
-                            user_id = reverse_sessions[checksum_buyer]
-                            async with pool.acquire() as conn:
-                                await conn.execute(
-                                    "INSERT INTO purchases (user_id, wallet_address, location_id, timestamp) VALUES ($1, $2, $3, $4)",
-                                    user_id, checksum_buyer, event.args.locationId, event.args.timestamp
-                                )
-            except Exception as e:
-                logger.error(f"Error processing log: {str(e)}")
-
-        last_processed_block = end_block - 1
-        logger.info(f"Processed events up to block {last_processed_block}, took {time.time() - start_time:.2f} seconds")
-    except Exception as e:
-        logger.error(f"Error in monitor_events: {str(e)}, took {time.time() - start_time:.2f} seconds")
-
-async def get_session(user_id):
-    return sessions.get(user_id)
-
 async def log_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
     device_info = (
@@ -3301,6 +4488,7 @@ async def set_journal_data(user_id, data):
             "INSERT INTO journal_data (user_id, data, timestamp) VALUES ($1, $2, $3) ON CONFLICT (user_id) DO UPDATE SET data = $2, timestamp = $3",
             user_id, json.dumps(data), data['timestamp']
         )
+
 async def get_purchase_events(wallet_address, from_block, to_block, step=500):  # Reduced step to avoid 413
     events = []
     for start in range(from_block, to_block + 1, step):
@@ -3489,7 +4677,7 @@ async def startup_event():
         application.add_handler(MessageHandler(filters.Regex(r'^0x[a-fA-F0-9]{64}$'), handle_tx_hash))
         application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
         application.add_handler(MessageHandler(filters.LOCATION, handle_location))
-        application.add_handler(MessageHandler(filters.COMMAND, debug_command))  
+        application.add_handler(MessageHandler(filters.COMMAND, debug_command))  # Changed to debug_command
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, log_message))
         logger.info("Command handlers registered successfully")
 
