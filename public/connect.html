@@ -85,10 +85,11 @@
                 if (window.ethereum) {
                     provider = window.ethereum;
                     web3 = new Web3(provider);
-                } else if (window.Web3Provider) {
-                    provider = new window.Web3Provider({
+                } else if (window.WalletConnectProvider) {
+                    provider = new window.WalletConnectProvider({
                         rpc: { 10143: 'https://testnet-rpc.monad.xyz' },
-                        chainId: 10143
+                        chainId: 10143,
+                        qrcode: true
                     });
                     web3 = new Web3(provider);
                 } else {
@@ -109,6 +110,9 @@
             console.log('Attempting to connect wallet for userId:', userId);
             if (!await initializeWeb3()) return;
             try {
+                if (provider.isWalletConnect) {
+                    await provider.enable();
+                }
                 const chainId = await web3.eth.getChainId();
                 console.log('Current chain ID (decimal):', chainId);
                 if (Number(chainId) !== MONAD_TESTNET_CHAIN_ID_DECIMAL) {
@@ -192,7 +196,7 @@
                     stopPolling();  // Stop polling immediately after fetching tx to prevent multiples
                     statusDiv.textContent = 'Transaction ready! Waiting for wallet to sign...';
                     console.log('Transaction data received:', data.transaction);
-                    try:
+                    try {
                         const txResult = await web3.eth.sendTransaction(data.transaction);
                         const txHash = txResult.transactionHash;  // Extract the hash string from the receipt object
                         statusDiv.textContent = `Transaction signed: ${txHash.substring(0, 6)}...`;
