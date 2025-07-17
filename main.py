@@ -3981,7 +3981,7 @@ async def submit_tx(request: Request):
                             return {"status": "success"}
                         elif next_tx_data["type"] == "join_tournament":
                             nonce = await w3.eth.get_transaction_count(pending["wallet_address"])
-                            tx= await contract.functions.joinTournament(next_tx_data["tournament_id"]).build_transaction({
+                            tx = await contract.functions.joinTournament(next_tx_data["tournament_id"]).build_transaction({
                                 'from': pending["wallet_address"],
                                 'nonce': nonce,
                                 'gas': 200000,
