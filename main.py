@@ -1236,6 +1236,12 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/balance - Check your $MON and $TOURS balance\n"
             "/help - List all commands\n"
         )
+        await update.message.reply_text(help_text, parse_mode="Markdown")
+        logger.info(f"Sent /help response to user {update.effective_user.id}: {help_text}, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /help for user {update.effective_user.id}: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
+        
         if receipt and receipt.status:
             action = "Action completed"
             if "createProfile" in pending["tx_data"]["data"]:
