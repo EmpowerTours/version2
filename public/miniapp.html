@@ -159,7 +159,7 @@
             document.body.style.setProperty('--tg-theme-hint-color', Telegram.WebApp.themeParams.hint_color);
             document.body.style.setProperty('--tg-theme-link-color', Telegram.WebApp.themeParams.link_color);
             document.body.style.setProperty('--tg-theme-button-color', Telegram.WebApp.themeParams.button_color);
-            document.body.style.setProperty('--tg-theme-button-text-color', '#000'); /* Changed to black */
+            document.body.style.setProperty('--tg-theme-button-text-color', '#000');
             document.body.style.setProperty('--tg-theme-secondary-bg-color', Telegram.WebApp.themeParams.secondary_bg_color);
             document.body.style.setProperty('--tg-theme-destructive-text-color', Telegram.WebApp.themeParams.destructive_text_color);
         }
@@ -204,6 +204,9 @@
             console.log('Attempting to connect wallet for userId:', userId);
             if (!await initializeWeb3()) return;
             try {
+                if (provider.isWalletConnect) {
+                    await provider.enable();
+                }
                 const chainId = await web3.eth.getChainId();
                 console.log('Current chain ID (decimal):', chainId);
                 if (Number(chainId) !== MONAD_TESTNET_CHAIN_ID_DECIMAL) {
@@ -245,7 +248,120 @@
             }
         }
 
-        // ... (rest of the script remains the same)
+        async function submitWallet(account) {
+            try {
+                console.log('Submitting wallet for userId:', userId, 'address:', account);
+                const response = await fetch(`${apiBaseUrl}/submit_wallet`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, walletAddress: account })
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+                statusDiv.textContent += ' Wallet submitted! Gear up for your next ascent.';
+                console.log('Wallet submitted successfully');
+            } catch (error) {
+                errorDiv.textContent = `Error submitting wallet: ${error.message}. Try again or contact support at https://t.me/empowertourschat.`;
+                console.error('Error submitting wallet:', error);
+            }
+        }
+
+        async function pollTransaction() {
+            if (!web3) {
+                errorDiv.textContent = 'Web3 provider not initialized. Please reconnect your wallet.';
+                console.error('Web3 not initialized');
+                stopPolling();
+                return;
+            }
+            try {
+                console.log('Polling transaction for userId:', userId);
+                const response = await fetch(`${apiBaseUrl}/get_transaction?userId=${userId}`);
+                if (response.status === 404) {
+                    statusDiv.textContent = 'No pending transaction. Initiate an action via Telegram (e.g., /buildaclimb).';
+                    console.log('No pending transaction found');
+                    stopPolling();
+                    return;
+                }
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+                const data = await response.json();
+                if (data.transaction) {
+                    stopPolling();  // Stop polling immediately after fetching tx to prevent multiples
+                    statusDiv.textContent = 'Transaction ready! Waiting for wallet to sign...';
+                    console.log('Transaction data received:', data.transaction);
+                    try {
+                        const txResult = await web3.eth.sendTransaction(data.transaction);
+                        const txHash = txResult.transactionHash;  // Extract the hash string from the receipt object
+                        statusDiv.textContent = `Transaction signed: ${txHash.substring(0, 6)}...`;
+                        txHashDiv.textContent = `Transaction Hash: ${txHash}\n`;
+                        console.log('Transaction signed, hash:', txHash);
+                        await submitTransaction(txHash);
+                        statusDiv.textContent = `Transaction submitted: ${txHash.substring(0, 6)}...`;
+                        console.log('Transaction submitted to server');
+                        Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                    } catch (error) {
+                        errorDiv.textContent = `Error signing transaction: ${error.message}. Check parameters or contact support at https://t.me/empowertourschat.`;
+                        console.error('Error signing transaction:', error);
+                        Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+                        // Optional: Restart polling on failure - startPolling();
+                    }
+                } else {
+                    statusDiv.textContent = 'Waiting for transaction...';
+                    console.log('No transaction data available yet');
+                }
+            } catch (error) {
+                errorDiv.textContent = `Error polling transaction: ${error.message}. Try refreshing the page or contact support at https://t.me/empowertourschat.`;
+                console.error('Error polling transaction:', error);
+            }
+        }
+
+        async function submitTransaction(txHash) {
+            try {
+                console.log('Submitting transaction hash:', txHash);
+                const response = await fetch(`${apiBaseUrl}/submit_tx`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, txHash })
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+                console.log('Transaction hash submitted successfully');
+            } catch (error) {
+                errorDiv.textContent = `Error submitting transaction: ${error.message}. Please send the transaction hash to the Telegram bot manually.`;
+                console.error('Error submitting transaction:', error);
+            }
+        }
+
+        function startPolling() {
+            if (!pollingInterval) {
+                console.log('Starting transaction polling');
+                pollingInterval = setInterval(pollTransaction, 3000);
+            }
+        }
+
+        function stopPolling() {
+            if (pollingInterval) {
+                console.log('Stopping transaction polling');
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+        }
+
+        document.getElementById('connectButton').addEventListener('click', connectWallet);
+        window.addEventListener('load', async () => {
+            if (userId) {
+                console.log('Page loaded, initializing Web3 for userId:', userId);
+                if (await initializeWeb3()) {
+                    startPolling();
+                }
+            } else {
+                errorDiv.textContent = 'Missing userId. Use the link provided by /connectwallet in Telegram.';
+                console.error('Missing userId');
+            }
+        });
     </script>
 </body>
 </html>
