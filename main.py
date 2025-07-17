@@ -3642,6 +3642,7 @@ async def startup_event():
         application.add_handler(MessageHandler(filters.Regex(r'^0x[a-fA-F0-9]{64}$'), handle_tx_hash))
         application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
         application.add_handler(MessageHandler(filters.LOCATION, handle_location))
+        application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_webapp_data))
         application.add_handler(MessageHandler(filters.COMMAND, debug_command))
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, log_message))
         logger.info("Command handlers registered successfully")
@@ -3675,6 +3676,54 @@ async def startup_event():
         logger.error(f"Error in startup_event: {str(e)}, took {time.time() - start_time:.2f} seconds")
         webhook_failed = True
         raise
+
+async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    start_time = time.time()
+    data = update.message.web_app_data.data
+    logger.info(f"Received web_app_data from user {update.effective_user.id}: {data}")
+    try:
+        parts = data.split()
+        command = parts[0].lower()
+        context.args = parts[1:]
+        handler = {
+            '/start': start,
+            '/tutorial': tutorial,
+            '/connectwallet': connect_wallet,
+            '/createprofile': create_profile,
+            '/help': help,
+            '/journal': journal_entry,
+            '/comment': add_comment,
+            '/buildaclimb': buildaclimb,
+            '/purchaseclimb': purchase_climb,
+            '/findaclimb': findaclimb,
+            '/journals': journals,
+            '/viewjournal': viewjournal,
+            '/viewclimb': viewclimb,
+            '/mypurchases': mypurchases,
+            '/createtournament': createtournament,
+            '/tournaments': tournaments,
+            '/jointournament': jointournament,
+            '/endtournament': endtournament,
+            '/balance': balance,
+            '/buytours': buy_tours,
+            '/sendtours': send_tours,
+            '/ping': ping,
+            '/debug': debug_command,
+            '/forcewebhook': forcewebhook,
+            '/clearcache': clearcache,
+            '/miniapp': miniapp,
+        }.get(command)
+        if handler:
+            await handler(update, context)
+            logger.info(f"Executed {command} from Mini App for user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
+        else:
+            await update.message.reply_text(f"Unknown command from Mini App: {data}. Use /help for available commands. 😅")
+            logger.info(f"Unknown command from Mini App: {data}, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error handling web_app_data: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        error_msg = html.escape(str(e))
+        support_link = '<a href="https://t.me/empowertourschat">EmpowerTours Chat</a>'
+        await update.message.reply_text(f"Error executing Mini App command: {error_msg}. Try again or contact support at {support_link}. 😅", parse_mode="HTML")
 
 async def shutdown_event():
     start_time = time.time()
