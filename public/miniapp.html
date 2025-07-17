@@ -3,112 +3,183 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EmpowerTours Mini App</title>
+    <title>EmpowerTours Rock Climbing Hub</title>
     <link rel="icon" type="image/x-icon" href="/public/favicon.ico">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+    <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Arial', sans-serif;
             text-align: center;
             padding: 20px;
-            background-color: #f4f4f4;
+            background-image: url('https://source.unsplash.com/random/800x600/?rock-climbing,mountain');
+            background-size: cover;
+            background-position: center;
+            color: var(--tg-theme-text-color, #fff);
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--tg-theme-bg-color, #f4f4f4);
         }
         h1 {
-            color: #333;
+            color: var(--tg-theme-button-color, #ff8c00);
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
         }
         button {
-            padding: 12px 24px;
-            font-size: 16px;
+            padding: 15px 30px;
+            font-size: 18px;
             cursor: pointer;
-            background-color: #28a745;
-            color: white;
+            background-color: var(--tg-theme-button-color, #4caf50);
+            color: var(--tg-theme-button-text-color, white);
             border: none;
-            border-radius: 5px;
-            margin: 10px;
+            border-radius: 8px;
+            margin: 15px 0;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s, background-color 0.2s;
+            width: 80%;
+            max-width: 300px;
         }
         button:hover {
-            background-color: #218838;
+            background-color: var(--tg-theme-secondary-bg-color, #388e3c);
+            transform: scale(1.05);
         }
         #status {
             margin-top: 20px;
             font-size: 18px;
-            color: #333;
+            color: var(--tg-theme-hint-color, #ffd700);
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 8px;
+            max-width: 80%;
         }
         #error {
-            color: #dc3545;
+            color: var(--tg-theme-destructive-text-color, #ff4500);
             margin-top: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 8px;
+            max-width: 80%;
         }
         #txHash {
             word-break: break-all;
             margin-top: 10px;
             font-size: 14px;
+            color: var(--tg-theme-text-color, #fff);
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 8px;
+            max-width: 80%;
         }
         #instructions {
             margin-top: 15px;
             font-size: 16px;
-            color: #555;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
+            color: var(--tg-theme-hint-color, #eee);
+            max-width: 80%;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 8px;
         }
-        #retryButton {
-            display: none;
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            width: 80%;
+            max-width: 600px;
+            margin-top: 20px;
+        }
+        .mini-app-button {
+            background-color: var(--tg-theme-secondary-bg-color, #8b4513);
+            font-weight: bold;
+        }
+        .mini-app-button:hover {
+            background-color: var(--tg-theme-link-color, #a0522d);
         }
     </style>
 </head>
 <body>
-    <h1>EmpowerTours Mini App</h1>
-    <button id="connectButton">Connect Wallet</button>
-    <button id="retryButton">Retry Connection</button>
-    <button onclick="sendCommand('/tutorial')">Tutorial</button>
-    <button onclick="sendCommand('/help')">Help & Commands</button>
-    <button onclick="sendCommand('/balance')">Check Balance</button>
-    <button onclick="sendCommand('/journal example entry')">Log Journal Entry</button>
-    <button onclick="sendCommand('/buildaclimb example_name V5')">Build a Climb</button>
-    <button onclick="sendCommand('/findaclimb')">Find Climbs</button>
-    <button onclick="sendCommand('/createtournament 10')">Create Tournament</button>
-    <div id="status">Explore EmpowerTours features. Connect your wallet to Monad Testnet (chainId: 10143) for blockchain actions.</div>
-    <div id="instructions">On mobile, open this link in the MetaMask app's browser (Menu > Browser) to connect. If you see a chain ID mismatch, go to MetaMask Settings > Networks, remove all Monad Testnet entries, and reconnect. Network details: Chain ID: 10143, RPC: https://testnet-rpc.monad.xyz, Explorer: https://testnet.monadexplorer.com. After connecting, use /createprofile, /buildaclimb, or /buyTours in Telegram.</div>
+    <h1>EmpowerTours Rock Climbing Hub</h1>
+    <button id="connectButton">Connect Wallet 🧗‍♂️</button>
+    <div id="status">Gear up! Connect your wallet to conquer the Monad Testnet peaks (chainId: 10143).</div>
+    <div id="instructions">Scale new heights with EmpowerTours! On mobile, rappel into MetaMask’s browser (Menu > Browser). Chain ID mismatch? Clear old Monad Testnet entries in Settings > Networks. After connecting, use the buttons below or Telegram commands like /createprofile to start your ascent.</div>
+    <div class="button-grid">
+        <button class="mini-app-button" onclick="sendCommand('/tutorial')">Tutorial 🧭</button>
+        <button class="mini-app-button" onclick="sendCommand('/createprofile')">Create Profile 📋</button>
+        <button class="mini-app-button" onclick="sendCommand('/buyTours 10')">Buy 10 $TOURS 💰</button>
+        <button class="mini-app-button" onclick="sendCommand('/buildaclimb PeakV Easy')">Build Climb 🪨</button>
+        <button class="mini-app-button" onclick="sendCommand('/findaclimb')">Find Climbs 🔍</button>
+        <button class="mini-app-button" onclick="sendCommand('/purchaseclimb 0')">Purchase Climb 🛒</button>
+        <button class="mini-app-button" onclick="sendCommand('/mypurchases')">My Purchases 🎒</button>
+        <button class="mini-app-button" onclick="sendCommand('/journal My epic climb!')">Log Journal 📖</button>
+        <button class="mini-app-button" onclick="sendCommand('/journals')">View Journals 📚</button>
+        <button class="mini-app-button" onclick="sendCommand('/viewjournal 0')">View Journal Entry 👀</button>
+        <button class="mini-app-button" onclick="sendCommand('/comment 0 Great climb!')">Add Comment 💬</button>
+        <button class="mini-app-button" onclick="sendCommand('/createtournament 10')">Create Tournament 🏆</button>
+        <button class="mini-app-button" onclick="sendCommand('/tournaments')">List Tournaments 📜</button>
+        <button class="mini-app-button" onclick="sendCommand('/jointournament 0')">Join Tournament ⚔️</button>
+        <button class="mini-app-button" onclick="sendCommand('/balance')">Check Balance ⚖️</button>
+        <button class="mini-app-button" onclick="sendCommand('/help')">Help ❓</button>
+    </div>
     <div id="error"></div>
     <div id="txHash"></div>
-    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
-    <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
-        Telegram.WebApp.ready();
-        const tgUser = Telegram.WebApp.initDataUnsafe.user;
-        const userId = tgUser ? tgUser.id : null;  // Use Telegram WebApp for userId
-        const apiBaseUrl = window.location.origin;
+        const userId = Telegram.WebApp.initDataUnsafe.user ? Telegram.WebApp.initDataUnsafe.user.id.toString() : new URLSearchParams(window.location.search).get('userId');
+        const apiBaseUrl = 'https://version1-production.up.railway.app';
         const statusDiv = document.getElementById('status');
         const errorDiv = document.getElementById('error');
         const txHashDiv = document.getElementById('txHash');
-        const retryButton = document.getElementById('retryButton');
         let web3;
         let provider;
         let pollingInterval = null;
         const MONAD_TESTNET_CHAIN_ID = '0x27af'; // 10143 in hex
         const MONAD_TESTNET_CHAIN_ID_DECIMAL = 10143;
 
-        if (!userId) {
-            errorDiv.textContent = 'Unable to detect user ID. Please relaunch from Telegram.';
-            console.error('Missing userId from Telegram WebApp');
+        // Initialize Telegram Web App
+        Telegram.WebApp.ready();
+        Telegram.WebApp.expand();
+        Telegram.WebApp.setHeaderColor(Telegram.WebApp.themeParams.button_color || '#4caf50');
+        Telegram.WebApp.setBackgroundColor(Telegram.WebApp.themeParams.bg_color || '#2f4f4f');
+        Telegram.WebApp.MainButton.setText('Connect Wallet').show().onClick(connectWallet);
+        Telegram.WebApp.onEvent('themeChanged', applyTheme);
+        applyTheme();
+
+        function applyTheme() {
+            document.body.style.setProperty('--tg-theme-bg-color', Telegram.WebApp.themeParams.bg_color);
+            document.body.style.setProperty('--tg-theme-text-color', Telegram.WebApp.themeParams.text_color);
+            document.body.style.setProperty('--tg-theme-hint-color', Telegram.WebApp.themeParams.hint_color);
+            document.body.style.setProperty('--tg-theme-link-color', Telegram.WebApp.themeParams.link_color);
+            document.body.style.setProperty('--tg-theme-button-color', Telegram.WebApp.themeParams.button_color);
+            document.body.style.setProperty('--tg-theme-button-text-color', Telegram.WebApp.themeParams.button_text_color);
+            document.body.style.setProperty('--tg-theme-secondary-bg-color', Telegram.WebApp.themeParams.secondary_bg_color);
+            document.body.style.setProperty('--tg-theme-destructive-text-color', Telegram.WebApp.themeParams.destructive_text_color);
         }
 
-        async function initializeWeb3(useWalletConnect = false) {
+        function sendCommand(command) {
+            Telegram.WebApp.HapticFeedback.impactOccurred('light');
+            Telegram.WebApp.sendData(command);
+        }
+
+        async function initializeWeb3() {
             try {
                 if (typeof Web3 === 'undefined') {
                     throw new Error('Web3.js library failed to load. Please refresh the page.');
                 }
-                if (!useWalletConnect && window.ethereum) {
+                if (window.ethereum) {
                     provider = window.ethereum;
                     web3 = new Web3(provider);
-                    console.log('Using MetaMask provider');
-                } else if (window.WalletConnectProvider) {
-                    provider = new window.WalletConnectProvider.default({
+                } else if (window.Web3Provider) {
+                    provider = new window.Web3Provider({
                         rpc: { 10143: 'https://testnet-rpc.monad.xyz' },
                         chainId: 10143
                     });
                     web3 = new Web3(provider);
-                    console.log('Using WalletConnect provider');
                 } else {
                     throw new Error('No wallet provider detected. Install MetaMask or use a Web3-compatible browser.');
                 }
@@ -116,26 +187,22 @@
                 errorDiv.textContent = `Error initializing Web3: ${error.message}. On mobile, open this link in MetaMask’s browser (Menu > Browser). On desktop, install MetaMask.`;
                 console.error('Web3 initialization error:', error);
                 statusDiv.textContent = 'Please connect your wallet to Monad Testnet (chainId: 10143).';
-                retryButton.style.display = 'block';
                 return false;
             }
             return true;
         }
 
         async function connectWallet() {
+            Telegram.WebApp.HapticFeedback.notificationOccurred('success');
             errorDiv.textContent = '';
             statusDiv.textContent = 'Connecting...';
             console.log('Attempting to connect wallet for userId:', userId);
-            let useWalletConnect = false;
-            if (!await initializeWeb3(useWalletConnect)) {
-                useWalletConnect = true;
-                if (!await initializeWeb3(useWalletConnect)) return;
-            }
+            if (!await initializeWeb3()) return;
             try {
                 const chainId = await web3.eth.getChainId();
                 console.log('Current chain ID (decimal):', chainId);
                 if (Number(chainId) !== MONAD_TESTNET_CHAIN_ID_DECIMAL) {
-                    errorDiv.textContent = `Chain ID mismatch: expected 10143 (Monad Testnet), got ${chainId}. Switching...`;
+                    errorDiv.textContent = `Chain ID mismatch: expected 10143 (Monad Testnet), got ${chainId}. Please switch to Monad Testnet in MetaMask Settings > Networks.`;
                     console.warn('Chain ID mismatch detected:', chainId);
                     try {
                         await provider.request({
@@ -143,7 +210,7 @@
                             params: [{ chainId: MONAD_TESTNET_CHAIN_ID }],
                         });
                     } catch (switchError) {
-                        if (switchError.code === 4902 || switchError.code === -32601) {
+                        if (switchError.code === 4902) {
                             await provider.request({
                                 method: 'wallet_addEthereumChain',
                                 params: [{
@@ -159,112 +226,134 @@
                         }
                     }
                 }
-                let accounts;
-                if (provider instanceof window.WalletConnectProvider.default) {
-                    await provider.enable();
-                    accounts = await web3.eth.getAccounts();
-                } else {
-                    accounts = await provider.request({ method: 'eth_requestAccounts' });
-                }
+                const accounts = await provider.request({ method: 'eth_requestAccounts' });
                 const account = accounts[0];
-                statusDiv.textContent = `Connected: ${account.substring(0, 6)}... Use /createprofile, /buildaclimb, or /buyTours in Telegram to continue.`;
+                statusDiv.textContent = `Connected: ${account.substring(0, 6)}... Ready to climb! Use buttons or Telegram commands.`;
                 console.log('Connected account:', account);
                 await submitWallet(account);
                 startPolling();
+                Telegram.WebApp.MainButton.hide();
             } catch (error) {
                 errorDiv.textContent = `Error connecting wallet: ${error.message}. Ensure Monad Testnet (chainId: 10143) is selected. On mobile, use MetaMask’s browser (Menu > Browser).`;
                 console.error('Error connecting wallet:', error);
                 statusDiv.textContent = 'Please connect your wallet to Monad Testnet (chainId: 10143).';
-                retryButton.style.display = 'block';
             }
         }
 
-        async function submitWallet(walletAddress) {
+        async function submitWallet(account) {
             try {
+                console.log('Submitting wallet for userId:', userId, 'address:', account);
                 const response = await fetch(`${apiBaseUrl}/submit_wallet`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: userId.toString(), walletAddress })
+                    body: JSON.stringify({ userId, walletAddress: account })
                 });
-                if (!response.ok) throw new Error('Failed to submit wallet address');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+                statusDiv.textContent += ' Wallet submitted! Gear up for your next ascent.';
                 console.log('Wallet submitted successfully');
             } catch (error) {
-                errorDiv.textContent = `Error submitting wallet: ${error.message}`;
-                console.error('Submit wallet error:', error);
+                errorDiv.textContent = `Error submitting wallet: ${error.message}. Try again or contact support at https://t.me/empowertourschat.`;
+                console.error('Error submitting wallet:', error);
             }
         }
 
         async function pollTransaction() {
+            if (!web3) {
+                errorDiv.textContent = 'Web3 provider not initialized. Please reconnect your wallet.';
+                console.error('Web3 not initialized');
+                stopPolling();
+                return;
+            }
             try {
+                console.log('Polling transaction for userId:', userId);
                 const response = await fetch(`${apiBaseUrl}/get_transaction?userId=${userId}`);
-                const data = await response.json();
-                if (data.tx) {
+                if (response.status === 404) {
+                    statusDiv.textContent = 'No pending transaction. Initiate an action via Telegram (e.g., /buildaclimb).';
+                    console.log('No pending transaction found');
                     stopPolling();
-                    // Ensure accounts are connected before signing
-                    let accounts = await web3.eth.getAccounts();
-                    if (!accounts || accounts.length === 0) {
-                        if (provider instanceof window.WalletConnectProvider.default) {
-                            await provider.enable();
-                        } else {
-                            accounts = await provider.request({ method: 'eth_requestAccounts' });
-                        }
+                    return;
+                }
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+                const data = await response.json();
+                if (data.transaction) {
+                    stopPolling();  // Stop polling immediately after fetching tx to prevent multiples
+                    statusDiv.textContent = 'Transaction ready! Waiting for wallet to sign...';
+                    console.log('Transaction data received:', data.transaction);
+                    try {
+                        const txResult = await web3.eth.sendTransaction(data.transaction);
+                        const txHash = txResult.transactionHash;  // Extract the hash string from the receipt object
+                        statusDiv.textContent = `Transaction signed: ${txHash.substring(0, 6)}...`;
+                        txHashDiv.textContent = `Transaction Hash: ${txHash}\n`;
+                        console.log('Transaction signed, hash:', txHash);
+                        await submitTransaction(txHash);
+                        statusDiv.textContent = `Transaction submitted: ${txHash.substring(0, 6)}...`;
+                        console.log('Transaction submitted to server');
+                        Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                    } catch (error) {
+                        errorDiv.textContent = `Error signing transaction: ${error.message}. Check parameters or contact support at https://t.me/empowertourschat.`;
+                        console.error('Error signing transaction:', error);
+                        Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+                        // Optional: Restart polling on failure - startPolling();
                     }
-                    const signedTx = await provider.request({ method: 'eth_signTransaction', params: [data.tx] });
-                    await submitTransaction(signedTx);
+                } else {
+                    statusDiv.textContent = 'Waiting for transaction...';
+                    console.log('No transaction data available yet');
                 }
             } catch (error) {
-                console.error('Polling error:', error);
+                errorDiv.textContent = `Error polling transaction: ${error.message}. Try refreshing the page or contact support at https://t.me/empowertourschat.`;
+                console.error('Error polling transaction:', error);
             }
         }
 
-        async function submitTransaction(signedTxHex) {
+        async function submitTransaction(txHash) {
             try {
+                console.log('Submitting transaction hash:', txHash);
                 const response = await fetch(`${apiBaseUrl}/submit_tx`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: userId.toString(), txHex: signedTxHex })
+                    body: JSON.stringify({ userId, txHash })
                 });
-                if (!response.ok) throw new Error('Failed to submit transaction');
-                const data = await response.json();
-                txHashDiv.textContent = `Submitted Tx Hash: ${data.txHash}`;
-                console.log('Transaction submitted successfully');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+                console.log('Transaction hash submitted successfully');
             } catch (error) {
-                errorDiv.textContent = `Error submitting transaction: ${error.message}`;
-                console.error('Submit transaction error:', error);
+                errorDiv.textContent = `Error submitting transaction: ${error.message}. Please send the transaction hash to the Telegram bot manually.`;
+                console.error('Error submitting transaction:', error);
             }
         }
 
         function startPolling() {
             if (!pollingInterval) {
-                pollingInterval = setInterval(pollTransaction, 5000);
-                console.log('Started polling for transactions');
+                console.log('Starting transaction polling');
+                pollingInterval = setInterval(pollTransaction, 3000);
             }
         }
 
         function stopPolling() {
             if (pollingInterval) {
+                console.log('Stopping transaction polling');
                 clearInterval(pollingInterval);
                 pollingInterval = null;
-                console.log('Stopped polling');
             }
         }
 
         document.getElementById('connectButton').addEventListener('click', connectWallet);
-        retryButton.addEventListener('click', connectWallet);
         window.addEventListener('load', async () => {
-            console.log('Page loaded for userId:', userId);
             if (userId) {
-                await initializeWeb3();  // Initialize on load
-                startPolling();  // Start polling immediately for pending tx
+                console.log('Page loaded, initializing Web3 for userId:', userId);
+                if (await initializeWeb3()) {
+                    startPolling();
+                }
             } else {
-                errorDiv.textContent = 'Unable to detect user ID. Please relaunch from Telegram.';
+                errorDiv.textContent = 'Missing userId. Use the link provided by /connectwallet in Telegram.';
+                console.error('Missing userId');
             }
         });
-
-        function sendCommand(command) {
-            Telegram.WebApp.sendData(command);
-            Telegram.WebApp.showAlert('Command sent to bot!');
-        }
     </script>
 </body>
 </html>
