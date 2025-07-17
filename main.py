@@ -3308,7 +3308,7 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                 contract.events.TournamentJoinedEnhanced,
                 lambda e: f"Climber <a href=\"{EXPLORER_URL}/address/{e.args.participant}\">{e.args.participant[:6]}...</a> joined enhanced tournament #{e.args.tournamentId} on EmpowerTours! 🏆"
             ),
-            "c324297d5b895c2da550735a9b47fb079d2bf5c0f3fd480f1a1c9f6c10c48e6e": (  # TournamentEnded(uint256,uint256,uint256)
+            "dd7ad4d17119eef4327e49ef4368c3d112ab5b71ee7918afcadc779b78eed9d9": (  # TournamentEnded(uint256,uint256,uint256)
                 contract.events.TournamentEnded,
                 lambda e: f"Tournament #{e.args.tournamentId} ended! Prize pot: {e.args.pot / 10**18} $TOURS 🏆"
             ),
@@ -3316,7 +3316,7 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                 contract.events.TournamentEndedEnhanced,
                 lambda e: f"Enhanced tournament #{e.args.tournamentId} ended! Winner: <a href=\"{EXPLORER_URL}/address/{e.args.winner}\">{e.args.winner[:6]}...</a> Prize: {e.args.pot / 10**18} $TOURS 🏆"
             ),
-            "7c041c6a61b05a6a99f81f2f3338d3911721f95ec7da19a69782e5a887e1340f": (  # ToursPurchased(address,uint256,uint256)
+            "b9f217daf6aa350a9b78812562d0d1afba9439b7b595919c7d9dfc40d2230f35": (  # ToursPurchased(address,uint256,uint256)
                 contract.events.ToursPurchased,
                 lambda e: f"User <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> bought {e.args.toursAmount / 10**18} $TOURS on EmpowerTours! 🪙"
             ),
@@ -3325,7 +3325,6 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
         for log in logs:
             try:
                 topic0 = log['topics'][0].hex()
-                logger.info(f"Found log with topic0: {topic0}")
                 if topic0 in event_map:
                     event_class, message_fn = event_map[topic0]
                     event = event_class().process_log(log)
@@ -3340,8 +3339,18 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                             user_id = reverse_sessions[checksum_user_address]
                             user_message = f"Your action succeeded! {message.replace('<a href=', '[Tx: ').replace('</a>', ']')} 🪙 Check details on {EXPLORER_URL}/tx/{log['transactionHash'].hex()}"
                             await application.bot.send_message(user_id, user_message, parse_mode="Markdown")
-                    # Store purchase in DB if LocationPurchased or LocationPurchasedEnhanced
-                    if topic0 in ["b092b68cd4087066d88561f213472db328f688a8993b20e9eab36fee4d6679fd", "ad043c04181883ece2f6dc02cf2978a3b453c3d2323bb4bfb95865f910e6c3ce"]:
+                    # Store purchase in DB if LocationPurchased
+                    if topic0 == "b092b68cd4087066d88561f213472db328f688a8993b20e9eab36fee4d6679fd":  # LocationPurchased(uint256,address,uint256)
+                        buyer = event.args.buyer
+                        checksum_buyer = w3.to_checksum_address(buyer)
+                        if checksum_buyer in reverse_sessions:
+                            user_id = reverse_sessions[checksum_buyer]
+                            async with pool.acquire() as conn:
+                                await conn.execute(
+                                    "INSERT INTO purchases (user_id, wallet_address, location_id, timestamp) VALUES ($1, $2, $3, $4)",
+                                    user_id, checksum_buyer, event.args.locationId, event.args.timestamp
+                                )
+                    elif topic0 == "ad043c04181883ece2f6dc02cf2978a3b453c3d2323bb4bfb95865f910e6c3ce":  # LocationPurchasedEnhanced
                         buyer = event.args.buyer
                         checksum_buyer = w3.to_checksum_address(buyer)
                         if checksum_buyer in reverse_sessions:
@@ -3808,6 +3817,16 @@ async def submit_tx(request: Request):
                             await conn.execute(
                                 "UPDATE media_files SET entry_id = $1 WHERE hash = $2",
                                 entry_id, photo_hash
+                            )
+                    # Add for purchaseClimbingLocation
+                    if input_data.startswith('0xd2494431'):  # purchaseClimbingLocation selector
+                        location_id = int.from_bytes(bytes.fromhex(input_data[10:]), 'big')
+                        block = await w3.eth.get_block(receipt.blockNumber)
+                        timestamp = block.timestamp
+                        async with pool.acquire() as conn:
+                            await conn.execute(
+                                "INSERT INTO purchases (user_id, wallet_address, location_id, timestamp) VALUES ($1, $2, $3, $4)",
+                                user_id, receipt['from'], location_id, timestamp
                             )
                     if pending.get("next_tx"):
                         next_tx_data = pending["next_tx"]
