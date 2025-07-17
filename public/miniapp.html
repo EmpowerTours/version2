@@ -105,6 +105,15 @@
             background-color: var(--tg-theme-link-color, #a0522d);
             color: #000; /* Changed to black for better visibility */
         }
+        #content {
+            max-width: 80%;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 8px;
+            overflow-y: auto;
+            max-height: 50vh;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -130,6 +139,7 @@
         <button class="mini-app-button" onclick="handleCheckBalance()">Check Balance ⚖️</button>
         <button class="mini-app-button" onclick="handleHelp()">Help ❓</button>
     </div>
+    <div id="content"></div>
     <div id="error"></div>
     <div id="txHash"></div>
     <script>
@@ -138,9 +148,11 @@
         const statusDiv = document.getElementById('status');
         const errorDiv = document.getElementById('error');
         const txHashDiv = document.getElementById('txHash');
+        const contentDiv = document.getElementById('content');
         let web3;
         let provider;
         let pollingInterval = null;
+        let account = null;
         const MONAD_TESTNET_CHAIN_ID = '0x27af'; // 10143 in hex
         const MONAD_TESTNET_CHAIN_ID_DECIMAL = 10143;
 
@@ -193,8 +205,19 @@
             }
         }
 
-        function handleFindClimbs() {
-            sendCommand('/findaclimb');
+        async function handleFindClimbs() {
+            try {
+                const response = await fetch(`${apiBaseUrl}/get_climbs`);
+                if (!response.ok) throw new Error('Failed to fetch climbs');
+                const data = await response.json();
+                let html = '<h2>Available Climbs</h2>';
+                data.climbs.forEach(climb => {
+                    html += `<p>ID: ${climb.id} - ${climb.name} (${climb.difficulty})<br>Creator: ${climb.creator.substring(0,6)}...<br>Location: ${climb.latitude}, ${climb.longitude}<br>Purchases: ${climb.purchase_count}</p>`;
+                });
+                contentDiv.innerHTML = html;
+            } catch (e) {
+                errorDiv.textContent = 'Error fetching climbs: ' + e.message;
+            }
         }
 
         function handlePurchaseClimb() {
@@ -204,8 +227,19 @@
             }
         }
 
-        function handleMyPurchases() {
-            sendCommand('/mypurchases');
+        async function handleMyPurchases() {
+            try {
+                const response = await fetch(`${apiBaseUrl}/get_purchases?userId=${userId}`);
+                if (!response.ok) throw new Error('Failed to fetch purchases');
+                const data = await response.json();
+                let html = '<h2>My Purchases</h2>';
+                data.purchases.forEach(purchase => {
+                    html += `<p>ID: ${purchase.id} - ${purchase.name} (${purchase.difficulty})<br>Creator: ${purchase.creator.substring(0,6)}...<br>Location: ${purchase.latitude}, ${purchase.longitude}</p>`;
+                });
+                contentDiv.innerHTML = html;
+            } catch (e) {
+                errorDiv.textContent = 'Error fetching purchases: ' + e.message;
+            }
         }
 
         function handleLogJournal() {
@@ -215,14 +249,38 @@
             }
         }
 
-        function handleViewJournals() {
-            sendCommand('/journals');
+        async function handleViewJournals() {
+            try {
+                const response = await fetch(`${apiBaseUrl}/get_journals`);
+                if (!response.ok) throw new Error('Failed to fetch journals');
+                const data = await response.json();
+                let html = '<h2>All Journals</h2>';
+                data.journals.forEach(journal => {
+                    html += `<p>ID: ${journal.id} - Content: ${journal.content}<br>Author: ${journal.author.substring(0,6)}...<br>Location: ${journal.location}<br>Difficulty: ${journal.difficulty}</p>`;
+                });
+                contentDiv.innerHTML = html;
+            } catch (e) {
+                errorDiv.textContent = 'Error fetching journals: ' + e.message;
+            }
         }
 
-        function handleViewJournalEntry() {
+        async function handleViewJournalEntry() {
             const id = prompt('Enter journal entry ID to view:');
             if (id) {
-                sendCommand(`/viewjournal ${id}`);
+                try {
+                    const response = await fetch(`${apiBaseUrl}/get_journal?id=${id}`);
+                    if (!response.ok) throw new Error('Failed to fetch journal entry');
+                    const data = await response.json();
+                    let html = '<h2>Journal Entry</h2>';
+                    html += `<p>Content: ${data.entry.content}<br>Author: ${data.entry.author.substring(0,6)}...<br>Location: ${data.entry.location}<br>Difficulty: ${data.entry.difficulty}</p>`;
+                    html += '<h3>Comments</h3>';
+                    data.comments.forEach(comment => {
+                        html += `<p>${comment.content} by ${comment.commenter.substring(0,6)}...</p>`;
+                    });
+                    contentDiv.innerHTML = html;
+                } catch (e) {
+                    errorDiv.textContent = 'Error fetching journal entry: ' + e.message;
+                }
             }
         }
 
@@ -241,8 +299,19 @@
             }
         }
 
-        function handleListTournaments() {
-            sendCommand('/tournaments');
+        async function handleListTournaments() {
+            try {
+                const response = await fetch(`${apiBaseUrl}/get_tournaments`);
+                if (!response.ok) throw new Error('Failed to fetch tournaments');
+                const data = await response.json();
+                let html = '<h2>Tournaments List</h2>';
+                data.tournaments.forEach(t => {
+                    html += `<p>#${t.id}: Fee: ${t.entryFee} $TOURS, Pot: ${t.pot} $TOURS, Participants: ${t.participants}, Status: ${t.status}</p>`;
+                });
+                contentDiv.innerHTML = html;
+            } catch (e) {
+                errorDiv.textContent = 'Error fetching tournaments: ' + e.message;
+            }
         }
 
         function handleJoinTournament() {
@@ -265,21 +334,14 @@
                 if (typeof Web3 === 'undefined') {
                     throw new Error('Web3.js library failed to load. Please refresh the page.');
                 }
-                if (window.ethereum) {
-                    provider = window.ethereum;
-                    web3 = new Web3(provider);
-                } else if (window.WalletConnectProvider) {
-                    provider = new window.WalletConnectProvider({
-                        rpc: { 10143: 'https://testnet-rpc.monad.xyz' },
-                        chainId: 10143,
-                        qrcode: true
-                    });
-                    web3 = new Web3(provider);
-                } else {
-                    throw new Error('No wallet provider detected. Install MetaMask or use a Web3-compatible browser.');
-                }
+                provider = new WalletConnectProvider({
+                    rpc: { 10143: 'https://testnet-rpc.monad.xyz' },
+                    chainId: 10143,
+                    qrcode: true
+                });
+                web3 = new Web3(provider);
             } catch (error) {
-                errorDiv.textContent = `Error initializing Web3: ${error.message}. On mobile, open this link in MetaMask’s browser (Menu > Browser). On desktop, install MetaMask.`;
+                errorDiv.textContent = `Error initializing Web3: ${error.message}. Install a wallet app and scan the QR code.`;
                 console.error('Web3 initialization error:', error);
                 statusDiv.textContent = 'Please connect your wallet to Monad Testnet (chainId: 10143).';
                 return false;
@@ -294,45 +356,22 @@
             console.log('Attempting to connect wallet for userId:', userId);
             if (!await initializeWeb3()) return;
             try {
-                if (provider.isWalletConnect) {
-                    await provider.enable();
-                }
+                await provider.enable(); // Shows QR code
                 const chainId = await web3.eth.getChainId();
                 console.log('Current chain ID (decimal):', chainId);
                 if (Number(chainId) !== MONAD_TESTNET_CHAIN_ID_DECIMAL) {
-                    errorDiv.textContent = `Chain ID mismatch: expected 10143 (Monad Testnet), got ${chainId}. Please switch to Monad Testnet in MetaMask Settings > Networks.`;
-                    console.warn('Chain ID mismatch detected:', chainId);
-                    try {
-                        await provider.request({
-                            method: 'wallet_switchEthereumChain',
-                            params: [{ chainId: MONAD_TESTNET_CHAIN_ID }],
-                        });
-                    } catch (switchError) {
-                        if (switchError.code === 4902) {
-                            await provider.request({
-                                method: 'wallet_addEthereumChain',
-                                params: [{
-                                    chainId: MONAD_TESTNET_CHAIN_ID,
-                                    chainName: 'Monad Testnet',
-                                    rpcUrls: ['https://testnet-rpc.monad.xyz'],
-                                    nativeCurrency: { name: 'MON', symbol: 'MON', decimals: 18 },
-                                    blockExplorerUrls: ['https://testnet.monadexplorer.com']
-                                }],
-                            });
-                        } else {
-                            throw new Error(`Failed to switch chain: ${switchError.message}. Ensure Monad Testnet (chainId: 10143) is selected.`);
-                        }
-                    }
+                    errorDiv.textContent = `Chain ID mismatch: expected 10143 (Monad Testnet), got ${chainId}. Switch in your wallet.`;
+                    return;
                 }
-                const accounts = await provider.request({ method: 'eth_requestAccounts' });
-                const account = accounts[0];
+                const accounts = await web3.eth.getAccounts();
+                account = accounts[0];
                 statusDiv.textContent = `Connected: ${account.substring(0, 6)}... Ready to climb! Use buttons or Telegram commands.`;
                 console.log('Connected account:', account);
                 await submitWallet(account);
                 startPolling();
                 Telegram.WebApp.MainButton.hide();
             } catch (error) {
-                errorDiv.textContent = `Error connecting wallet: ${error.message}. Ensure Monad Testnet (chainId: 10143) is selected. On mobile, use MetaMask’s browser (Menu > Browser).`;
+                errorDiv.textContent = `Error connecting wallet: ${error.message}. Scan the QR with your wallet app.`;
                 console.error('Error connecting wallet:', error);
                 statusDiv.textContent = 'Please connect your wallet to Monad Testnet (chainId: 10143).';
             }
