@@ -185,12 +185,12 @@
                 }
                 const data = await response.json();
                 if (data.transaction) {
-                    stopPolling();  // Stop polling immediately after fetching tx to prevent multiples
+                    stopPolling();  # Stop polling immediately after fetching tx to prevent multiples
                     statusDiv.textContent = 'Transaction ready! Waiting for wallet to sign...';
                     console.log('Transaction data received:', data.transaction);
-                    try {
+                    try:
                         const txResult = await web3.eth.sendTransaction(data.transaction);
-                        const txHash = txResult.transactionHash;  // Extract the hash string from the receipt object
+                        const txHash = txResult.transactionHash;  # Extract the hash string from the receipt object
                         statusDiv.textContent = `Transaction signed: ${txHash.substring(0, 6)}...`;
                         txHashDiv.textContent = `Transaction Hash: ${txHash}\n`;
                         console.log('Transaction signed, hash:', txHash);
@@ -200,7 +200,7 @@
                     } catch (error) {
                         errorDiv.textContent = `Error signing transaction: ${error.message}. Check parameters or contact support at https://t.me/empowertourschat.`;
                         console.error('Error signing transaction:', error);
-                        // Optional: Restart polling on failure - startPolling();
+                        # Optional: Restart polling on failure - startPolling();
                     }
                 } else {
                     statusDiv.textContent = 'Waiting for transaction...';
