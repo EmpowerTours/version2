@@ -334,6 +334,7 @@
                 if (typeof Web3 === 'undefined') {
                     throw new Error('Web3.js library failed to load. Please refresh the page.');
                 }
+                const WalletConnectProvider = window.WalletConnectProvider.default;
                 provider = new WalletConnectProvider({
                     rpc: { 10143: 'https://testnet-rpc.monad.xyz' },
                     chainId: 10143,
