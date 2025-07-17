@@ -15,7 +15,7 @@
             padding: 20px;
             background-image: url('IMG_3466.jpg');
             background-size: cover;
-            background-position: center;
+            background-position: center bottom;
             color: var(--tg-theme-text-color, #fff);
             text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
             margin: 0;
@@ -38,7 +38,7 @@
             font-size: 18px;
             cursor: pointer;
             background-color: var(--tg-theme-button-color, #4caf50);
-            color: var(--tg-theme-button-text-color, white);
+            color: #000; /* Changed to black for better visibility */
             border: none;
             border-radius: 8px;
             margin: 15px 0;
@@ -50,6 +50,7 @@
         button:hover {
             background-color: var(--tg-theme-secondary-bg-color, #388e3c);
             transform: scale(1.05);
+            color: #000; /* Changed to black for better visibility */
         }
         #status {
             margin-top: 20px;
@@ -93,14 +94,16 @@
             gap: 15px;
             width: 80%;
             max-width: 600px;
-            margin-top: 40px; /* Increased margin to lower buttons */
+            margin-top: 80px; /* Increased margin to lower buttons further */
         }
         .mini-app-button {
             background-color: var(--tg-theme-secondary-bg-color, #8b4513);
             font-weight: bold;
+            color: #000; /* Changed to black for better visibility */
         }
         .mini-app-button:hover {
             background-color: var(--tg-theme-link-color, #a0522d);
+            color: #000; /* Changed to black for better visibility */
         }
     </style>
 </head>
@@ -156,7 +159,7 @@
             document.body.style.setProperty('--tg-theme-hint-color', Telegram.WebApp.themeParams.hint_color);
             document.body.style.setProperty('--tg-theme-link-color', Telegram.WebApp.themeParams.link_color);
             document.body.style.setProperty('--tg-theme-button-color', Telegram.WebApp.themeParams.button_color);
-            document.body.style.setProperty('--tg-theme-button-text-color', Telegram.WebApp.themeParams.button_text_color);
+            document.body.style.setProperty('--tg-theme-button-text-color', '#000'); /* Changed to black */
             document.body.style.setProperty('--tg-theme-secondary-bg-color', Telegram.WebApp.themeParams.secondary_bg_color);
             document.body.style.setProperty('--tg-theme-destructive-text-color', Telegram.WebApp.themeParams.destructive_text_color);
         }
@@ -164,7 +167,7 @@
         function sendCommand(command) {
             Telegram.WebApp.HapticFeedback.impactOccurred('light');
             Telegram.WebApp.sendData(command);
-            Telegram.WebApp.showAlert('Command sent! Check the chat for response or next steps.');
+            Telegram.WebApp.showAlert('Command sent! Check the chat for response or refresh the Mini App to sign transaction if needed.');
         }
 
         async function initializeWeb3() {
