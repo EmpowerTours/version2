@@ -3489,7 +3489,7 @@ async def startup_event():
         application.add_handler(MessageHandler(filters.Regex(r'^0x[a-fA-F0-9]{64}$'), handle_tx_hash))
         application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
         application.add_handler(MessageHandler(filters.LOCATION, handle_location))
-        application.add_handler(MessageHandler(filters.COMMAND, unknown_command))  # Changed to unknown_command
+        application.add_handler(MessageHandler(filters.COMMAND, debug_command))  
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, log_message))
         logger.info("Command handlers registered successfully")
 
