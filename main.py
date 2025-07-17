@@ -1162,7 +1162,7 @@ async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "1. Wallet:\n"
             "- Get MetaMask, Phantom, or Gnosis Safe.\n"
             "- Add Monad testnet (RPC: https://testnet-rpc.monad.xyz, ID: 10143).\n"
-            "- If you see a chain ID mismatch (e.g., 10159), go to MetaMask Settings &gt; Networks, remove all Monad Testnet entries, and reconnect.\n"
+            "- If you see a chain ID mismatch (e.g., 10159), go to MetaMask Settings > Networks, remove all Monad Testnet entries, and reconnect.\n"
             "- Get $MON: https://testnet.monad.xyz/faucet\n\n"
             "2. Connect:\n"
             "- Use /connectwallet to connect via MetaMask or WalletConnect\n\n"
@@ -1256,8 +1256,8 @@ async def connect_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = InlineKeyboardMarkup(keyboard)
         message = (
             "Click the button to connect your wallet via MetaMask or WalletConnect. "
-            "On mobile, copy this link and open it in the MetaMask app's browser (Menu &gt; Browser). "
-            "If you see a chain ID mismatch, go to MetaMask Settings &gt; Networks, remove all Monad Testnet entries, and reconnect. "
+            "On mobile, copy this link and open it in the MetaMask app's browser (Menu > Browser). "
+            "If you see a chain ID mismatch, go to MetaMask Settings > Networks, remove all Monad Testnet entries, and reconnect. "
             "After connecting, use /createprofile to create your profile or /balance to check your status. "
             "If the link fails, contact support at <a href=\"https://t.me/empowertourschat\">EmpowerTours Chat</a>."
         )
@@ -1859,7 +1859,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             journal["awaiting_location"] = True
             del journal["awaiting_photo"]
             await set_journal_data(user_id, journal)
-            await update.message.reply_text("Photo received (hashed for efficiency)! Now send the location using the paperclip icon &gt; Location.")
+            await update.message.reply_text("Photo received (hashed for efficiency)! Now send the location using the paperclip icon > Location.")
             logger.info(f"/handle_photo processed for journal, awaiting location for user {user_id}, took {time.time() - start_time:.2f} seconds")
         elif 'pending_climb' in context.user_data:
             pending_climb = context.user_data['pending_climb']
@@ -2059,7 +2059,7 @@ async def viewclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     try:
         if not context.args:
-            await update.message.reply_text("Usage: /viewclimb &lt;id&gt;")
+            await update.message.reply_text("Usage: /viewclimb <id>")
             logger.info(f"/viewclimb failed due to insufficient args, took {time.time() - start_time:.2f} seconds")
             return
         loc_id = int(context.args[0])
@@ -2596,7 +2596,7 @@ async def findaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             location_count = await contract.functions.getClimbingLocationCount().call({'gas': 500000})
             logger.info(f"Climbing location count: {location_count}")
-            if location_count == 0:
+            if location_count = 0:
                 try:
                     events = await contract.events.ClimbingLocationCreated.create_filter(
                         fromBlock=0,
@@ -2745,8 +2745,8 @@ async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Tournament joining unavailable due to configuration issues. Try again later! 😅")
         logger.info(f"/jointournament failed due to missing API_BASE_URL, took {time.time() - start_time:.2f} seconds")
         return
-    if not w3 or not contract:
-        logger.error("Web3 not initialized, /jointournament command disabled")
+    if not w3 or not contract or not tours_contract:
+        logger.error("Web3 or tours_contract not initialized, /jointournament command disabled")
         await update.message.reply_text("Tournament joining unavailable due to blockchain issues. Try again later! 😅")
         logger.info(f"/jointournament failed due to Web3 issues, took {time.time() - start_time:.2f} seconds")
         return
@@ -2761,12 +2761,146 @@ async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session = await get_session(user_id)
         wallet_address = session.get("wallet_address") if session else None
         if not wallet_address:
-            await update.message.reply_text("Use /connectwallet! 🪙")
+            await update.message.reply_text("No wallet connected. Use /connectwallet first! 🪙")
             logger.info(f"/jointournament failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
             return
-        checksum_address = w3.to_checksum_address(wallet_address)
-        tournament = await contract.functions.tournaments(tournament_id).call()
-        entry_fee = tournament[0]
+        logger.info(f"Wallet address for user {user_id}: {wallet_address}")
+
+        # Verify Web3 connection
+        is_connected = await w3.is_connected()
+        if not is_connected:
+            logger.error("Web3 not connected to Monad testnet")
+            await update.message.reply_text("Blockchain connection failed. Try again later or contact support at <a href=\"https://t.me/empowertourschat\">EmpowerTours Chat</a>. 😅", parse_mode="HTML")
+            logger.info(f"/jointournament failed due to Web3 connection, took {time.time() - start_time:.2f} seconds")
+            return
+
+        # Ensure checksum address
+        try:
+            checksum_address = w3.to_checksum_address(wallet_address)
+        except Exception as e:
+            logger.error(f"Error converting wallet address to checksum: {str(e)}")
+            error_msg = html.escape(str(e))
+            await update.message.reply_text(f"Invalid wallet address format: {error_msg}. Try /connectwallet again. 😅", parse_mode="HTML")
+            logger.info(f"/jointournament failed due to checksum error, took {time.time() - start_time:.2f} seconds")
+            return
+
+        # Get tournament details
+        try:
+            tournament = await contract.functions.tournaments(tournament_id).call({'gas': 500000})
+            entry_fee = tournament[0]
+            is_active = tournament[3]
+            if not is_active:
+                await update.message.reply_text("This tournament is not active. Use /tournaments to find active ones. 😅")
+                logger.info(f"/jointournament failed: tournament not active, took {time.time() - start_time:.2f} seconds")
+                return
+        except Exception as e:
+            logger.error(f"Error retrieving tournament details: {str(e)}")
+            error_msg = html.escape(str(e))
+            support_link = '<a href="https://t.me/empowertourschat">EmpowerTours Chat</a>'
+            await update.message.reply_text(f"Failed to retrieve tournament details: {error_msg}. Try again or contact support at {support_link}. 😅", parse_mode="HTML")
+            logger.info(f"/jointournament failed due to tournament retrieval error, took {time.time() - start_time:.2f} seconds")
+            return
+
+        # Check profile existence
+        profile_exists = False
+        try:
+            tours_balance = await tours_contract.functions.balanceOf(checksum_address).call({'gas': 500000})
+            logger.info(f"$TOURS balance for {checksum_address}: {tours_balance / 10**18} $TOURS")
+            if tours_balance > 0:
+                profile_exists = True
+                logger.info(f"Profile assumed to exist due to non-zero $TOURS balance: {tours_balance / 10**18}")
+        except Exception as e:
+            logger.error(f"Error checking $TOURS balance: {str(e)}")
+
+        if not profile_exists:
+            max_retries = 3
+            for attempt in range(1, max_retries + 1):
+                try:
+                    profile = await contract.functions.profiles(checksum_address).call({'gas': 500000})
+                    logger.info(f"Profile check attempt {attempt}/{max_retries} for {checksum_address}: {profile}")
+                    if profile[0]:
+                        profile_exists = True
+                        break
+                except Exception as e:
+                    logger.error(f"Error checking profile existence (attempt {attempt}/{max_retries}): {str(e)}")
+                    if attempt == max_retries:
+                        logger.warning(f"Profile check failed after {max_retries} attempts")
+                    await asyncio.sleep(3)
+
+        if not profile_exists:
+            await update.message.reply_text(
+                f"No profile exists for wallet [{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})! Use /createprofile to create a profile before joining a tournament. Contact support at <a href=\"https://t.me/empowertourschat\">EmpowerTours Chat</a>. 😅",
+                parse_mode="HTML"
+            )
+            logger.info(f"/jointournament failed: no profile for user {user_id}, wallet {checksum_address}, took {time.time() - start_time:.2f} seconds")
+            return
+
+        # Check $TOURS balance
+        if tours_balance < entry_fee:
+            await update.message.reply_text(
+                f"Insufficient $TOURS. Need {entry_fee / 10**18} $TOURS, you have {tours_balance / 10**18}. Buy more with /buyTours! 😅"
+            )
+            logger.info(f"/jointournament failed due to insufficient $TOURS, took {time.time() - start_time:.2f} seconds")
+            return
+
+        # Check allowance
+        allowance = await tours_contract.functions.allowance(checksum_address, contract.address).call({'gas': 500000})
+        if allowance < entry_fee:
+            nonce = await w3.eth.get_transaction_count(checksum_address)
+            approve_tx = await tours_contract.functions.approve(contract.address, entry_fee).build_transaction({
+                'from': checksum_address,
+                'nonce': nonce,
+                'gas': 100000,
+                'gas_price': await w3.eth.gas_price
+            })
+            await set_pending_wallet(user_id, {
+                "awaiting_tx": True,
+                "tx_data": approve_tx,
+                "wallet_address": checksum_address,
+                "timestamp": time.time(),
+                "next_tx": {
+                    "type": "join_tournament",
+                    "tournament_id": tournament_id
+                }
+            })
+            await update.message.reply_text(
+                f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to approve {entry_fee / 10**18} $TOURS for joining tournament #{tournament_id} using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})). After approval, you'll sign the join transaction.",
+                parse_mode="Markdown"
+            )
+            logger.info(f"/jointournament initiated approval for user {user_id}, took {time.time() - start_time:.2f} seconds")
+            return
+
+        # Simulate joinTournament
+        try:
+            await contract.functions.joinTournament(tournament_id).call({
+                'from': checksum_address,
+                'gas': 200000
+            })
+        except Exception as e:
+            revert_reason = html.escape(str(e))
+            logger.error(f"joinTournament simulation failed: {revert_reason}")
+            support_link = '<a href="https://t.me/empowertourschat">EmpowerTours Chat</a>'
+            if "TournamentNotActive" in revert_reason:
+                await update.message.reply_text(
+                    f"This tournament is not active. Use /tournaments to find active ones. 😅"
+                )
+            elif "InsufficientTokenBalance" in revert_reason:
+                await update.message.reply_text(
+                    f"Insufficient $TOURS balance. Check /balance and try again. 😅"
+                )
+            elif "NotParticipant" in revert_reason:
+                await update.message.reply_text(
+                    f"You are not a participant or already joined. Check /tournaments. 😅"
+                )
+            else:
+                await update.message.reply_text(
+                    f"Transaction simulation failed: {revert_reason}. Try again or contact support at {support_link}. 😅",
+                    parse_mode="HTML"
+                )
+            logger.info(f"/jointournament failed due to simulation error, took {time.time() - start_time:.2f} seconds")
+            return
+
+        # Build join transaction
         nonce = await w3.eth.get_transaction_count(checksum_address)
         tx = await contract.functions.joinTournament(tournament_id).build_transaction({
             'from': checksum_address,
@@ -2787,10 +2921,11 @@ async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
         })
         logger.info(f"/jointournament transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
-        logger.error(f"Error in /jointournament: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        logger.error(f"Unexpected error in /jointournament for user {user_id}: {str(e)}")
         error_msg = html.escape(str(e))
         support_link = '<a href="https://t.me/empowertourschat">EmpowerTours Chat</a>'
-        await update.message.reply_text(f"Error: {error_msg}. Try again or contact support at {support_link}. 😅", parse_mode="HTML")
+        await update.message.reply_text(f"Unexpected error: {error_msg}. Try again or contact support at {support_link}. 😅", parse_mode="HTML")
+        logger.info(f"/jointournament failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
 
 async def endtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
@@ -3143,7 +3278,7 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                 contract.events.ClimbingLocationCreatedEnhanced,
                 lambda e: f"New enhanced climb '{e.args.name}' created by <a href=\"{EXPLORER_URL}/address/{e.args.creator}\">{e.args.creator[:6]}...</a> on EmpowerTours! 🪨"
             ),
-            "ad043c04181883ece2f6dc02cf2978a3b453c3d2323bb4bfb95865f910e6c3ce": (  # LocationPurchasedEnhanced(uint256,address,uint256,uint256)
+            "ad043c04181883ece2f6dc02cf2978a3b453c3d112ab5b71ee7918afcadc779b78eed9d9": (  # LocationPurchasedEnhanced(uint256,address,uint256,uint256)
                 contract.events.LocationPurchasedEnhanced,
                 lambda e: f"Enhanced climb #{e.args.locationId} purchased by <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> on EmpowerTours! 🪙"
             ),
@@ -3163,9 +3298,9 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                 contract.events.TournamentJoinedEnhanced,
                 lambda e: f"Climber <a href=\"{EXPLORER_URL}/address/{e.args.participant}\">{e.args.participant[:6]}...</a> joined enhanced tournament #{e.args.tournamentId} on EmpowerTours! 🏆"
             ),
-            "dd7ad4d17119eef4327e49ef4368c3d112ab5b71ee7918afcadc779b78eed9d9": (  # TournamentEnded(uint256,address,uint256)
+            "dd7ad4d17119eef4327e49ef4368c3d112ab5b71ee7918afcadc779b78eed9d9": (  # TournamentEnded(uint256,uint256,uint256)
                 contract.events.TournamentEnded,
-                lambda e: f"Tournament #{e.args.tournamentId} ended! Winner: <a href=\"{EXPLORER_URL}/address/{e.args.winner}\">{e.args.winner[:6]}...</a> Prize: {e.args.pot / 10**18} $TOURS 🏆"
+                lambda e: f"Tournament #{e.args.tournamentId} ended! Prize pot: {e.args.pot / 10**18} $TOURS 🏆"
             ),
             "f0f0525a5ef10132058aa9a3feb1a1f6d503037788ea59f454076e216da1a741": (  # TournamentEndedEnhanced(uint256,address,uint256,uint256)
                 contract.events.TournamentEndedEnhanced,
@@ -3749,6 +3884,27 @@ async def submit_tx(request: Request):
                                 f"Approval confirmed! Now open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for purchasing climb #{next_tx_data['location_id']} using 10 $TOURS."
                             )
                             logger.info(f"/submit_tx processed approval, next transaction built for purchase_climb, took {time.time() - start_time:.2f} seconds")
+                            return {"status": "success"}
+                        elif next_tx_data["type"] == "join_tournament":
+                            nonce = await w3.eth.get_transaction_count(pending["wallet_address"])
+                            tx = await contract.functions.joinTournament(next_tx_data["tournament_id"]).build_transaction({
+                                'from': pending["wallet_address"],
+                                'nonce': nonce,
+                                'gas': 200000,
+                                'gas_price': await w3.eth.gas_price,
+                                'value': 0
+                            })
+                            await set_pending_wallet(user_id, {
+                                "awaiting_tx": True,
+                                "tx_data": tx,
+                                "wallet_address": pending["wallet_address"],
+                                "timestamp": time.time()
+                            })
+                            await application.bot.send_message(
+                                user_id,
+                                f"Approval confirmed! Now open https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for joining tournament #{next_tx_data['tournament_id']} using the entry fee in $TOURS."
+                            )
+                            logger.info(f"/submit_tx processed approval, next transaction built for jointournament, took {time.time() - start_time:.2f} seconds")
                             return {"status": "success"}
                     await delete_pending_wallet(user_id)
                 logger.info(f"/submit_tx confirmed for user {user_id}, took {time.time() - start_time:.2f} seconds")
