@@ -117,7 +117,7 @@
 <body>
     <h1>EmpowerTours Rock Climbing Hub</h1>
     <button id="connectButton">Connect Wallet 🧗‍♂️</button>
-    <button id="refreshButton" class="mini-app-button">Refresh Status 🔄</button>
+    <button id="refreshButton">Refresh Status 🔄</button>
     <div id="status">Gear up! Connect your wallet to conquer the Monad Testnet peaks (chainId: 10143).</div>
     <div id="instructions">Scale new heights with EmpowerTours! On mobile, open the connection link in MetaMask’s browser (Menu > Browser). Chain ID mismatch? Clear old Monad Testnet entries in Settings > Networks. After connecting, use the buttons below or Telegram commands like /createprofile to start your ascent.</div>
     <div class="button-grid">
@@ -173,7 +173,7 @@
         function sendCommand(command) {
             Telegram.WebApp.HapticFeedback.impactOccurred('light');
             Telegram.WebApp.sendData(command);
-            Telegram.WebApp.showAlert('Command sent! Check the chat for response or to sign transactions.');
+            Telegram.WebApp.showAlert('Command sent! Check the chat for response.');
         }
 
         function connectWallet() {
@@ -191,17 +191,13 @@
 
         function handleBuyTours() {
             const amount = prompt('Enter amount of $TOURS to buy (e.g., 10):');
-            if (amount) {
-                sendCommand(`/buyTours ${amount}`);
-            }
+            if (amount) sendCommand(`/buyTours ${amount}`);
         }
 
         function handleBuildClimb() {
             const name = prompt('Enter climb name:');
             const difficulty = prompt('Enter difficulty (e.g., Easy):');
-            if (name && difficulty) {
-                sendCommand(`/buildaclimb ${name} ${difficulty}`);
-            }
+            if (name && difficulty) sendCommand(`/buildaclimb ${name} ${difficulty}`);
         }
 
         function handleFindClimbs() {
@@ -210,9 +206,7 @@
 
         function handlePurchaseClimb() {
             const id = prompt('Enter climb ID to purchase:');
-            if (id) {
-                sendCommand(`/purchaseclimb ${id}`);
-            }
+            if (id) sendCommand(`/purchaseclimb ${id}`);
         }
 
         function handleMyPurchases() {
@@ -221,9 +215,7 @@
 
         function handleLogJournal() {
             const entry = prompt('Enter your journal entry:');
-            if (entry) {
-                sendCommand(`/journal ${entry}`);
-            }
+            if (entry) sendCommand(`/journal ${entry}`);
         }
 
         function handleViewJournals() {
@@ -232,24 +224,18 @@
 
         function handleViewJournalEntry() {
             const id = prompt('Enter journal entry ID to view:');
-            if (id) {
-                sendCommand(`/viewjournal ${id}`);
-            }
+            if (id) sendCommand(`/viewjournal ${id}`);
         }
 
         function handleAddComment() {
             const id = prompt('Enter journal entry ID to comment on:');
             const comment = prompt('Enter your comment:');
-            if (id && comment) {
-                sendCommand(`/comment ${id} ${comment}`);
-            }
+            if (id && comment) sendCommand(`/comment ${id} ${comment}`);
         }
 
         function handleCreateTournament() {
             const fee = prompt('Enter entry fee in $TOURS (e.g., 10):');
-            if (fee) {
-                sendCommand(`/createtournament ${fee}`);
-            }
+            if (fee) sendCommand(`/createtournament ${fee}`);
         }
 
         function handleListTournaments() {
@@ -258,9 +244,7 @@
 
         function handleJoinTournament() {
             const id = prompt('Enter tournament ID to join:');
-            if (id) {
-                sendCommand(`/jointournament ${id}`);
-            }
+            if (id) sendCommand(`/jointournament ${id}`);
         }
 
         function handleCheckBalance() {
@@ -271,42 +255,39 @@
             sendCommand('/help');
         }
 
-        // Polling for transactions (display only; signing in connect.html)
+        // Polling for transactions (alert if pending; user signs in connect.html)
         async function pollTransaction() {
             try {
                 const response = await fetch(`${apiBaseUrl}/get_transaction?userId=${userId}`);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
                 if (data.transaction) {
+                    Telegram.WebApp.showAlert('Transaction pending! Open connect.html link in chat to sign in MetaMask.');
                     stopPolling();
-                    statusDiv.textContent = 'Transaction pending! Open connect.html link in chat to sign in MetaMask.';
-                } else {
-                    statusDiv.textContent = 'No transaction pending. Use a command to initiate one.';
                 }
             } catch (error) {
                 errorDiv.textContent = `Error checking for transaction: ${error.message}.`;
             }
         }
 
-        async function checkStatus() {
+        async function refreshStatus() {
             try {
                 const response = await fetch(`${apiBaseUrl}/get_balance?user_id=${userId}`);
                 if (response.ok) {
                     const data = await response.json();
-                    statusDiv.textContent = `Connected! MON: ${data.mon_balance.toFixed(4)}, TOURS: ${data.tours_balance.toFixed(2)}`;
+                    statusDiv.textContent = `Status: Connected! MON: ${data.mon_balance.toFixed(4)}, TOURS: ${data.tours_balance.toFixed(2)}`;
                 } else {
                     statusDiv.textContent = 'Not connected or error fetching balance. Use Connect Wallet.';
                 }
             } catch (error) {
-                errorDiv.textContent = `Error checking status: ${error.message}. Check your connection.`;
+                errorDiv.textContent = `Error refreshing status: ${error.message}. Check your connection.`;
             }
+            pollTransaction();  // One-time poll on refresh
         }
 
         function startPolling() {
             if (!pollingInterval) {
-                pollingInterval = setInterval(pollTransaction, 5000); // Slower poll since no signing here
+                pollingInterval = setInterval(pollTransaction, 5000);
             }
         }
 
@@ -318,11 +299,11 @@
         }
 
         document.getElementById('connectButton').addEventListener('click', connectWallet);
-        document.getElementById('refreshButton').addEventListener('click', checkStatus);
+        document.getElementById('refreshButton').addEventListener('click', refreshStatus);
         window.addEventListener('load', () => {
             if (userId) {
                 startPolling();
-                checkStatus(); // Initial status check on load
+                refreshStatus(); // Initial status on load
             } else {
                 errorDiv.textContent = 'Missing userId. Open via Telegram.';
             }
