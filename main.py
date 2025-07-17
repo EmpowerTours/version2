@@ -1783,7 +1783,7 @@ async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "timestamp": time.time()
             })
             await update.message.reply_text(
-                f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} in your browser to sign the transaction for profile creation (1 $MON). You will receive 1 $TOURS upon confirmation. After signing."
+                f"Please open or refresh https://version1-production.up.railway.app/public/connect.html?userId={user_id} to sign the transaction for profile creation (1 $MON). You will receive 1 $TOURS upon confirmation. After signing."
             )
             logger.info(f"/createprofile transaction built, awaiting signing for user {user_id}, took {time.time() - start_time:.2f} seconds")
         except Exception as e:
@@ -3286,7 +3286,7 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                 contract.events.ProfileCreated,
                 lambda e: f"New climber joined EmpowerTours! 🧗 Address: <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a>"
             ),
-            "dbf3456d5f59d51cf0e4442bf1c140db5b4b3bd090be958900af45a8310f3deb": (  # ProfileCreatedEnhanced(address,uint256,string,uint256)
+            "dbf3456d5f59d51cp0e4442bf1c140db5b4b3bd090be958900af45a8310f3deb": (  # ProfileCreatedEnhanced(address,uint256,string,uint256)
                 contract.events.ProfileCreatedEnhanced,
                 lambda e: f"New climber with Farcaster profile joined EmpowerTours! 🧗 Address: <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a>"
             ),
@@ -3558,7 +3558,7 @@ async def startup_event():
                     if checksum_buyer in reverse_sessions:
                         user_id = reverse_sessions[checksum_buyer]
                         await conn.execute(
-                            "INSERT INTO purchases (user_id, wallet_address, location_id, timestamp) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+                            "INSERT INTO purchases (user_id, wallet_address, location_id, timestamp) VALUES ($1, $2, $3, $4)",
                             user_id, checksum_buyer, event.args.locationId, event.args.timestamp
                         )
             logger.info(f"Backfill complete: Processed {len(basic_events)} basic and {len(enhanced_events)} enhanced events")
@@ -3707,11 +3707,6 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
             '/balance': balance,
             '/buytours': buy_tours,
             '/sendtours': send_tours,
-            '/ping': ping,
-            '/debug': debug_command,
-            '/forcewebhook': forcewebhook,
-            '/clearcache': clearcache,
-            '/miniapp': miniapp,
         }.get(command)
         if handler:
             await handler(update, context)
@@ -3869,7 +3864,7 @@ async def submit_tx(request: Request):
                         success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Profile created with 1 $TOURS funded to your wallet."
                     elif input_data.startswith('0x9954e40d'):  # buyTours
                         amount = int.from_bytes(bytes.fromhex(input_data[10:]), byteorder='big') / 10**18
-                        success_message = f"Transactionconfirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Successfully purchased {amount} $TOURS."
+                        success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Successfully purchased {amount} $TOURS."
                     elif input_data.startswith('0xa9059cbb'):  # transfer (sendTours)
                         success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Successfully sent $TOURS to the recipient."
                     elif input_data.startswith('0xfe985ae0'):  # createClimbingLocation
@@ -3986,7 +3981,7 @@ async def submit_tx(request: Request):
                             return {"status": "success"}
                         elif next_tx_data["type"] == "join_tournament":
                             nonce = await w3.eth.get_transaction_count(pending["wallet_address"])
-                            tx = await contract.functions.joinTournament(next_tx_data["tournament_id"]).build_transaction({
+                            tx= await contract.functions.joinTournament(next_tx_data["tournament_id"]).build_transaction({
                                 'from': pending["wallet_address"],
                                 'nonce': nonce,
                                 'gas': 200000,
