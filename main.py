@@ -1231,7 +1231,11 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/mypurchases - View your purchased climbs\n\n"
             "/createtournament fee - Start a tournament with an entry fee in $TOURS (e.g., /createtournament 10 sets a 10 $TOURS fee per participant)\n\n"
             "/tournaments - List all tournaments with IDs and participant counts\n\n"
-            "/jointournament id - Join a tournament by paying the entry fee i...(truncated 117253 characters)...saction_receipt(tx_hash)
+            "/jointournament id - Join a tournament by paying the entry fee in $TOURS\n\n"
+            "/endtournament id winner - End a tournament (owner only) and award the prize pool to the winner’s wallet address (e.g., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725)\n\n"
+            "/balance - Check your $MON and $TOURS balance\n"
+            "/help - List all commands\n"
+        )
         if receipt and receipt.status:
             action = "Action completed"
             if "createProfile" in pending["tx_data"]["data"]:
