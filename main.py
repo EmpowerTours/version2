@@ -3040,7 +3040,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 tours_balance = await tours_contract.functions.balanceOf(checksum_address).call()
                 logger.info(f"$TOURS balance for {checksum_address}: {tours_balance / 10**18} $TOURS")
                 if tours_balance > 0:
-                    profile_status = "Profile likely exists (non-zero $TOURS balance)")
+                    profile_status = "Profile likely exists (non-zero $TOURS balance)"
         except Exception as e:
             logger.error(f"Error checking profile or $TOURS balance: {str(e)}")
 
