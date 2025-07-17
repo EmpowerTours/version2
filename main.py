@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response, FileResponse
 from contextlib import asynccontextmanager
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity, ReplyKeyboardMarkup, KeyboardButton
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 from telegram.constants import ChatAction
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 import aiohttp
@@ -1068,7 +1068,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Welcome to EmpowerTours! 🧗\n"
             f"Join our community at <a href=\"https://t.me/empowertourschat\">EmpowerTours Chat</a> to connect with climbers and explore Web3-powered adventures.\n"
             f"Use /connectwallet to link your wallet, then /createprofile to get started.\n"
-            f"Run /tutorial for a full guide or /help for all commands."
+            f"Run /tutorial for a full guide or /help for all commands.\n"
+            f"Or launch the Mini App with /miniapp."
         )
         await update.message.reply_text(welcome_message, parse_mode="HTML")
         logger.info(f"Sent /start response to user {update.effective_user.id}: {welcome_message}, took {time.time() - start_time:.2f} seconds")
@@ -1223,6 +1224,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/tournaments - List all tournaments with IDs and participant counts\n\n"
             "/jointournament id - Join a tournament by paying the entry fee in $TOURS\n\n"
             "/endtournament id winner - End a tournament (owner only) and award the prize pool to the winner’s wallet address (e.g., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725)\n\n"
+            "/miniapp - Launch the Rock Climbing Mini App 🧗\n\n"
             "/balance - Check wallet balance ($MON, $TOURS, profile status)\n\n"
             "/debug - Check webhook status\n\n"
             "/forcewebhook - Force reset webhook\n\n"
@@ -3120,6 +3122,22 @@ async def mypurchases(update: Update, context: ContextTypes.DEFAULT_TYPE):
         support_link = '<a href="https://t.me/empowertourschat">EmpowerTours Chat</a>'
         await update.message.reply_text(f"Error retrieving purchases: {error_msg}. Try again or contact support at {support_link}. 😅", parse_mode="HTML")
 
+async def miniapp(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    start_time = time.time()
+    logger.info(f"Received /miniapp command from user {update.effective_user.id} in chat {update.effective_chat.id}")
+    try:
+        mini_app_url = f"{API_BASE_URL.rstrip('/')}/public/miniapp.html"
+        keyboard = [[InlineKeyboardButton("Open Rock Climbing Mini App 🧗", web_app=WebAppInfo(url=mini_app_url))]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text("Launch the EmpowerTours Rock Climbing Mini App!", reply_markup=reply_markup)
+        logger.info(f"Sent /miniapp response to user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error in /miniapp: {str(e)}, took {time.time() - start_time:.2f} seconds")
+        error_msg = html.escape(str(e))
+        support_link = '<a href="https://t.me/empowertourschat">EmpowerTours Chat</a>'
+        await update.message.reply_text(f"Error: {error_msg}. Try again or contact support at {support_link}. 😅", parse_mode="HTML")
+
 async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
@@ -3618,6 +3636,9 @@ async def startup_event():
         application.add_handler(CommandHandler("debug", debug_command))
         application.add_handler(CommandHandler("forcewebhook", forcewebhook))
         application.add_handler(CommandHandler("clearcache", clearcache))
+        MINI_APP_ENABLED = os.getenv("MINI_APP_ENABLED", "false").lower() == "true"
+        if MINI_APP_ENABLED:
+            application.add_handler(CommandHandler("miniapp", miniapp))
         application.add_handler(MessageHandler(filters.Regex(r'^0x[a-fA-F0-9]{64}$'), handle_tx_hash))
         application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
         application.add_handler(MessageHandler(filters.LOCATION, handle_location))
@@ -3799,7 +3820,7 @@ async def submit_tx(request: Request):
                         success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Profile created with 1 $TOURS funded to your wallet."
                     elif input_data.startswith('0x9954e40d'):  # buyTours
                         amount = int.from_bytes(bytes.fromhex(input_data[10:]), byteorder='big') / 10**18
-                        success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Successfully purchased {amount} $TOURS."
+                        success_message = f"Transactionconfirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Successfully purchased {amount} $TOURS."
                     elif input_data.startswith('0xa9059cbb'):  # transfer (sendTours)
                         success_message = f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 Successfully sent $TOURS to the recipient."
                     elif input_data.startswith('0xfe985ae0'):  # createClimbingLocation
