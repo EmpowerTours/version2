@@ -342,7 +342,7 @@
             }
         }
 
-        document.getElementById('connectButton').addEventListener('click', connectWallet);
+        document.getElementById('connectButton').addEventListener('click', () => sendCommand('/connectwallet'));
         window.addEventListener('load', async () => {
             if (userId) {
                 console.log('Page loaded, initializing Web3 for userId:', userId);
