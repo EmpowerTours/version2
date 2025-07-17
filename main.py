@@ -527,7 +527,7 @@ CONTRACT_ABI = [
         "anonymous": False,
         "inputs": [
             {"indexed": True, "internalType": "uint256", "name": "tournamentId", "type": "uint256"},
-            {"indexed": True, "internalType": "address", "name": "winner", "type": "address"},
+            {"indexed": False, "internalType": "uint256", "name": "entryFee", "type": "uint256"},
             {"indexed": False, "internalType": "uint256", "name": "pot", "type": "uint256"}
         ],
         "name": "TournamentEnded",
@@ -1124,9 +1124,8 @@ async def forcewebhook(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
-    msg, msg_type = get_message(update)
-    command_text = msg.text if msg else "Unknown command"
-    logger.info(f"Received command: {command_text} from user {update.effective_user.id} in chat {update.effective_chat.id} (type: {msg_type})")
+    command_text = update.message.text if update.message else "Unknown command"
+    logger.info(f"Received command: {command_text} from user {update.effective_user.id} in chat {update.effective_chat.id}")
     try:
         webhook_ok = await check_webhook()
         if webhook_ok:
@@ -1223,17 +1222,6 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Sent /help response to user {update.effective_user.id}: {help_text}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in /help: {str(e)}, took {time.time() - start_time:.2f} seconds")
-        await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
-
-async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
-    start_time = time.time()
-    logger.info(f"Received command: {update.message.text} from user {update.effective_user.id} in chat {update.effective_chat.id}")
-    try:
-        await update.message.reply_text(f"Debug: Received command '{update.message.text}'. Please use a valid command like /start or /tutorial.")
-        logger.info(f"Sent /debug_command response to user {update.effective_user.id}, took {time.time() - start_time:.2f} seconds")
-    except Exception as e:
-        logger.error(f"Error in debug_command: {str(e)}, took {time.time() - start_time:.2f} seconds")
         await update.message.reply_text(f"Error: {str(e)}. Try again! 😅")
 
 async def connect_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -3038,7 +3026,7 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                 contract.events.ProfileCreated,
                 lambda e: f"New climber joined EmpowerTours! 🧗 Address: <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a>"
             ),
-            "dbf3456d5f59d51cf0e4442bf1c140db5b4b3bd090be958900af45a8310f3deb": (  # ProfileCreatedEnhanced(address,uint256,string,uint256)
+            "dbf3456d5f59d51cp0e4442bf1c140db5b4b3bd090be958900af45a8310f3deb": (  # ProfileCreatedEnhanced(address,uint256,string,uint256)
                 contract.events.ProfileCreatedEnhanced,
                 lambda e: f"New climber with Farcaster profile joined EmpowerTours! 🧗 Address: <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a>"
             ),
@@ -3143,9 +3131,6 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Processed events up to block {last_processed_block}, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error in monitor_events: {str(e)}, took {time.time() - start_time:.2f} seconds")
-
-async def get_session(user_id):
-    return sessions.get(user_id)
 
 async def log_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
