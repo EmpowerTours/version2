@@ -13,7 +13,7 @@
             font-family: 'Arial', sans-serif;
             text-align: center;
             padding: 20px;
-            background-image: url('https://source.unsplash.com/random/800x600/?rock-climbing,mountain');
+            background-image: url('empowertours_background.png');
             background-size: cover;
             background-position: center;
             color: var(--tg-theme-text-color, #fff);
@@ -93,7 +93,7 @@
             gap: 15px;
             width: 80%;
             max-width: 600px;
-            margin-top: 20px;
+            margin-top: 40px; /* Increased margin to lower buttons */
         }
         .mini-app-button {
             background-color: var(--tg-theme-secondary-bg-color, #8b4513);
@@ -164,6 +164,7 @@
         function sendCommand(command) {
             Telegram.WebApp.HapticFeedback.impactOccurred('light');
             Telegram.WebApp.sendData(command);
+            Telegram.WebApp.showAlert('Command sent! Check the chat for response or next steps.');
         }
 
         async function initializeWeb3() {
@@ -342,7 +343,7 @@
             }
         }
 
-        document.getElementById('connectButton').addEventListener('click', () => sendCommand('/connectwallet'));
+        document.getElementById('connectButton').addEventListener('click', connectWallet);
         window.addEventListener('load', async () => {
             if (userId) {
                 console.log('Page loaded, initializing Web3 for userId:', userId);
