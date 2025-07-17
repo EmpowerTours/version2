@@ -29,6 +29,12 @@ EXPIRY_SECONDS = 1800  # 30 minutes
 # Initialize Web3
 w3 = Web3(Web3.HTTPProvider(MONAD_RPC_URL))
 
+# Assume contract ABI (stubbed; replace with actual from contract.py)
+CONTRACT_ABI = []  # Full ABI here
+TOURS_ABI = []  # Full ABI here
+contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=CONTRACT_ABI)
+tours_contract = w3.eth.contract(address=TOURS_TOKEN_ADDRESS, abi=TOURS_ABI)
+
 # Initialize FastAPI and SocketIO
 app = FastAPI()
 sio = AsyncServer(async_mode='asgi', cors_allowed_origins="*")
@@ -343,14 +349,14 @@ async def build_climb(request: BuildClimbRequest):
         logger.error(f"Error in /build_climb: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/find_climbs")
-async def find_climbs():
+@app.get("/get_climbs")
+async def get_climbs():
     try:
         cursor.execute("SELECT id, title, description, price_tours FROM climbs")
         climbs = [{"id": row[0], "title": row[1], "desc": row[2], "price": row[3]} for row in cursor.fetchall()]
         return {"climbs": climbs}
     except Exception as e:
-        logger.error(f"Error in /find_climbs: {str(e)}")
+        logger.error(f"Error in /get_climbs: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/purchase_climb")
@@ -385,6 +391,21 @@ async def purchase_climb(request: PurchaseClimbRequest):
         logger.error(f"Error in /purchase_climb: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/get_purchases")
+async def get_purchases(userId: str):
+    try:
+        cursor.execute("SELECT climb_id FROM purchases WHERE buyer_user_id = ?", (userId,))
+        purchase_ids = [row[0] for row in cursor.fetchall()]
+        purchases = []
+        for climb_id in purchase_ids:
+            cursor.execute("SELECT title, description, price_tours FROM climbs WHERE id = ?", (climb_id,))
+            row = cursor.fetchone()
+            purchases.append({"climb_id": climb_id, "title": row[0], "desc": row[1], "price": row[2]})
+        return {"purchases": purchases}
+    except Exception as e:
+        logger.error(f"Error in /get_purchases: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/add_journal")
 async def add_journal(request: JournalRequest):
     try:
@@ -401,6 +422,53 @@ async def add_journal(request: JournalRequest):
         return {"status": "success"}
     except Exception as e:
         logger.error(f"Error in /add_journal: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/get_journal")
+async def get_journal(id: int):
+    try:
+        cursor.execute("SELECT entry_text, user_id, date FROM journals WHERE id = ?", (id,))
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Journal not found")
+        # Stub comments (add table if needed)
+        return {"entry": {"content": row[0], "author": row[1], "date": row[2]}, "comments": []}
+    except Exception as e:
+        logger.error(f"Error in /get_journal: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/get_journals")
+async def get_journals():
+    try:
+        cursor.execute("SELECT id, climb_id, entry_text, user_id FROM journals")
+        journals = [{"id": row[0], "climb_id": row[1], "content": row[2], "author": row[3]} for row in cursor.fetchall()]
+        return {"journals": journals}
+    except Exception as e:
+        logger.error(f"Error in /get_journals: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/get_tournaments")
+async def get_tournaments():
+    try:
+        # Query contract for tournaments
+        count = await contract.functions.getTournamentCount().call()
+        tournaments = []
+        for i in range(count):
+            t = await contract.functions.tournaments(i).call()
+            entryFee = t[0] / 10**18
+            pot = t[1] / 10**18
+            status = "Active" if t[3] else "Ended"
+            participants = int(pot / entryFee) if entryFee > 0 else 0
+            tournaments.append({
+                "id": i,
+                "entryFee": entryFee,
+                "pot": pot,
+                "participants": participants,
+                "status": status
+            })
+        return {"tournaments": tournaments}
+    except Exception as e:
+        logger.error(f"Error in /get_tournaments: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/get_climb/{climb_id}")
@@ -424,3 +492,53 @@ async def get_climb(climb_id: int, user_id: str):
     except Exception as e:
         logger.error(f"Error in /get_climb: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# Added overlooked endpoints
+@app.get("/get_balance")
+async def get_balance(user_id: str):
+    try:
+        cursor.execute("SELECT wallet_address FROM sessions WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="No wallet connected")
+        wallet = row[0]
+        checksum_wallet = w3.to_checksum_address(wallet)
+        mon_balance = await w3.eth.get_balance(checksum_wallet) / 10**18
+        tours_balance = await tours_contract.functions.balanceOf(checksum_wallet).call() / 10**18
+        return {"mon_balance": mon_balance, "tours_balance": tours_balance}
+    except Exception as e:
+        logger.error(f"Error in /get_balance: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/get_help")
+async def get_help():
+    help_text = (
+        "<b>EmpowerTours Commands</b>\n"
+        "/start - Welcome message\n\n"
+        "/tutorial - Setup guide\n\n"
+        "/connectwallet - Connect your wallet (use chain ID 10143; remove incorrect Monad Testnet entries from MetaMask if needed)\n\n"
+        "/createprofile - Create profile (1 $MON, receive 1 $TOURS)\n\n"
+        "/buyTours amount - Buy $TOURS tokens with $MON (e.g., /buyTours 10 to buy 10 $TOURS)\n\n"
+        "/sendTours recipient amount - Send $TOURS to another wallet (e.g., /sendTours 0x123...456 10 to send 10 $TOURS)\n\n"
+        "/journal entry - Log a climb for an existing climb with photos or notes (5 $TOURS)\n\n"
+        "/buildaclimb name difficulty - Create a new climb with name, difficulty, and optional photo/location (10 $TOURS)\n\n"
+        "/comment id comment - Comment on a journal (0.1 $MON)\n\n"
+        "/purchaseclimb id - Buy a climb (10 $TOURS)\n\n"
+        "/findaclimb - List available climbs\n\n"
+        "/journals - List all journal entries\n\n"
+        "/viewjournal id - View a journal entry and its comments\n\n"
+        "/viewclimb id - View a specific climb\n\n"
+        "/mypurchases - View your purchased climbs\n\n"
+        "/createtournament fee - Start a tournament with an entry fee in $TOURS (e.g., /createtournament 10 sets a 10 $TOURS fee per participant)\n\n"
+        "/tournaments - List all tournaments with IDs and participant counts\n\n"
+        "/jointournament id - Join a tournament by paying the entry fee in $TOURS\n\n"
+        "/endtournament id winner - End a tournament (owner only) and award the prize pool to the winner’s wallet address (e.g., /endtournament 1 0x5fE8373C839948bFCB707A8a8A75A16E2634A725)\n\n"
+        "/miniapp - Launch the Rock Climbing Mini App 🧗\n\n"
+        "/balance - Check wallet balance ($MON, $TOURS, profile status)\n\n"
+        "/debug - Check webhook status\n\n"
+        "/forcewebhook - Force reset webhook\n\n"
+        "/clearcache - Clear Telegram cache\n\n"
+        "/ping - Check bot status\n\n"
+        "Join our community at <a href=\"https://t.me/empowertourschat\">EmpowerTours Chat</a> for support!"
+    )
+    return {"help_text": help_text}
