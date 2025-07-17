@@ -117,6 +117,7 @@
 <body>
     <h1>EmpowerTours Rock Climbing Hub</h1>
     <button id="connectButton">Connect Wallet 🧗‍♂️</button>
+    <button id="refreshButton" class="mini-app-button">Refresh Status 🔄</button>
     <div id="status">Gear up! Connect your wallet to conquer the Monad Testnet peaks (chainId: 10143).</div>
     <div id="instructions">Scale new heights with EmpowerTours! On mobile, open the connection link in MetaMask’s browser (Menu > Browser). Chain ID mismatch? Clear old Monad Testnet entries in Settings > Networks. After connecting, use the buttons below or Telegram commands like /createprofile to start your ascent.</div>
     <div class="button-grid">
@@ -289,6 +290,20 @@
             }
         }
 
+        async function checkStatus() {
+            try {
+                const response = await fetch(`${apiBaseUrl}/get_balance?user_id=${userId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    statusDiv.textContent = `Connected! MON: ${data.mon_balance.toFixed(4)}, TOURS: ${data.tours_balance.toFixed(2)}`;
+                } else {
+                    statusDiv.textContent = 'Not connected or error fetching balance. Use Connect Wallet.';
+                }
+            } catch (error) {
+                errorDiv.textContent = `Error checking status: ${error.message}. Check your connection.`;
+            }
+        }
+
         function startPolling() {
             if (!pollingInterval) {
                 pollingInterval = setInterval(pollTransaction, 5000); // Slower poll since no signing here
@@ -303,9 +318,11 @@
         }
 
         document.getElementById('connectButton').addEventListener('click', connectWallet);
+        document.getElementById('refreshButton').addEventListener('click', checkStatus);
         window.addEventListener('load', () => {
             if (userId) {
                 startPolling();
+                checkStatus(); // Initial status check on load
             } else {
                 errorDiv.textContent = 'Missing userId. Open via Telegram.';
             }
