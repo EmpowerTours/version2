@@ -3095,20 +3095,24 @@ async def mypurchases(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"/mypurchases no purchases found, took {time.time() - start_time:.2f} seconds")
             return
 
-        message = "Your purchased climbs:\n"
+        await update.message.reply_text("Your purchased climbs:")
         for row in rows:
-            if not contract:
-                message += f"🏔️ #{row['location_id']} - Purchased {datetime.fromtimestamp(row['timestamp']).strftime('%Y-%m-%d %H:%M')}\n"
-                continue
             climb = await contract.functions.getClimbingLocation(row['location_id']).call()
-            message += f"🏔️ #{row['location_id']} {escape_html(climb[1])} ({escape_html(climb[2])}) - Purchased {datetime.fromtimestamp(row['timestamp']).strftime('%Y-%m-%d %H:%M')}\n"
+            message = f"🏔️ #{row['location_id']} {escape_html(climb[1])} ({escape_html(climb[2])}) - Purchased {datetime.fromtimestamp(row['timestamp']).strftime('%Y-%m-%d %H:%M')}\n"
             message += f"   Creator: <a href=\"{EXPLORER_URL}/address/{climb[0]}\">{climb[0][:6]}...</a>\n"
             message += f"   Location: ({climb[3]/10**6:.4f}, {climb[4]/10**6:.4f})\n"
             message += f"   Map: https://www.google.com/maps?q={climb[3]/10**6},{climb[4]/10**6}\n"
-            message += f"   Photo Hash: {escape_html(climb[5])}\n"
-            message += f"   Purchases: {climb[10]}\n\n"
+            message += f"   Purchases: {climb[10]}\n"
+            await update.message.reply_text(message, parse_mode="HTML")
+            photo_hash = climb[5]
+            if photo_hash:
+                async with pool.acquire() as conn:
+                    row_photo = await conn.fetchrow("SELECT file_id FROM media_files WHERE hash = $1", photo_hash)
+                if row_photo:
+                    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=row_photo['file_id'], caption=f"Photo for climb #{row['location_id']}")
+                else:
+                    await update.message.reply_text(f"Photo not found for climb #{row['location_id']}.")
 
-        await update.message.reply_text(message, parse_mode="HTML")
         logger.info(f"/mypurchases success with {len(rows)} purchases, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Unexpected error in /mypurchases: {str(e)}, took {time.time() - start_time:.2f} seconds")
