@@ -2606,7 +2606,7 @@ async def findaclimb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             location_count = await contract.functions.getClimbingLocationCount().call({'gas': 500000})
             logger.info(f"Climbing location count: {location_count}")
-            if location_count = 0:
+            if location_count == 0:
                 try:
                     events = await contract.events.ClimbingLocationCreated.create_filter(
                         fromBlock=0,
