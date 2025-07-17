@@ -216,7 +216,7 @@
                 });
                 contentDiv.innerHTML = html;
             } catch (e) {
-                errorDiv.textContent = 'Error fetching climbs: ' + e.message;
+                errorDiv.textContent = 'Error fetching climbs: ' + e.message + '. Check connection or try later.';
             }
         }
 
