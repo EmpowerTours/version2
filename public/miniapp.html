@@ -113,22 +113,22 @@
     <div id="status">Gear up! Connect your wallet to conquer the Monad Testnet peaks (chainId: 10143).</div>
     <div id="instructions">Scale new heights with EmpowerTours! On mobile, rappel into MetaMask’s browser (Menu > Browser). Chain ID mismatch? Clear old Monad Testnet entries in Settings > Networks. After connecting, use the buttons below or Telegram commands like /createprofile to start your ascent.</div>
     <div class="button-grid">
-        <button class="mini-app-button" onclick="sendCommand('/tutorial')">Tutorial 🧭</button>
-        <button class="mini-app-button" onclick="sendCommand('/createprofile')">Create Profile 📋</button>
-        <button class="mini-app-button" onclick="sendCommand('/buyTours 10')">Buy 10 $TOURS 💰</button>
-        <button class="mini-app-button" onclick="sendCommand('/buildaclimb PeakV Easy')">Build Climb 🪨</button>
-        <button class="mini-app-button" onclick="sendCommand('/findaclimb')">Find Climbs 🔍</button>
-        <button class="mini-app-button" onclick="sendCommand('/purchaseclimb 0')">Purchase Climb 🛒</button>
-        <button class="mini-app-button" onclick="sendCommand('/mypurchases')">My Purchases 🎒</button>
-        <button class="mini-app-button" onclick="sendCommand('/journal My epic climb!')">Log Journal 📖</button>
-        <button class="mini-app-button" onclick="sendCommand('/journals')">View Journals 📚</button>
-        <button class="mini-app-button" onclick="sendCommand('/viewjournal 0')">View Journal Entry 👀</button>
-        <button class="mini-app-button" onclick="sendCommand('/comment 0 Great climb!')">Add Comment 💬</button>
-        <button class="mini-app-button" onclick="sendCommand('/createtournament 10')">Create Tournament 🏆</button>
-        <button class="mini-app-button" onclick="sendCommand('/tournaments')">List Tournaments 📜</button>
-        <button class="mini-app-button" onclick="sendCommand('/jointournament 0')">Join Tournament ⚔️</button>
-        <button class="mini-app-button" onclick="sendCommand('/balance')">Check Balance ⚖️</button>
-        <button class="mini-app-button" onclick="sendCommand('/help')">Help ❓</button>
+        <button class="mini-app-button" onclick="handleTutorial()">Tutorial 🧭</button>
+        <button class="mini-app-button" onclick="handleCreateProfile()">Create Profile 📋</button>
+        <button class="mini-app-button" onclick="handleBuyTours()">Buy $TOURS 💰</button>
+        <button class="mini-app-button" onclick="handleBuildClimb()">Build Climb 🪨</button>
+        <button class="mini-app-button" onclick="handleFindClimbs()">Find Climbs 🔍</button>
+        <button class="mini-app-button" onclick="handlePurchaseClimb()">Purchase Climb 🛒</button>
+        <button class="mini-app-button" onclick="handleMyPurchases()">My Purchases 🎒</button>
+        <button class="mini-app-button" onclick="handleLogJournal()">Log Journal 📖</button>
+        <button class="mini-app-button" onclick="handleViewJournals()">View Journals 📚</button>
+        <button class="mini-app-button" onclick="handleViewJournalEntry()">View Journal Entry 👀</button>
+        <button class="mini-app-button" onclick="handleAddComment()">Add Comment 💬</button>
+        <button class="mini-app-button" onclick="handleCreateTournament()">Create Tournament 🏆</button>
+        <button class="mini-app-button" onclick="handleListTournaments()">List Tournaments 📜</button>
+        <button class="mini-app-button" onclick="handleJoinTournament()">Join Tournament ⚔️</button>
+        <button class="mini-app-button" onclick="handleCheckBalance()">Check Balance ⚖️</button>
+        <button class="mini-app-button" onclick="handleHelp()">Help ❓</button>
     </div>
     <div id="error"></div>
     <div id="txHash"></div>
@@ -168,6 +168,96 @@
             Telegram.WebApp.HapticFeedback.impactOccurred('light');
             Telegram.WebApp.sendData(command);
             Telegram.WebApp.showAlert('Command sent! Check the chat for response or refresh the Mini App to sign transaction if needed.');
+        }
+
+        function handleTutorial() {
+            sendCommand('/tutorial');
+        }
+
+        function handleCreateProfile() {
+            sendCommand('/createprofile');
+        }
+
+        function handleBuyTours() {
+            const amount = prompt('Enter amount of $TOURS to buy (e.g., 10):');
+            if (amount) {
+                sendCommand(`/buyTours ${amount}`);
+            }
+        }
+
+        function handleBuildClimb() {
+            const name = prompt('Enter climb name:');
+            const difficulty = prompt('Enter difficulty (e.g., Easy):');
+            if (name && difficulty) {
+                sendCommand(`/buildaclimb ${name} ${difficulty}`);
+            }
+        }
+
+        function handleFindClimbs() {
+            sendCommand('/findaclimb');
+        }
+
+        function handlePurchaseClimb() {
+            const id = prompt('Enter climb ID to purchase:');
+            if (id) {
+                sendCommand(`/purchaseclimb ${id}`);
+            }
+        }
+
+        function handleMyPurchases() {
+            sendCommand('/mypurchases');
+        }
+
+        function handleLogJournal() {
+            const entry = prompt('Enter your journal entry:');
+            if (entry) {
+                sendCommand(`/journal ${entry}`);
+            }
+        }
+
+        function handleViewJournals() {
+            sendCommand('/journals');
+        }
+
+        function handleViewJournalEntry() {
+            const id = prompt('Enter journal entry ID to view:');
+            if (id) {
+                sendCommand(`/viewjournal ${id}`);
+            }
+        }
+
+        function handleAddComment() {
+            const id = prompt('Enter journal entry ID to comment on:');
+            const comment = prompt('Enter your comment:');
+            if (id && comment) {
+                sendCommand(`/comment ${id} ${comment}`);
+            }
+        }
+
+        function handleCreateTournament() {
+            const fee = prompt('Enter entry fee in $TOURS (e.g., 10):');
+            if (fee) {
+                sendCommand(`/createtournament ${fee}`);
+            }
+        }
+
+        function handleListTournaments() {
+            sendCommand('/tournaments');
+        }
+
+        function handleJoinTournament() {
+            const id = prompt('Enter tournament ID to join:');
+            if (id) {
+                sendCommand(`/jointournament ${id}`);
+            }
+        }
+
+        function handleCheckBalance() {
+            sendCommand('/balance');
+        }
+
+        function handleHelp() {
+            sendCommand('/help');
         }
 
         async function initializeWeb3() {
