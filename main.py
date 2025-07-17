@@ -2518,6 +2518,16 @@ async def purchase_climb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"/purchaseclimb failed due to missing wallet, took {time.time() - start_time:.2f} seconds")
             return
         checksum_address = w3.to_checksum_address(wallet_address)
+        # Check if already purchased
+        async with pool.acquire() as conn:
+            count = await conn.fetchval(
+                "SELECT COUNT(*) FROM purchases WHERE wallet_address = $1 AND location_id = $2",
+                checksum_address, location_id
+            )
+        if count > 0:
+            await update.message.reply_text(f"You have already purchased climb #{location_id}. Check /mypurchases! 😅")
+            logger.info(f"/purchaseclimb failed: already purchased climb {location_id} for user {user_id}, took {time.time() - start_time:.2f} seconds")
+            return
         # Get cost (assume locationCreationCost is the purchase cost too)
         purchase_cost = await contract.functions.locationCreationCost().call({'gas': 500000})
         # Check $TOURS balance
@@ -3030,7 +3040,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 tours_balance = await tours_contract.functions.balanceOf(checksum_address).call()
                 logger.info(f"$TOURS balance for {checksum_address}: {tours_balance / 10**18} $TOURS")
                 if tours_balance > 0:
-                    profile_status = "Profile likely exists (non-zero $TOURS balance)"
+                    profile_status = "Profile likely exists (non-zero $TOURS balance)")
         except Exception as e:
             logger.error(f"Error checking profile or $TOURS balance: {str(e)}")
 
@@ -3105,7 +3115,7 @@ async def mypurchases(update: Update, context: ContextTypes.DEFAULT_TYPE):
         error_msg = html.escape(str(e))
         support_link = '<a href="https://t.me/empowertourschat">EmpowerTours Chat</a>'
         await update.message.reply_text(f"Error retrieving purchases: {error_msg}. Try again or contact support at {support_link}. 😅", parse_mode="HTML")
-        
+
 async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     start_time = time.time()
@@ -3246,6 +3256,10 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                 contract.events.LocationPurchased,
                 lambda e: f"Climb #{e.args.locationId} purchased by <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> on EmpowerTours! 🪙"
             ),
+            "ad043c04181883ece2f6dc02cf2978a3b453c3d2323bb4bfb95865f910e6c3ce": (  # Corrected for LocationPurchasedEnhanced(uint256,address,uint256,uint256)
+                contract.events.LocationPurchasedEnhanced,
+                lambda e: f"Enhanced climb #{e.args.locationId} purchased by <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> on EmpowerTours! 🪙"
+            ),
             "aa3a75c48d1cad3bf60136ab33bc8fd62f31c2b25812d8604da0b7e7fc6d7271": (  # ProfileCreated(address,uint256)
                 contract.events.ProfileCreated,
                 lambda e: f"New climber joined EmpowerTours! 🧗 Address: <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a>"
@@ -3278,10 +3292,6 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                 contract.events.ClimbingLocationCreatedEnhanced,
                 lambda e: f"New enhanced climb '{e.args.name}' created by <a href=\"{EXPLORER_URL}/address/{e.args.creator}\">{e.args.creator[:6]}...</a> on EmpowerTours! 🪨"
             ),
-            "ad043c04181883ece2f6dc02cf2978a3b453c3d112ab5b71ee7918afcadc779b78eed9d9": (  # LocationPurchasedEnhanced(uint256,address,uint256,uint256)
-                contract.events.LocationPurchasedEnhanced,
-                lambda e: f"Enhanced climb #{e.args.locationId} purchased by <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> on EmpowerTours! 🪙"
-            ),
             "d72d415fee16f78aefb0faa7ae3f5221a8d557570c7db32ed71033c7b1717a41": (  # TournamentCreated(uint256,uint256,uint256)
                 contract.events.TournamentCreated,
                 lambda e: f"New tournament #{e.args.tournamentId} created on EmpowerTours! 🏆"
@@ -3306,15 +3316,7 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                 contract.events.TournamentEndedEnhanced,
                 lambda e: f"Enhanced tournament #{e.args.tournamentId} ended! Winner: <a href=\"{EXPLORER_URL}/address/{e.args.winner}\">{e.args.winner[:6]}...</a> Prize: {e.args.pot / 10**18} $TOURS 🏆"
             ),
-            "b9f217daf6aa350a9b78812562d0d1afba9439b7b595919c7d9dfc40d2230f35": (  # FarcasterCastShared(address,uint256,string,string,uint256,uint256)
-                contract.events.FarcasterCastShared,
-                lambda e: f"New Farcaster cast shared by <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a> for {e.args.contentType} #{e.args.contentId} on EmpowerTours! 📢"
-            ),
-            "32838cd85a2abed5fd25bfdd6952f7f1d0ca533b1eb897506a812c5ea0a99612": (  # FarcasterProfileUpdated(address,uint256,string,string,uint256)
-                contract.events.FarcasterProfileUpdated,
-                lambda e: f"Farcaster profile updated by <a href=\"{EXPLORER_URL}/address/{e.args.user}\">{e.args.user[:6]}...</a> on EmpowerTours! 📢"
-            ),
-            "7c041c6a61b05a6a99f81f2f3338d3911721f95ec7da19a69782e5a887e1340f": (  # ToursPurchased(address,uint256,uint256)
+            "b9f217daf6aa350a9b78812562d0d1afba9439b7b595919c7d9dfc40d2230f35": (  # ToursPurchased(address,uint256,uint256)
                 contract.events.ToursPurchased,
                 lambda e: f"User <a href=\"{EXPLORER_URL}/address/{e.args.buyer}\">{e.args.buyer[:6]}...</a> bought {e.args.toursAmount / 10**18} $TOURS on EmpowerTours! 🪙"
             ),
@@ -3339,6 +3341,16 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                             await application.bot.send_message(user_id, user_message, parse_mode="Markdown")
                     # Store purchase in DB if LocationPurchased
                     if topic0 == "b092b68cd4087066d88561f213472db328f688a8993b20e9eab36fee4d6679fd":  # LocationPurchased(uint256,address,uint256)
+                        buyer = event.args.buyer
+                        checksum_buyer = w3.to_checksum_address(buyer)
+                        if checksum_buyer in reverse_sessions:
+                            user_id = reverse_sessions[checksum_buyer]
+                            async with pool.acquire() as conn:
+                                await conn.execute(
+                                    "INSERT INTO purchases (user_id, wallet_address, location_id, timestamp) VALUES ($1, $2, $3, $4)",
+                                    user_id, checksum_buyer, event.args.locationId, event.args.timestamp
+                                )
+                    elif topic0 == "ad043c04181883ece2f6dc02cf2978a3b453c3d2323bb4bfb95865f910e6c3ce":  # LocationPurchasedEnhanced
                         buyer = event.args.buyer
                         checksum_buyer = w3.to_checksum_address(buyer)
                         if checksum_buyer in reverse_sessions:
@@ -3414,12 +3426,13 @@ async def set_journal_data(user_id, data):
             user_id, json.dumps(data), data['timestamp']
         )
 
-async def get_purchase_events(wallet_address, from_block, to_block, step=500):  # Reduced step to avoid 413
+async def get_purchase_events(wallet_address, from_block, to_block, step=500, event_name='LocationPurchased'):
     events = []
+    event = getattr(contract.events, event_name)
     for start in range(from_block, to_block + 1, step):
         end = min(start + step - 1, to_block)
         try:
-            event_filter = await contract.events.LocationPurchased.create_filter(
+            event_filter = await event.create_filter(
                 fromBlock=start,
                 toBlock=end,
                 argument_filters={'buyer': wallet_address} if wallet_address else None
@@ -3427,8 +3440,8 @@ async def get_purchase_events(wallet_address, from_block, to_block, step=500):  
             batch_events = await event_filter.get_all_entries()
             events.extend(batch_events)
         except Exception as e:
-            logger.warning(f"Error fetching events for batch {start}-{end}: {str(e)}. Skipping batch.")
-        await asyncio.sleep(0.1)  # Small delay to avoid rate limiting
+            logger.warning(f"Error fetching {event_name} events for batch {start}-{end}: {str(e)}. Skipping batch.")
+        await asyncio.sleep(0.1)
     return events
     
 async def delete_journal_data(user_id):
@@ -3514,9 +3527,10 @@ async def startup_event():
         if w3 and contract:
             logger.info("Starting historical backfill for LocationPurchased events")
             latest_block = await w3.eth.get_block_number()
-            all_events = await get_purchase_events(None, 0, latest_block)  # No buyer filter for full backfill
+            basic_events = await get_purchase_events(None, 0, latest_block)  # Existing for basic
+            enhanced_events = await get_purchase_events(None, 0, latest_block, event_name='LocationPurchasedEnhanced')  # Add this
             async with pool.acquire() as conn:
-                for event in all_events:
+                for event in basic_events + enhanced_events:  # Combine
                     checksum_buyer = w3.to_checksum_address(event.args.buyer)
                     if checksum_buyer in reverse_sessions:
                         user_id = reverse_sessions[checksum_buyer]
@@ -3524,7 +3538,7 @@ async def startup_event():
                             "INSERT INTO purchases (user_id, wallet_address, location_id, timestamp) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
                             user_id, checksum_buyer, event.args.locationId, event.args.timestamp
                         )
-            logger.info(f"Backfill complete: Processed {len(all_events)} events")
+            logger.info(f"Backfill complete: Processed {len(basic_events)} basic and {len(enhanced_events)} enhanced events")
 
         # Check and free port
         port = int(os.getenv("PORT", 8080))
