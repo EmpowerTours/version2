@@ -14,7 +14,7 @@
 ---
 
 ### 🚀 Quick Start
-Launch the bot: [@empowertoursbot](https://t.me/empowertoursbot)  
+Launch the bot: [@AI_RobotExpert_bot](https://t.me/AI_RobotExpert_bot)  
 Join the community: [@empowertourschat](https://t.me/empowertourschat)  
 Faucet $MON: [Monad Faucet](https://testnet.monad.xyz/faucet)  
 
