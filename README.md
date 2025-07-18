@@ -14,16 +14,42 @@
 ---
 
 ### 🚀 Quick Start
-Launch the bot: [@empowertoursbot](https://t.me/AI_RobotExpert_bott)  
+Launch the bot: [@empowertoursbot](https://t.me/empowertoursbot)  
 Join the community: [@empowertourschat](https://t.me/empowertourschat)  
 Faucet $MON: [Monad Faucet](https://testnet.monad.xyz/faucet)  
+
+### Setting Up Monad Testnet on MetaMask
+If you're new to Monad, here's a quick guide to configure it on MetaMask. This is essential for interacting with EmpowerTours, as the app runs on Monad Testnet.
+
+**Quick Summary of Monad Blockchain:**  
+Monad is a high-performance, EVM-compatible Layer-1 blockchain aiming for 10,000 transactions per second (TPS) with 1-second block times. It optimizes Ethereum's architecture through pipelined execution, superscalar design, and MonadDb for faster state access, making it suitable for DeFi, gaming, and dApps requiring speed. Learn more at the [official website](https://monad.xyz) or [documentation](https://docs.monad.xyz).
+
+**Resources:**  
+- Official Guide: [Add Monad to MetaMask](https://docs.monad.xyz/guides/add-monad-to-wallet/metamask)  
+- One-Click Add: [ChainList - Monad Testnet](https://chainlist.org/chain/10143)  
+- Beginner Guide: [Magic Eden Monad Guide](https://help.magiceden.io/en/articles/10583721-introducing-monad-on-magic-eden-a-beginner-s-guide)  
+- Faucet: [Monad Faucet](https://testnet.monad.xyz/faucet)  
+
+**Step-by-Step Setup:**  
+1. Open MetaMask and click on the network dropdown at the top.  
+2. Select "Add Network" > "Add a network manually".  
+3. Enter the following details:  
+   - Network Name: Monad Testnet  
+   - New RPC URL: https://testnet-rpc.monad.xyz  
+   - Chain ID: 10143  
+   - Currency Symbol: MON  
+   - Block Explorer URL: https://testnet.monadexplorer.com  
+4. Click "Save".  
+5. Switch to the network and request testnet $MON from the faucet.  
+
+For visual steps, check the [official Monad docs](https://docs.monad.xyz/guides/add-monad-to-wallet/metamask) which include screenshots of the process (e.g., adding custom network, entering RPC details, saving, and verifying assets).
 
 <details>
 <summary><b>🌟 Why EmpowerTours? (Click to Expand)</b></summary>
 <div style="background-color: #f9f9f9; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
 
 - **Journal Climbs 🗒️**: Log ascents with photos, GPS, notes – earn 5 $TOURS per entry!
-- **Build & Buy Routes 🪨**: Create/share custom climbs (10 $TOURS cost) or purchase (10 $TOURS to creator).
+- **Build & Buy Routes 🪨**: Create/share custom climbs (10 $TOURS cost to contract) or purchase (10 $TOURS to creator).
 - **Tournaments 🏆**: Compete for $TOURS pots – entry fees build the prize!
 - **Web3 Incentives 💰**: Transparent fees, on-chain events, Monad speed.
 - **Community Vibes 👥**: Telegram chat for tips, meets, collabs.
@@ -71,7 +97,7 @@ Faucet $MON: [Monad Faucet](https://testnet.monad.xyz/faucet)
 - **API:** Handles wallet/tx submission.
 - **DB:** Sessions, pendings (expires 30min).
 - **Monitoring:** Events polled every 30s; notifies chat/users.
-- **Fees in Tournaments:** 100% of entry fees ($TOURS) go to pot; winner receives full pot on end (no cuts).
+- **Fees in Tournaments:** 100% of entry fees ($TOURS) go to pot; on end, 5% fee to legacy wallet (maintenance), 95% to winner.
 </details>
 
 ---
@@ -129,7 +155,7 @@ Faucet $MON: [Monad Faucet](https://testnet.monad.xyz/faucet)
     <tr style="background-color: #f9f9f9;">
       <td>/buildaclimb <name> <difficulty></td>
       <td>Create route</td>
-      <td>10 $TOURS</td>
+      <td>10 $TOURS (to contract)</td>
     </tr>
     <tr>
       <td>/purchaseclimb <id></td>
@@ -179,7 +205,7 @@ Faucet $MON: [Monad Faucet](https://testnet.monad.xyz/faucet)
     <tr style="background-color: #f9f9f9;">
       <td>/endtournament <id> <winner></td>
       <td>End (owner)</td>
-      <td>Free; pot to winner</td>
+      <td>Free; 95% pot to winner, 5% fee to legacy</td>
     </tr>
     <tr>
       <td>/balance</td>
@@ -201,8 +227,9 @@ Faucet $MON: [Monad Faucet](https://testnet.monad.xyz/faucet)
 <summary><b>📊 Fee Breakdown (All On-Chain)</b></summary>
 <ul>
   <li><b>Profiles/Comments/Buy $TOURS:</b> 90% to OWNER_ADDRESS (dev/ops), 10% to LEGACY_ADDRESS (maintenance).</li>
-  <li><b>Build/Purchase Climbs:</b> 100% TOURS to contract/creator.</li>
-  <li><b>Tournaments:</b> 100% entry fees ($TOURS) go to pot; winner gets full pot (no cuts).</li>
+  <li><b>Build Climbs:</b> 10 $TOURS to contract (for platform/rewards).</li>
+  <li><b>Purchase Climbs:</b> 100% (10 $TOURS) to creator.</li>
+  <li><b>Tournaments:</b> 100% entry fees ($TOURS) to pot; on end, 5% fee to legacy wallet (maintenance), 95% to winner.</li>
   <li><b>Rewards:</b> From contract pool (prefunded).</li>
   <li><b>Gas:</b> ~0.001-0.01 $MON/tx.</li>
   <li><b>Audit:</b> Explorer links; events for all actions.</li>
@@ -230,18 +257,11 @@ Open to angel investors – contact Earvin Gallardo.
 ### ⚠️ Risks & Disclaimer
 Testnet only. No liability for damages. Proprietary – see License.
 
+---
+
 ## License
 
-Copyright © 2025 Earvin Gallardo. All rights reserved.
-
-This software is proprietary and confidential. You may not copy, modify, publish, use, compile, sell, or distribute this software, either in source code form or as a compiled binary, for any purpose, commercial or non-commercial, without explicit written permission from Earvin Gallardo.
-
-The name "EmpowerTours" is a trademark owned by Earvin Gallardo. Use of the "EmpowerTours" brand, name, or any related trademarks requires a rental license agreement and payment of applicable fees. Unauthorized use is prohibited and subject to trademark and copyright laws.
-
-Commercial use of this software or any derivative works is strictly prohibited without a valid license. Violations may result in legal action.
-
-THIS SOFTWARE IS PROVIDED "AS IS," WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL EARVIN GALLARDO BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 Earvin Gallardo owns the entity in its entirety, including all intellectual property rights. For licensing inquiries, investment opportunities, or permissions, contact Earvin Gallardo directly.
+See full license at [LICENSE](https://github.com/EmpowerTours/version1/blob/main/LI%24ENCE)
 
 © 2025 EmpowerTours. Built with xAI & Monad. Join the adventure! 🧗
