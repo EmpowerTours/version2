@@ -44,10 +44,10 @@ Faucet $MON: [Monad Faucet](https://testnet.monad.xyz/faucet)
 </div>
 
 **Contract Addresses (Monad Testnet):**
-- **EmpowerTours:** `CONTRACT_ADDRESS` (e.g., 0xYourContractAddressHere – deploy your own)
-- **$TOURS Token:** `TOURS_TOKEN_ADDRESS` (e.g., 0xYourTokenAddressHere)
-- **Owner Wallet:** `OWNER_ADDRESS` (90% fees for dev/ops)
-- **Legacy Wallet:** `LEGACY_ADDRESS` (10% fees for maintenance)
+- **EmpowerTours:** `0xB69D011496B7d7a5e5B3D0021dBF4468b0050AB6`
+- **$TOURS Token:** `0x2Da15A8B55BE310A7AB8EB0010506AB30CD6CBcf` 
+- **Owner Wallet:** 0x5fE8373C839948bFCB707A8a8A75A16E2634A725` (90% fees for dev/ops)
+- **Legacy Wallet:** `0x3de6FCEECd5d05363D80A77963Edd3787c96E593` (10% fees for maintenance)
 - **RPC:** https://testnet-rpc.monad.xyz
 - **Explorer:** https://testnet.monadexplorer.com
 
