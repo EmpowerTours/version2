@@ -7,7 +7,7 @@
   [![Telegram Bot](https://img.shields.io/badge/Telegram-Bot-blue?style=for-the-badge&logo=telegram)](https://t.me/empowertoursbot)
   [![Community Chat](https://img.shields.io/badge/Chat-Join%20Now-green?style=for-the-badge&logo=telegram)](https://t.me/empowertourschat)
   [![License](https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge)](LICENSE)
-  [![Open to Investors](https://img.shields.io/badge/Invest-Open%20to%20Angels-yellow?style=for-the-badge&logo=bitcoin)](mailto:earvin@empowertours.com)
+  [![Open to Investors](https://img.shields.io/badge/Invest-Open%20to%20Angels-yellow?style=for-the-badge&logo=bitcoin)](mailto:earvin.gallardo@csecsystems.com)
 
 </div>
 
