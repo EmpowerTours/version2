@@ -139,36 +139,6 @@
             margin-top: 10px;
             color: #333;
         }
-        /* SVG Map */
-        .map-container {
-            margin: 20px auto;
-            max-width: 600px;
-            position: relative;
-        }
-        svg {
-            width: 100%;
-            height: auto;
-            background-color: #e0f7fa;
-            border-radius: 10px;
-        }
-        .climb-marker {
-            fill: #FF4500;
-            cursor: pointer;
-            transition: transform 0.3s;
-        }
-        .climb-marker:hover {
-            transform: scale(1.5);
-        }
-        .tooltip {
-            position: absolute;
-            background-color: #fff;
-            border: 1px solid #FF4500;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 0.9em;
-            display: none;
-            pointer-events: none;
-        }
         /* Badge styling */
         .badges {
             display: flex;
@@ -305,9 +275,6 @@
             th, td {
                 padding: 8px;
             }
-            .map-container {
-                max-width: 100%;
-            }
         }
         @media (min-width: 1025px) {
             .header-nav {
@@ -383,19 +350,6 @@
         <div class="balance-checker">
             <button onclick="checkBalance()">Check $MON/$TOURS Balance</button>
             <p id="balance-result">Click to check your balance (simulated).</p>
-        </div>
-
-        <!-- Interactive Map -->
-        <h2>Climb Locations</h2>
-        <div class="map-container">
-            <svg viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet">
-                <rect x="0" y="0" width="1000" height="500" fill="#e0f7fa" />
-                <!-- Simplified world map outline -->
-                <path d="M100,100 C200,50 300,150 400,100 S600,50 700,100 900,150 900,300 800,400 600,400 400,350 300,400 200,350 100,300 Z" fill="#c8e6c9" stroke="#000" stroke-width="2" />
-                <!-- Climb markers -->
-                <g id="climb-markers"></g>
-            </svg>
-            <div class="tooltip" id="tooltip"></div>
         </div>
 
         <!-- Quick Start -->
@@ -698,51 +652,6 @@
             const monBalance = (Math.random() * 100).toFixed(2);
             const toursBalance = (Math.random() * 1000).toFixed(2);
             resultElement.textContent = `Balance: ${monBalance} $MON, ${toursBalance} $TOURS (simulated)`;
-        }
-
-        // Interactive Map
-        function loadClimbLocations() {
-            // Mock climb data (since no backend is used)
-            const climbs = [
-                { id: 1, title: "Mountain Peak", desc: "Challenging climb in the Rockies", price: 10 },
-                { id: 2, title: "Desert Ridge", desc: "Moderate route in Arizona", price: 8 },
-                { id: 3, title: "Coastal Cliff", desc: "Scenic coastal climb", price: 12 }
-            ];
-            const markersGroup = document.getElementById('climb-markers');
-            const tooltip = document.getElementById('tooltip');
-            climbs.forEach(climb => {
-                const x = Math.random() * 900 + 50; // Random position on SVG
-                const y = Math.random() * 400 + 50;
-                const marker = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                marker.setAttribute('cx', x);
-                marker.setAttribute('cy', y);
-                marker.setAttribute('r', 5);
-                marker.setAttribute('class', 'climb-marker');
-                marker.addEventListener('mouseover', (e) => {
-                    tooltip.style.display = 'block';
-                    tooltip.textContent = `${climb.title}: ${climb.desc} (${climb.price} $TOURS)`;
-                    tooltip.style.left = `${e.clientX + 10}px`;
-                    tooltip.style.top = `${e.clientY - 20}px`;
-                });
-                marker.addEventListener('mouseout', () => {
-                    tooltip.style.display = 'none';
-                });
-                markersGroup.appendChild(marker);
-            });
-        }
-
-        // Initialize
-        window.addEventListener('load', () => {
-            loadClimbLocations();
-        });
-
-        // Google Translate Script
-        function googleTranslateElementInit() {
-            new google.translate.TranslateElement({
-                pageLanguage: 'en',
-                includedLanguages: 'es,fr,de,zh-CN,ar,pt,ru,ja,it,ko',
-                layout: google.translate.TranslateElement.InlineLayout.SIMPLE
-            }, 'google_translate_element');
         }
     </script>
     <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
