@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -49,35 +50,14 @@
             height: 40px;
             border-radius: 5px;
         }
-        .header-nav {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
         .header-nav a {
+            margin: 0 10px;
             color: #FF4500;
             text-decoration: none;
             font-weight: bold;
-            font-size: 1em;
         }
         .header-nav a:hover {
             text-decoration: underline;
-        }
-        /* Hamburger Menu */
-        .hamburger {
-            display: none;
-            font-size: 24px;
-            background: none;
-            border: none;
-            color: #FF4500;
-            cursor: pointer;
-            padding: 0;
-        }
-        .nav-menu {
-            display: flex;
-        }
-        .nav-menu.active {
-            display: flex;
         }
         /* Google Translate styling */
         .goog-te-banner-frame { display: none !important; }
@@ -182,10 +162,10 @@
             margin-top: 10px;
         }
         /* Responsive Design Tweaks */
-        @media (max-width: 1024px) {
+        @media (max-width: 768px) {
             body {
                 padding: 10px;
-                padding-top: 60px; /* Reduced header height with hamburger */
+                padding-top: 100px; /* Adjust for header height */
             }
             h1 {
                 font-size: 2em;
@@ -197,35 +177,18 @@
                 max-width: 100%;
             }
             .header {
-                flex-wrap: wrap;
-                align-items: center;
+                flex-direction: column;
+                align-items: flex-start;
             }
             .header img {
                 height: 30px;
             }
-            .hamburger {
-                display: block;
-            }
-            .nav-menu {
-                display: none;
-                flex-direction: column;
-                width: 100%;
-                background-color: #fff;
-                position: absolute;
-                top: 60px;
-                left: 0;
-                padding: 10px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }
-            .nav-menu.active {
-                display: flex;
-            }
             .header-nav {
-                flex-direction: column;
-                gap: 10px;
+                margin-top: 10px;
             }
             .header-nav a {
-                font-size: 0.9em;
+                display: block;
+                margin: 5px 0;
             }
             .badges {
                 flex-direction: column;
@@ -245,18 +208,6 @@
                 padding: 8px;
             }
         }
-        @media (min-width: 1025px) {
-            .header-nav {
-                flex-direction: row;
-                gap: 15px;
-            }
-            .nav-menu {
-                display: flex;
-            }
-            .hamburger {
-                display: none;
-            }
-        }
         @media (max-width: 480px) {
             h1 {
                 font-size: 1.5em;
@@ -268,7 +219,7 @@
                 height: 25px;
             }
             .header-nav a {
-                font-size: 0.8em;
+                font-size: 0.9em;
             }
             .badges img {
                 width: 100%;
@@ -284,17 +235,14 @@
 <body>
     <!-- Sticky Header -->
     <div class="header">
-        <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="display: flex; align-items: center;">
             <img src="https://raw.githubusercontent.com/EmpowerTours/version1/main/public/IMG_3466.jpg" alt="EmpowerTours Logo">
-            <button class="hamburger" onclick="toggleMenu()">☰</button>
-            <div class="nav-menu" id="nav-menu">
-                <div class="header-nav">
-                    <a href="#quick-start">Quick Start</a>
-                    <a href="#technologies">Technologies</a>
-                    <a href="#commands">Commands</a>
-                    <a href="#fees">Fees</a>
-                    <a href="#future">Future Features</a>
-                </div>
+            <div class="header-nav">
+                <a href="#quick-start">Quick Start</a>
+                <a href="#technologies">Technologies</a>
+                <a href="#commands">Commands</a>
+                <a href="#fees">Fees</a>
+                <a href="#future">Future Features</a>
             </div>
         </div>
         <div id="google_translate_element"></div>
@@ -408,7 +356,7 @@
                 <li><strong>API:</strong> Handles wallet/tx submission.</li>
                 <li><strong>DB:</strong> Sessions, pendings (expires 30min).</li>
                 <li><strong>Monitoring:</strong> Events polled every 30s; notifies chat/users.</li>
-                <li><strong>Fees in Tournaments:</strong> 100% of entry fees ($TOURS) to pot; on end, 5% fee to legacy wallet (maintenance), 95% to winner.</li>
+                <li><strong>Fees in Tournaments:</strong> 100% of entry fees ($TOURS) go to pot; on end, 5% fee to legacy wallet (maintenance), 95% to winner.</li>
             </ul>
         </details>
 
@@ -445,32 +393,32 @@
                         <td>1 $MON (earn 1 $TOURS)</td>
                     </tr>
                     <tr>
-                        <td>/buyTours <amount></td>
+                        <td>/buyTours &lt;amount&gt;</td>
                         <td>Buy $TOURS</td>
                         <td>1 $MON per $TOURS</td>
                     </tr>
                     <tr>
-                        <td>/sendTours <recipient> <amount></td>
+                        <td>/sendTours &lt;recipient&gt; &lt;amount&gt;</td>
                         <td>Send $TOURS</td>
                         <td>Gas only</td>
                     </tr>
                     <tr>
-                        <td>/journal <entry></td>
+                        <td>/journal &lt;entry&gt;</td>
                         <td>Log climb</td>
                         <td>Earn 5 $TOURS</td>
                     </tr>
                     <tr>
-                        <td>/comment <id> <comment></td>
+                        <td>/comment &lt;id&gt; &lt;comment&gt;</td>
                         <td>Comment on journal</td>
                         <td>0.1 $MON</td>
                     </tr>
                     <tr>
-                        <td>/buildaclimb <name> <difficulty></td>
+                        <td>/buildaclimb &lt;name&gt; &lt;difficulty&gt;</td>
                         <td>Create route</td>
                         <td>10 $TOURS (to contract)</td>
                     </tr>
                     <tr>
-                        <td>/purchaseclimb <id></td>
+                        <td>/purchaseclimb &lt;id&gt;</td>
                         <td>Buy route</td>
                         <td>10 $TOURS (to creator)</td>
                     </tr>
@@ -480,7 +428,7 @@
                         <td>Free</td>
                     </tr>
                     <tr>
-                        <td>/viewclimb <id></td>
+                        <td>/viewclimb &lt;id&gt;</td>
                         <td>Climb details</td>
                         <td>Free</td>
                     </tr>
@@ -495,12 +443,12 @@
                         <td>Free</td>
                     </tr>
                     <tr>
-                        <td>/viewjournal <id></td>
+                        <td>/viewjournal &lt;id&gt;</td>
                         <td>Entry + comments</td>
                         <td>Free</td>
                     </tr>
                     <tr>
-                        <td>/createtournament <fee></td>
+                        <td>/createtournament &lt;fee&gt;</td>
                         <td>Start tournament</td>
                         <td>Free (gas)</td>
                     </tr>
@@ -510,12 +458,12 @@
                         <td>Free</td>
                     </tr>
                     <tr>
-                        <td>/jointournament <id></td>
+                        <td>/jointournament &lt;id&gt;</td>
                         <td>Join</td>
                         <td>Entry fee $TOURS (to pot)</td>
                     </tr>
                     <tr>
-                        <td>/endtournament <id> <winner></td>
+                        <td>/endtournament &lt;id&gt; &lt;winner&gt;</td>
                         <td>End (owner)</td>
                         <td>Free; 95% pot to winner, 5% fee to legacy</td>
                     </tr>
@@ -541,7 +489,7 @@
                 <li><strong>Profiles/Comments/Buy $TOURS:</strong> 90% to OWNER_ADDRESS (dev/ops), 10% to LEGACY_ADDRESS (maintenance).</li>
                 <li><strong>Build Climbs:</strong> 10 $TOURS to contract (for platform/rewards).</li>
                 <li><strong>Purchase Climbs:</strong> 100% (10 $TOURS) to creator.</li>
-                <li><strong>Tournaments:</strong> 100% of entry fees ($TOURS) to pot; on end, 5% fee to legacy wallet (maintenance), 95% to winner.</li>
+                <li><strong>Tournaments:</strong> 100% entry fees ($TOURS) to pot; on end, 5% fee to legacy wallet (maintenance), 95% to winner.</li>
                 <li><strong>Rewards:</strong> From contract pool (prefunded).</li>
                 <li><strong>Gas:</strong> ~0.001-0.01 $MON/tx.</li>
                 <li><strong>Audit:</strong> Explorer links; events for all actions.</li>
@@ -590,12 +538,6 @@
 
     <!-- Dynamic Features Script -->
     <script>
-        // Toggle hamburger menu
-        function toggleMenu() {
-            const navMenu = document.getElementById('nav-menu');
-            navMenu.classList.toggle('active');
-        }
-
         // Smooth scrolling for navigation links
         document.querySelectorAll('.header-nav a').forEach(anchor => {
             anchor.addEventListener('click', function(e) {
@@ -607,11 +549,6 @@
                         top: targetElement.offsetTop - 80, // Adjust for header height
                         behavior: 'smooth'
                     });
-                }
-                // Close menu on mobile after clicking a link
-                const navMenu = document.getElementById('nav-menu');
-                if (navMenu.classList.contains('active')) {
-                    navMenu.classList.remove('active');
                 }
             });
         });
