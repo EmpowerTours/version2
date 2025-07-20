@@ -246,9 +246,20 @@
             }
         }
         @media (min-width: 1025px) {
+            .header {
+                height: 60px; /* Increase header height */
+                align-items: center; /* Vertically center content */
+                padding: 10px 20px; /* Consistent padding */
+            }
             .header-nav {
                 flex-direction: row;
-                gap: 15px;
+                gap: 20px; /* Increase gap for better spacing */
+                align-items: center; /* Center links vertically */
+                margin-right: 20px; /* Prevent overlap with translate widget */
+            }
+            .header-nav a {
+                font-size: 1.1em; /* Slightly larger font for readability */
+                line-height: 1.5; /* Ensure text is not cramped */
             }
             .nav-menu {
                 display: flex;
@@ -298,10 +309,9 @@
             </div>
         </div>
         <div id="google_translate_element"></div>
-    </div>
-
+    </d
+    <!-- Header Section -->
     <div class="container">
-        <!-- Header Section -->
         <img src="https://raw.githubusercontent.com/EmpowerTours/version1/main/public/IMG_3466.jpg" alt="EmpowerTours Logo" width="300" style="border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
         <h1>EmpowerTours</h1>
         <p>🧗 Web3-Powered Rock Climbing Adventures & Community – Conquer Peaks, Earn Tokens, Build Routes on Monad Blockchain!</p>
@@ -312,6 +322,7 @@
             <a href="https://t.me/empowertoursbot"><img src="https://img.shields.io/badge/Telegram-Bot-blue?style=for-the-badge&logo=telegram" alt="Telegram Bot"></a>
             <a href="https://t.me/empowertourschat"><img src="https://img.shields.io/badge/Chat-Join%20Now-green?style=for-the-badge&logo=telegram" alt="Community Chat"></a>
             <a href="LICENSE"><img src="https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge" alt="License"></a>
+            <a href="mailto:earvin.gallardo@cව
             <a href="mailto:earvin.gallardo@csecsystems.com"><img src="https://img.shields.io/badge/Invest-Open%20to%20Angels-yellow?style=for-the-badge&logo=bitcoin" alt="Open to Investors"></a>
         </div>
 
@@ -582,7 +593,8 @@
             new google.translate.TranslateElement({
                 pageLanguage: 'en',
                 includedLanguages: 'es,fr,de,zh-CN,ar,pt,ru,ja,it,ko',
-                layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+                layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+                autoDisplay: true // Enable auto-detection of user language
             }, 'google_translate_element');
         }
     </script>
