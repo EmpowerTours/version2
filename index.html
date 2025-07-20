@@ -81,12 +81,23 @@
             cursor: pointer;
             padding: 5px 10px;
             transition: transform 0.3s, background-color 0.3s;
+            position: relative;
+            width: 30px;
+            height: 30px;
         }
         .hamburger:hover {
             background-color: #FFA500;
             color: #fff;
             transform: scale(1.2);
             border-radius: 5px;
+        }
+        .hamburger::before {
+            content: "☰";
+            display: block;
+            transition: content 0.3s;
+        }
+        .hamburger.active::before {
+            content: "✕";
         }
         .nav-menu {
             display: flex;
@@ -317,7 +328,7 @@
     <div class="header">
         <div style="display: flex; align-items: center; gap: 10px;">
             <img src="https://raw.githubusercontent.com/EmpowerTours/version1/main/public/IMG_3466.jpg" alt="EmpowerTours Logo">
-            <button class="hamburger" onclick="toggleMenu()">☰</button>
+            <button class="hamburger" onclick="toggleMenu()"></button>
             <div class="nav-menu" id="nav-menu">
                 <div class="header-nav">
                     <a href="#quick-start">Quick Start</a>
@@ -612,7 +623,9 @@
         // Hamburger Menu Toggle
         function toggleMenu() {
             const navMenu = document.getElementById('nav-menu');
+            const hamburger = document.querySelector('.hamburger');
             navMenu.classList.toggle('active');
+            hamburger.classList.toggle('active');
         }
 
         // Smooth Scrolling
@@ -628,8 +641,10 @@
                     });
                 }
                 const navMenu = document.getElementById('nav-menu');
+                const hamburger = document.querySelector('.hamburger');
                 if (navMenu.classList.contains('active')) {
                     navMenu.classList.remove('active');
+                    hamburger.classList.remove('active');
                 }
             });
         });
