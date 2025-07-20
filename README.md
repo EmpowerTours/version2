@@ -10,7 +10,16 @@
   [![Open to Investors](https://img.shields.io/badge/Invest-Open%20to%20Angels-yellow?style=for-the-badge&logo=bitcoin)](mailto:earvin.gallardo@csecsystems.com)
 
 </div>
-
+<div id="google_translate_element"></div>
+<script type="text/javascript">
+function googleTranslateElementInit() {
+  new google.translate.TranslateElement({
+    pageLanguage: 'en',  // Set to your default language (English here)
+    includedLanguages: 'es,fr,de,zh-CN,ar,pt,ru,ja,it,ko'  // Optional: Limit to specific languages (comma-separated ISO codes); remove for all ~100+ languages
+  }, 'google_translate_element');
+}
+</script>
+<script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 ---
 
 ### 🚀 Quick Start
