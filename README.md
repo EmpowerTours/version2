@@ -10,24 +10,6 @@
   [![Open to Investors](https://img.shields.io/badge/Invest-Open%20to%20Angels-yellow?style=for-the-badge&logo=bitcoin)](mailto:earvin.gallardo@csecsystems.com)
 
 </div>
-<div id="google_translate_element" style="float: right; margin-top: -50px; margin-right: 20px;"></div>
-<script type="text/javascript">
-function googleTranslateElementInit() {
-  new google.translate.TranslateElement({
-    pageLanguage: 'en',
-    includedLanguages: 'es,fr,de,zh-CN,ar,pt,ru,ja,it,ko',
-    layout: google.translate.TranslateElement.InlineLayout.SIMPLE
-  }, 'google_translate_element');
-}
-</script>
-<script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
-<style>
-  .goog-te-banner-frame { display: none !important; }
-  .goog-te-gadget { font-size: 0px !important; }
-  .goog-te-combo { margin: 0px !important; }
-  .skiptranslate { display: none !important; }
-  body { top: 0px !important; }
-</style>
 
 ### 🚀 Quick Start
 Launch the bot: [@AI_RobotExpert_bot](https://t.me/AI_RobotExpert_bot)  
