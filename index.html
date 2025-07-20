@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -45,28 +44,57 @@
             align-items: center;
             justify-content: space-between;
             z-index: 1000;
+            height: 70px; /* Ensure enough space for desktop */
         }
         .header img {
             height: 40px;
             border-radius: 5px;
         }
+        .header-nav {
+            display: flex;
+            gap: 10px; /* Space between links */
+        }
         .header-nav a {
-            margin: 0 10px;
             color: #FF4500;
             text-decoration: none;
             font-weight: bold;
+            font-size: 1em;
+            padding: 5px 10px; /* Clickable area */
         }
         .header-nav a:hover {
             text-decoration: underline;
         }
+        /* Hamburger Menu */
+        .hamburger {
+            display: none;
+            font-size: 24px;
+            background: none;
+            border: none;
+            color: #FF4500;
+            cursor: pointer;
+            padding: 0;
+        }
+        .nav-menu {
+            display: flex;
+            align-items: center;
+        }
+        .nav-menu.active {
+            display: flex;
+        }
         /* Google Translate styling */
         .goog-te-banner-frame { display: none !important; }
         .goog-te-gadget { font-size: 0px !important; }
-        .goog-te-combo { margin: 0px !important; font-size: 14px !important; }
+        .goog-te-combo {
+            margin: 0px !important;
+            font-size: 14px !important;
+            padding: 5px;
+            border-radius: 4px;
+        }
         .skiptranslate { display: none !important; }
         body { top: 0px !important; }
         #google_translate_element {
             display: inline-block;
+            margin-left: 10px; /* Prevent overlap */
         }
         /* Badge styling */
         .badges {
@@ -74,9 +102,14 @@
             justify-content: center;
             flex-wrap: wrap;
             gap: 10px;
+            margin: 20px 0;
         }
         .badges a {
             display: inline-block;
+        }
+        .badges img {
+            max-width: 100%;
+            height: auto;
         }
         /* Collapsible sections */
         details {
@@ -120,6 +153,10 @@
             flex-wrap: wrap;
             gap: 10px;
             margin: 20px 0;
+        }
+        .tech-stack img {
+            max-width: 100%;
+            height: auto;
         }
         /* List styling for user journey */
         ol.gradient-list {
@@ -165,7 +202,7 @@
         @media (max-width: 768px) {
             body {
                 padding: 10px;
-                padding-top: 100px; /* Adjust for header height */
+                padding-top: 60px; /* Adjust for smaller header */
             }
             h1 {
                 font-size: 2em;
@@ -177,18 +214,39 @@
                 max-width: 100%;
             }
             .header {
-                flex-direction: column;
-                align-items: flex-start;
+                height: auto; /* Allow header to adjust */
+                flex-wrap: wrap;
+                padding: 10px;
             }
             .header img {
                 height: 30px;
             }
+            .hamburger {
+                display: block;
+            }
+            .nav-menu {
+                display: none;
+                flex-direction: column;
+                width: 100%;
+                background-color: #fff;
+                position: absolute;
+                top: 60px;
+                left: 0;
+                padding: 10px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .nav-menu.active {
+                display: flex;
+            }
             .header-nav {
-                margin-top: 10px;
+                flex-direction: column;
+                gap: 10px;
+                width: 100%;
             }
             .header-nav a {
+                font-size: 0.9em;
                 display: block;
-                margin: 5px 0;
+                padding: 8px 0;
             }
             .badges {
                 flex-direction: column;
@@ -208,6 +266,27 @@
                 padding: 8px;
             }
         }
+        @media (min-width: 769px) {
+            .header {
+                height: 70px;
+                align-items: center;
+            }
+            .header-nav {
+                flex-direction: row;
+                gap: 15px;
+                margin-right: 15px; /* Prevent overlap with translate widget */
+            }
+            .header-nav a {
+                font-size: 1.1em;
+                line-height: 1.5;
+            }
+            .nav-menu {
+                display: flex;
+            }
+            .hamburger {
+                display: none;
+            }
+        }
         @media (max-width: 480px) {
             h1 {
                 font-size: 1.5em;
@@ -219,7 +298,7 @@
                 height: 25px;
             }
             .header-nav a {
-                font-size: 0.9em;
+                font-size: 0.8em;
             }
             .badges img {
                 width: 100%;
@@ -235,14 +314,17 @@
 <body>
     <!-- Sticky Header -->
     <div class="header">
-        <div style="display: flex; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 10px;">
             <img src="https://raw.githubusercontent.com/EmpowerTours/version1/main/public/IMG_3466.jpg" alt="EmpowerTours Logo">
-            <div class="header-nav">
-                <a href="#quick-start">Quick Start</a>
-                <a href="#technologies">Technologies</a>
-                <a href="#commands">Commands</a>
-                <a href="#fees">Fees</a>
-                <a href="#future">Future Features</a>
+            <button class="hamburger" onclick="toggleMenu()">☰</button>
+            <div class="nav-menu" id="nav-menu">
+                <div class="header-nav">
+                    <a href="#quick-start">Quick Start</a>
+                    <a href="#technologies">Technologies</a>
+                    <a href="#commands">Commands</a>
+                    <a href="#fees">Fees</a>
+                    <a href="#future">Future Features</a>
+                </div>
             </div>
         </div>
         <div id="google_translate_element"></div>
@@ -356,7 +438,7 @@
                 <li><strong>API:</strong> Handles wallet/tx submission.</li>
                 <li><strong>DB:</strong> Sessions, pendings (expires 30min).</li>
                 <li><strong>Monitoring:</strong> Events polled every 30s; notifies chat/users.</li>
-                <li><strong>Fees in Tournaments:</strong> 100% of entry fees ($TOURS) go to pot; on end, 5% fee to legacy wallet (maintenance), 95% to winner.</li>
+                <li><strong>Fees in Tournaments:</strong> 100% of entry fees ($TOURS) to pot; on end, 5% fee to legacy wallet (maintenance), 95% to winner.</li>
             </ul>
         </details>
 
@@ -393,32 +475,32 @@
                         <td>1 $MON (earn 1 $TOURS)</td>
                     </tr>
                     <tr>
-                        <td>/buyTours &lt;amount&gt;</td>
+                        <td>/buyTours <amount></td>
                         <td>Buy $TOURS</td>
                         <td>1 $MON per $TOURS</td>
                     </tr>
                     <tr>
-                        <td>/sendTours &lt;recipient&gt; &lt;amount&gt;</td>
+                        <td>/sendTours <recipient> <amount></td>
                         <td>Send $TOURS</td>
                         <td>Gas only</td>
                     </tr>
                     <tr>
-                        <td>/journal &lt;entry&gt;</td>
+                        <td>/journal <entry></td>
                         <td>Log climb</td>
                         <td>Earn 5 $TOURS</td>
                     </tr>
                     <tr>
-                        <td>/comment &lt;id&gt; &lt;comment&gt;</td>
+                        <td>/comment <id> <comment></td>
                         <td>Comment on journal</td>
                         <td>0.1 $MON</td>
                     </tr>
                     <tr>
-                        <td>/buildaclimb &lt;name&gt; &lt;difficulty&gt;</td>
+                        <td>/buildaclimb <name> <difficulty></td>
                         <td>Create route</td>
                         <td>10 $TOURS (to contract)</td>
                     </tr>
                     <tr>
-                        <td>/purchaseclimb &lt;id&gt;</td>
+                        <td>/purchaseclimb <id></td>
                         <td>Buy route</td>
                         <td>10 $TOURS (to creator)</td>
                     </tr>
@@ -428,7 +510,7 @@
                         <td>Free</td>
                     </tr>
                     <tr>
-                        <td>/viewclimb &lt;id&gt;</td>
+                        <td>/viewclimb <id></td>
                         <td>Climb details</td>
                         <td>Free</td>
                     </tr>
@@ -443,12 +525,12 @@
                         <td>Free</td>
                     </tr>
                     <tr>
-                        <td>/viewjournal &lt;id&gt;</td>
+                        <td>/viewjournal <id></td>
                         <td>Entry + comments</td>
                         <td>Free</td>
                     </tr>
                     <tr>
-                        <td>/createtournament &lt;fee&gt;</td>
+                        <td>/createtournament <fee></td>
                         <td>Start tournament</td>
                         <td>Free (gas)</td>
                     </tr>
@@ -458,12 +540,12 @@
                         <td>Free</td>
                     </tr>
                     <tr>
-                        <td>/jointournament &lt;id&gt;</td>
+                        <td>/jointournament <id></td>
                         <td>Join</td>
                         <td>Entry fee $TOURS (to pot)</td>
                     </tr>
                     <tr>
-                        <td>/endtournament &lt;id&gt; &lt;winner&gt;</td>
+                        <td>/endtournament <id> <winner></td>
                         <td>End (owner)</td>
                         <td>Free; 95% pot to winner, 5% fee to legacy</td>
                     </tr>
@@ -489,7 +571,7 @@
                 <li><strong>Profiles/Comments/Buy $TOURS:</strong> 90% to OWNER_ADDRESS (dev/ops), 10% to LEGACY_ADDRESS (maintenance).</li>
                 <li><strong>Build Climbs:</strong> 10 $TOURS to contract (for platform/rewards).</li>
                 <li><strong>Purchase Climbs:</strong> 100% (10 $TOURS) to creator.</li>
-                <li><strong>Tournaments:</strong> 100% entry fees ($TOURS) to pot; on end, 5% fee to legacy wallet (maintenance), 95% to winner.</li>
+                <li><strong>Tournaments:</strong> 100% of entry fees ($TOURS) to pot; on end, 5% fee to legacy wallet (maintenance), 95% to winner.</li>
                 <li><strong>Rewards:</strong> From contract pool (prefunded).</li>
                 <li><strong>Gas:</strong> ~0.001-0.01 $MON/tx.</li>
                 <li><strong>Audit:</strong> Explorer links; events for all actions.</li>
@@ -530,7 +612,8 @@
             new google.translate.TranslateElement({
                 pageLanguage: 'en',
                 includedLanguages: 'es,fr,de,zh-CN,ar,pt,ru,ja,it,ko',
-                layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+                layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+                autoDisplay: true // Enable auto-detection of user language
             }, 'google_translate_element');
         }
     </script>
@@ -538,6 +621,12 @@
 
     <!-- Dynamic Features Script -->
     <script>
+        // Toggle hamburger menu
+        function toggleMenu() {
+            const navMenu = document.getElementById('nav-menu');
+            navMenu.classList.toggle('active');
+        }
+
         // Smooth scrolling for navigation links
         document.querySelectorAll('.header-nav a').forEach(anchor => {
             anchor.addEventListener('click', function(e) {
@@ -549,6 +638,11 @@
                         top: targetElement.offsetTop - 80, // Adjust for header height
                         behavior: 'smooth'
                     });
+                }
+                // Close menu on mobile after clicking a link
+                const navMenu = document.getElementById('nav-menu');
+                if (navMenu.classList.contains('active')) {
+                    navMenu.classList.remove('active');
                 }
             });
         });
