@@ -13,6 +13,7 @@
             padding: 20px;
             color: #333;
             background-color: #f4f4f4;
+            padding-top: 80px; /* Space for sticky header */
         }
         .container {
             max-width: 800px;
@@ -23,26 +24,58 @@
             color: #FF4500;
             font-family: 'Arial Black', sans-serif;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            font-size: 2.5em;
         }
         p {
             font-size: 1.2em;
             max-width: 800px;
             margin: 0 auto;
         }
+        /* Sticky Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+        }
+        .header img {
+            height: 40px;
+            border-radius: 5px;
+        }
+        .header-nav a {
+            margin: 0 10px;
+            color: #FF4500;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .header-nav a:hover {
+            text-decoration: underline;
+        }
         /* Google Translate styling */
         .goog-te-banner-frame { display: none !important; }
         .goog-te-gadget { font-size: 0px !important; }
-        .goog-te-combo { margin: 0px !important; }
+        .goog-te-combo { margin: 0px !important; font-size: 14px !important; }
         .skiptranslate { display: none !important; }
         body { top: 0px !important; }
         #google_translate_element {
-            margin-bottom: 20px;
-            text-align: right;
+            display: inline-block;
         }
         /* Badge styling */
+        .badges {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
         .badges a {
             display: inline-block;
-            margin: 5px;
         }
         /* Collapsible sections */
         details {
@@ -59,6 +92,9 @@
             color: #FF4500;
         }
         /* Table styling */
+        .table-container {
+            overflow-x: auto;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -104,13 +140,114 @@
         a:hover {
             text-decoration: underline;
         }
+        /* Balance checker */
+        .balance-checker {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .balance-checker button {
+            background-color: #FF4500;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .balance-checker button:hover {
+            background-color: #FFA500;
+        }
+        .balance-checker p {
+            font-size: 1em;
+            margin-top: 10px;
+        }
+        /* Responsive Design Tweaks */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+                padding-top: 100px; /* Adjust for header height */
+            }
+            h1 {
+                font-size: 2em;
+            }
+            p {
+                font-size: 1em;
+            }
+            .container {
+                max-width: 100%;
+            }
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .header img {
+                height: 30px;
+            }
+            .header-nav {
+                margin-top: 10px;
+            }
+            .header-nav a {
+                display: block;
+                margin: 5px 0;
+            }
+            .badges {
+                flex-direction: column;
+                align-items: center;
+            }
+            .tech-stack {
+                flex-direction: column;
+                align-items: center;
+            }
+            .table-container {
+                overflow-x: auto;
+            }
+            table {
+                font-size: 0.9em;
+            }
+            th, td {
+                padding: 8px;
+            }
+        }
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.5em;
+            }
+            p {
+                font-size: 0.9em;
+            }
+            .header img {
+                height: 25px;
+            }
+            .header-nav a {
+                font-size: 0.9em;
+            }
+            .badges img {
+                width: 100%;
+                max-width: 200px;
+            }
+            .tech-stack img {
+                width: 100%;
+                max-width: 150px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Google Translate Widget -->
+    <!-- Sticky Header -->
+    <div class="header">
+        <div style="display: flex; align-items: center;">
+            <img src="https://raw.githubusercontent.com/EmpowerTours/version1/main/public/IMG_3466.jpg" alt="EmpowerTours Logo">
+            <div class="header-nav">
+                <a href="#quick-start">Quick Start</a>
+                <a href="#technologies">Technologies</a>
+                <a href="#commands">Commands</a>
+                <a href="#fees">Fees</a>
+                <a href="#future">Future Features</a>
+            </div>
+        </div>
         <div id="google_translate_element"></div>
+    </div>
 
+    <div class="container">
         <!-- Header Section -->
         <img src="https://raw.githubusercontent.com/EmpowerTours/version1/main/public/IMG_3466.jpg" alt="EmpowerTours Logo" width="300" style="border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
         <h1>EmpowerTours</h1>
@@ -126,10 +263,16 @@
         </div>
 
         <!-- Quick Start -->
-        <h2>🚀 Quick Start</h2>
+        <h2 id="quick-start">🚀 Quick Start</h2>
         <p>Launch the bot: <a href="https://t.me/AI_RobotExpert_bot">@AI_RobotExpert_bot</a><br>
         Join the community: <a href="https://t.me/empowertourschat">@empowertourschat</a><br>
         Faucet $MON: <a href="https://testnet.monad.xyz/faucet">Monad Faucet</a></p>
+
+        <!-- Balance Checker Demo -->
+        <div class="balance-checker">
+            <button onclick="checkBalance()">Check $MON/$TOURS Balance</button>
+            <p id="balance-result">Click to check your balance (simulated).</p>
+        </div>
 
         <!-- Monad Testnet Setup -->
         <h2>Setting Up Monad Testnet on MetaMask</h2>
@@ -160,7 +303,7 @@
         <p>For visual steps, check the <a href="https://docs.monad.xyz/guides/add-monad-to-wallet/metamask">official Monad docs</a> which include screenshots of the process (e.g., adding custom network, entering RPC details, saving, and verifying assets).</p>
 
         <!-- Why EmpowerTours -->
-        <details>
+        <details id="why-empowertours">
             <summary><b>🌟 Why EmpowerTours?</b></summary>
             <div style="background-color: #f9f9f9; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <ul>
@@ -174,7 +317,7 @@
         </details>
 
         <!-- Technologies & Stack -->
-        <h2>🔧 Technologies & Stack</h2>
+        <h2 id="technologies">🔧 Technologies & Stack</h2>
         <div class="tech-stack">
             <img src="https://img.shields.io/badge/Python-3.12-blue?style=flat-square&logo=python" alt="Python">
             <img src="https://img.shields.io/badge/FastAPI-0.100-green?style=flat-square&logo=fastapi" alt="FastAPI">
@@ -195,7 +338,7 @@
 
         <!-- How It Works -->
         <h2>📖 How It Works</h2>
-        <details>
+        <details id="user-journey">
             <summary><b>🧑‍💻 User Journey (Interactive Flow)</b></summary>
             <ol class="gradient-list">
                 <li>/start – Welcome & join chat 🏞️</li>
@@ -205,7 +348,7 @@
                 <li>Tournaments: Create/Join/End for $TOURS pots</li>
             </ol>
         </details>
-        <details>
+        <details id="backend-flow">
             <summary><b>🔗 Backend & Blockchain Flow</b></summary>
             <ul>
                 <li><strong>Bot:</strong> Processes commands, builds unsigned tx.</li>
@@ -217,127 +360,129 @@
         </details>
 
         <!-- Commands & Usage -->
-        <h2>📋 Commands & Usage</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Command</th>
-                    <th>Description</th>
-                    <th>Cost/Reward</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>/start</td>
-                    <td>Welcome message</td>
-                    <td>Free</td>
-                </tr>
-                <tr>
-                    <td>/tutorial</td>
-                    <td>Setup guide</td>
-                    <td>Free</td>
-                </tr>
-                <tr>
-                    <td>/connectwallet</td>
-                    <td>Link wallet</td>
-                    <td>Free</td>
-                </tr>
-                <tr>
-                    <td>/createprofile</td>
-                    <td>Create profile</td>
-                    <td>1 $MON (earn 1 $TOURS)</td>
-                </tr>
-                <tr>
-                    <td>/buyTours &lt;amount&gt;</td>
-                    <td>Buy $TOURS</td>
-                    <td>1 $MON per $TOURS</td>
-                </tr>
-                <tr>
-                    <td>/sendTours &lt;recipient&gt; &lt;amount&gt;</td>
-                    <td>Send $TOURS</td>
-                    <td>Gas only</td>
-                </tr>
-                <tr>
-                    <td>/journal &lt;entry&gt;</td>
-                    <td>Log climb</td>
-                    <td>Earn 5 $TOURS</td>
-                </tr>
-                <tr>
-                    <td>/comment &lt;id&gt; &lt;comment&gt;</td>
-                    <td>Comment on journal</td>
-                    <td>0.1 $MON</td>
-                </tr>
-                <tr>
-                    <td>/buildaclimb &lt;name&gt; &lt;difficulty&gt;</td>
-                    <td>Create route</td>
-                    <td>10 $TOURS (to contract)</td>
-                </tr>
-                <tr>
-                    <td>/purchaseclimb &lt;id&gt;</td>
-                    <td>Buy route</td>
-                    <td>10 $TOURS (to creator)</td>
-                </tr>
-                <tr>
-                    <td>/findaclimb</td>
-                    <td>List climbs</td>
-                    <td>Free</td>
-                </tr>
-                <tr>
-                    <td>/viewclimb &lt;id&gt;</td>
-                    <td>Climb details</td>
-                    <td>Free</td>
-                </tr>
-                <tr>
-                    <td>/mypurchases</td>
-                    <td>Your purchases</td>
-                    <td>Free</td>
-                </tr>
-                <tr>
-                    <td>/journals</td>
-                    <td>List entries</td>
-                    <td>Free</td>
-                </tr>
-                <tr>
-                    <td>/viewjournal &lt;id&gt;</td>
-                    <td>Entry + comments</td>
-                    <td>Free</td>
-                </tr>
-                <tr>
-                    <td>/createtournament &lt;fee&gt;</td>
-                    <td>Start tournament</td>
-                    <td>Free (gas)</td>
-                </tr>
-                <tr>
-                    <td>/tournaments</td>
-                    <td>List tournaments</td>
-                    <td>Free</td>
-                </tr>
-                <tr>
-                    <td>/jointournament &lt;id&gt;</td>
-                    <td>Join</td>
-                    <td>Entry fee $TOURS (to pot)</td>
-                </tr>
-                <tr>
-                    <td>/endtournament &lt;id&gt; &lt;winner&gt;</td>
-                    <td>End (owner)</td>
-                    <td>Free; 95% pot to winner, 5% fee to legacy</td>
-                </tr>
-                <tr>
-                    <td>/balance</td>
-                    <td>Check balances</td>
-                    <td>Free</td>
-                </tr>
-                <tr>
-                    <td>/help</td>
-                    <td>Command list</td>
-                    <td>Free</td>
-                </tr>
-            </tbody>
-        </table>
+        <h2 id="commands">📋 Commands & Usage</h2>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Command</th>
+                        <th>Description</th>
+                        <th>Cost/Reward</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>/start</td>
+                        <td>Welcome message</td>
+                        <td>Free</td>
+                    </tr>
+                    <tr>
+                        <td>/tutorial</td>
+                        <td>Setup guide</td>
+                        <td>Free</td>
+                    </tr>
+                    <tr>
+                        <td>/connectwallet</td>
+                        <td>Link wallet</td>
+                        <td>Free</td>
+                    </tr>
+                    <tr>
+                        <td>/createprofile</td>
+                        <td>Create profile</td>
+                        <td>1 $MON (earn 1 $TOURS)</td>
+                    </tr>
+                    <tr>
+                        <td>/buyTours &lt;amount&gt;</td>
+                        <td>Buy $TOURS</td>
+                        <td>1 $MON per $TOURS</td>
+                    </tr>
+                    <tr>
+                        <td>/sendTours &lt;recipient&gt; &lt;amount&gt;</td>
+                        <td>Send $TOURS</td>
+                        <td>Gas only</td>
+                    </tr>
+                    <tr>
+                        <td>/journal &lt;entry&gt;</td>
+                        <td>Log climb</td>
+                        <td>Earn 5 $TOURS</td>
+                    </tr>
+                    <tr>
+                        <td>/comment &lt;id&gt; &lt;comment&gt;</td>
+                        <td>Comment on journal</td>
+                        <td>0.1 $MON</td>
+                    </tr>
+                    <tr>
+                        <td>/buildaclimb &lt;name&gt; &lt;difficulty&gt;</td>
+                        <td>Create route</td>
+                        <td>10 $TOURS (to contract)</td>
+                    </tr>
+                    <tr>
+                        <td>/purchaseclimb &lt;id&gt;</td>
+                        <td>Buy route</td>
+                        <td>10 $TOURS (to creator)</td>
+                    </tr>
+                    <tr>
+                        <td>/findaclimb</td>
+                        <td>List climbs</td>
+                        <td>Free</td>
+                    </tr>
+                    <tr>
+                        <td>/viewclimb &lt;id&gt;</td>
+                        <td>Climb details</td>
+                        <td>Free</td>
+                    </tr>
+                    <tr>
+                        <td>/mypurchases</td>
+                        <td>Your purchases</td>
+                        <td>Free</td>
+                    </tr>
+                    <tr>
+                        <td>/journals</td>
+                        <td>List entries</td>
+                        <td>Free</td>
+                    </tr>
+                    <tr>
+                        <td>/viewjournal &lt;id&gt;</td>
+                        <td>Entry + comments</td>
+                        <td>Free</td>
+                    </tr>
+                    <tr>
+                        <td>/createtournament &lt;fee&gt;</td>
+                        <td>Start tournament</td>
+                        <td>Free (gas)</td>
+                    </tr>
+                    <tr>
+                        <td>/tournaments</td>
+                        <td>List tournaments</td>
+                        <td>Free</td>
+                    </tr>
+                    <tr>
+                        <td>/jointournament &lt;id&gt;</td>
+                        <td>Join</td>
+                        <td>Entry fee $TOURS (to pot)</td>
+                    </tr>
+                    <tr>
+                        <td>/endtournament &lt;id&gt; &lt;winner&gt;</td>
+                        <td>End (owner)</td>
+                        <td>Free; 95% pot to winner, 5% fee to legacy</td>
+                    </tr>
+                    <tr>
+                        <td>/balance</td>
+                        <td>Check balances</td>
+                        <td>Free</td>
+                    </tr>
+                    <tr>
+                        <td>/help</td>
+                        <td>Command list</td>
+                        <td>Free</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
 
         <!-- Costs, Fees & Transparency -->
-        <h2>💰 Costs, Fees & Transparency</h2>
-        <details>
+        <h2 id="fees">💰 Costs, Fees & Transparency</h2>
+        <details id="fee-breakdown">
             <summary><b>📊 Fee Breakdown (All On-Chain)</b></summary>
             <ul>
                 <li><strong>Profiles/Comments/Buy $TOURS:</strong> 90% to OWNER_ADDRESS (dev/ops), 10% to LEGACY_ADDRESS (maintenance).</li>
@@ -349,7 +494,7 @@
                 <li><strong>Audit:</strong> Explorer links; events for all actions.</li>
             </ul>
         </details>
-        <details>
+        <details id="response-times">
             <summary><b>⚡ Response Times</b></summary>
             <ul>
                 <li><strong>Commands:</strong> 1-5s</li>
@@ -360,7 +505,7 @@
         </details>
 
         <!-- Future Features -->
-        <h2>🔮 Future Features</h2>
+        <h2 id="future">🔮 Future Features</h2>
         <ul>
             <li><strong>3D World Map 🌍:</strong> Interactive 3D globe for climb locations – zoom, explore perspectives with Three.js.</li>
             <li>Farcaster enhancements, NFTs, leaderboards, AR mobile app, mainnet.</li>
@@ -389,5 +534,46 @@
         }
     </script>
     <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+    <!-- Dynamic Features Script -->
+    <script>
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('.header-nav a').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    window.scrollTo({
+                        top: targetElement.offsetTop - 80, // Adjust for header height
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+
+        // Collapsible section persistence
+        document.querySelectorAll('details').forEach(details => {
+            const id = details.id;
+            if (id) {
+                // Load saved state
+                const isOpen = localStorage.getItem(`details-${id}`) === 'true';
+                details.open = isOpen;
+                // Save state on toggle
+                details.addEventListener('toggle', () => {
+                    localStorage.setItem(`details-${id}`, details.open);
+                });
+            }
+        });
+
+        // Simulated balance checker
+        function checkBalance() {
+            const resultElement = document.getElementById('balance-result');
+            // Simulated balance (replace with Web3.js call for real implementation)
+            const monBalance = (Math.random() * 100).toFixed(2);
+            const toursBalance = (Math.random() * 1000).toFixed(2);
+            resultElement.textContent = `Balance: ${monBalance} $MON, ${toursBalance} $TOURS (simulated)`;
+        }
+    </script>
 </body>
 </html>
