@@ -10,7 +10,7 @@
   [![Open to Investors](https://img.shields.io/badge/Invest-Open%20to%20Angels-yellow?style=for-the-badge&logo=bitcoin)](mailto:earvin.gallardo@csecsystems.com)
 
 </div>
-<div id="google_translate_element"></div>
+<div id="google_translate_element" style="float: right; margin-top: -50px; margin-right: 20px;"></div>
 <script type="text/javascript">
 function googleTranslateElementInit() {
   new google.translate.TranslateElement({
@@ -20,7 +20,6 @@ function googleTranslateElementInit() {
 }
 </script>
 <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
----
 
 ### 🚀 Quick Start
 Launch the bot: [@AI_RobotExpert_bot](https://t.me/AI_RobotExpert_bot)  
@@ -66,8 +65,6 @@ For visual steps, check the [official Monad docs](https://docs.monad.xyz/guides/
 </div>
 </details>
 
----
-
 ### 🔧 Technologies & Stack
 <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 10px;">
   <img src="https://img.shields.io/badge/Python-3.12-blue?style=flat-square&logo=python" alt="Python">
@@ -85,8 +82,6 @@ For visual steps, check the [official Monad docs](https://docs.monad.xyz/guides/
 - **Legacy Wallet:** `0x3de6FCEECd5d05363D80A77963Edd3787c96E593` (10% fees for maintenance)
 - **RPC:** https://testnet-rpc.monad.xyz
 - **Explorer:** https://testnet.monadexplorer.com
-
----
 
 ### 📖 How It Works
 <details>
@@ -108,8 +103,6 @@ For visual steps, check the [official Monad docs](https://docs.monad.xyz/guides/
 - **Monitoring:** Events polled every 30s; notifies chat/users.
 - **Fees in Tournaments:** 100% of entry fees ($TOURS) go to pot; on end, 5% fee to legacy wallet (maintenance), 95% to winner.
 </details>
-
----
 
 ### 📋 Commands & Usage
 <table style="width:100%; border-collapse: collapse; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -142,32 +135,32 @@ For visual steps, check the [official Monad docs](https://docs.monad.xyz/guides/
       <td>1 $MON (earn 1 $TOURS)</td>
     </tr>
     <tr style="background-color: #f9f9f9;">
-      <td>/buyTours <amount></td>
+      <td>/buyTours &lt;amount&gt;</td>
       <td>Buy $TOURS</td>
       <td>1 $MON per $TOURS</td>
     </tr>
     <tr>
-      <td>/sendTours <recipient> <amount></td>
+      <td>/sendTours &lt;recipient&gt; &lt;amount&gt;</td>
       <td>Send $TOURS</td>
       <td>Gas only</td>
     </tr>
     <tr style="background-color: #f9f9f9;">
-      <td>/journal <entry></td>
+      <td>/journal &lt;entry&gt;</td>
       <td>Log climb</td>
       <td>Earn 5 $TOURS</td>
     </tr>
     <tr>
-      <td>/comment <id> <comment></td>
+      <td>/comment &lt;id&gt; &lt;comment&gt;</td>
       <td>Comment on journal</td>
       <td>0.1 $MON</td>
     </tr>
     <tr style="background-color: #f9f9f9;">
-      <td>/buildaclimb <name> <difficulty></td>
+      <td>/buildaclimb &lt;name&gt; &lt;difficulty&gt;</td>
       <td>Create route</td>
       <td>10 $TOURS (to contract)</td>
     </tr>
     <tr>
-      <td>/purchaseclimb <id></td>
+      <td>/purchaseclimb &lt;id&gt;</td>
       <td>Buy route</td>
       <td>10 $TOURS (to creator)</td>
     </tr>
@@ -177,7 +170,7 @@ For visual steps, check the [official Monad docs](https://docs.monad.xyz/guides/
       <td>Free</td>
     </tr>
     <tr>
-      <td>/viewclimb <id></td>
+      <td>/viewclimb &lt;id&gt;</td>
       <td>Climb details</td>
       <td>Free</td>
     </tr>
@@ -192,12 +185,12 @@ For visual steps, check the [official Monad docs](https://docs.monad.xyz/guides/
       <td>Free</td>
     </tr>
     <tr style="background-color: #f9f9f9;">
-      <td>/viewjournal <id></td>
+      <td>/viewjournal &lt;id&gt;</td>
       <td>Entry + comments</td>
       <td>Free</td>
     </tr>
     <tr>
-      <td>/createtournament <fee></td>
+      <td>/createtournament &lt;fee&gt;</td>
       <td>Start tournament</td>
       <td>Free (gas)</td>
     </tr>
@@ -207,12 +200,12 @@ For visual steps, check the [official Monad docs](https://docs.monad.xyz/guides/
       <td>Free</td>
     </tr>
     <tr>
-      <td>/jointournament <id></td>
+      <td>/jointournament &lt;id&gt;</td>
       <td>Join</td>
       <td>Entry fee $TOURS (to pot)</td>
     </tr>
     <tr style="background-color: #f9f9f9;">
-      <td>/endtournament <id> <winner></td>
+      <td>/endtournament &lt;id&gt; &lt;winner&gt;</td>
       <td>End (owner)</td>
       <td>Free; 95% pot to winner, 5% fee to legacy</td>
     </tr>
@@ -228,8 +221,6 @@ For visual steps, check the [official Monad docs](https://docs.monad.xyz/guides/
     </tr>
   </tbody>
 </table>
-
----
 
 ### 💰 Costs, Fees & Transparency
 <details>
@@ -253,24 +244,18 @@ For visual steps, check the [official Monad docs](https://docs.monad.xyz/guides/
 - Overall: <10s typical
 </details>
 
----
-
 ### 🔮 Future Features
 - **3D World Map 🌍**: Interactive 3D globe for climb locations – zoom, explore perspectives with Three.js.
 - Farcaster enhancements, NFTs, leaderboards, AR mobile app, mainnet.
 
 Open to angel investors – contact Earvin Gallardo.
 
----
-
 ### ⚠️ Risks & Disclaimer
 Testnet only. No liability for damages. Proprietary – see License.
-
----
 
 ## License
 
 Earvin Gallardo owns the entity in its entirety, including all intellectual property rights. For licensing inquiries, investment opportunities, or permissions, contact Earvin Gallardo directly.
-See full license at [LICENSE](https://github.com/EmpowerTours/version1/blob/main/LI%24ENCE)
+See full license at [LICENSE](https://github.com/EmpowerTours/version1/blob/main/LICENSE)
 
 © 2025 EmpowerTours. Built with xAI & Monad. Join the adventure! 🧗
