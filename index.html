@@ -3,28 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Empower Tours</title>
+    <title>EmpowerTours</title>
     <style>
-        /* Hide Google Translate banner and customize the widget */
-        .goog-te-banner-frame { display: none !important; }
-        .goog-te-gadget { font-size: 0px !important; }
-        .goog-te-combo { margin: 0px !important; }
-        .skiptranslate { display: none !important; }
-        body { top: 0px !important; }
-
-        /* Additional styles for your page */
+        /* General page styling */
         body {
             font-family: Arial, sans-serif;
             line-height: 1.6;
             margin: 0;
             padding: 20px;
+            color: #333;
+            background-color: #f4f4f4;
         }
         .container {
             max-width: 800px;
             margin: 0 auto;
+            text-align: center;
         }
+        h1 {
+            color: #FF4500;
+            font-family: 'Arial Black', sans-serif;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        p {
+            font-size: 1.2em;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        /* Google Translate styling */
+        .goog-te-banner-frame { display: none !important; }
+        .goog-te-gadget { font-size: 0px !important; }
+        .goog-te-combo { margin: 0px !important; }
+        .skiptranslate { display: none !important; }
+        body { top: 0px !important; }
         #google_translate_element {
             margin-bottom: 20px;
+            text-align: right;
+        }
+        /* Badge styling */
+        .badges a {
+            display: inline-block;
+            margin: 5px;
+        }
+        /* Collapsible sections */
+        details {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 10px 0;
+            text-align: left;
+        }
+        summary {
+            cursor: pointer;
+            font-weight: bold;
+            color: #FF4500;
+        }
+        /* Table styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #FF4500;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        /* Tech stack badges */
+        .tech-stack {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        /* List styling for user journey */
+        ol.gradient-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        ol.gradient-list li {
+            background: linear-gradient(to right, #FF4500, #FFA500);
+            color: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+        /* Links */
+        a {
+            color: #FF4500;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -33,12 +111,271 @@
         <!-- Google Translate Widget -->
         <div id="google_translate_element"></div>
 
-        <!-- Content from README.md -->
-        <h1>Empower Tours</h1>
-        <p>Welcome to Empower Tours, your gateway to unforgettable travel experiences! We specialize in creating personalized, immersive, and sustainable tours that empower you to explore the world in a meaningful way.</p>
-        <h2>Our Mission</h2>
-        <p>At Empower Tours, we believe travel should inspire, educate, and connect people to the world’s diverse cultures, histories, and natural wonders. Our mission is to craft journeys that leave a positive impact on both travelers and the destinations they visit.</p>
-        
+        <!-- Header Section -->
+        <img src="https://raw.githubusercontent.com/EmpowerTours/version1/main/public/IMG_3466.jpg" alt="EmpowerTours Logo" width="300" style="border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+        <h1>EmpowerTours</h1>
+        <p>🧗 Web3-Powered Rock Climbing Adventures & Community – Conquer Peaks, Earn Tokens, Build Routes on Monad Blockchain!</p>
+
+        <!-- Badges -->
+        <div class="badges">
+            <a href="https://monad.xyz"><img src="https://img.shields.io/badge/Blockchain-Monad%20Testnet-orange?style=for-the-badge&logo=ethereum" alt="Monad Testnet"></a>
+            <a href="https://t.me/empowertoursbot"><img src="https://img.shields.io/badge/Telegram-Bot-blue?style=for-the-badge&logo=telegram" alt="Telegram Bot"></a>
+            <a href="https://t.me/empowertourschat"><img src="https://img.shields.io/badge/Chat-Join%20Now-green?style=for-the-badge&logo=telegram" alt="Community Chat"></a>
+            <a href="LICENSE"><img src="https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge" alt="License"></a>
+            <a href="mailto:earvin.gallardo@csecsystems.com"><img src="https://img.shields.io/badge/Invest-Open%20to%20Angels-yellow?style=for-the-badge&logo=bitcoin" alt="Open to Investors"></a>
+        </div>
+
+        <!-- Quick Start -->
+        <h2>🚀 Quick Start</h2>
+        <p>Launch the bot: <a href="https://t.me/AI_RobotExpert_bot">@AI_RobotExpert_bot</a><br>
+        Join the community: <a href="https://t.me/empowertourschat">@empowertourschat</a><br>
+        Faucet $MON: <a href="https://testnet.monad.xyz/faucet">Monad Faucet</a></p>
+
+        <!-- Monad Testnet Setup -->
+        <h2>Setting Up Monad Testnet on MetaMask</h2>
+        <p>If you're new to Monad, here's a quick guide to configure it on MetaMask. This is essential for interacting with EmpowerTours, as the app runs on Monad Testnet.</p>
+        <p><strong>Quick Summary of Monad Blockchain:</strong><br>
+        Monad is a high-performance, EVM-compatible Layer-1 blockchain aiming for 10,000 transactions per second (TPS) with 1-second block times. It optimizes Ethereum's architecture through pipelined execution, superscalar design, and MonadDb for faster state access, making it suitable for DeFi, gaming, and dApps requiring speed. Learn more at the <a href="https://monad.xyz">official website</a> or <a href="https://docs.monad.xyz">documentation</a>.</p>
+        <p><strong>Resources:</strong><br>
+        - Official Guide: <a href="https://docs.monad.xyz/guides/add-monad-to-wallet/metamask">Add Monad to MetaMask</a><br>
+        - One-Click Add: <a href="https://chainlist.org/chain/10143">ChainList - Monad Testnet</a><br>
+        - Beginner Guide: <a href="https://help.magiceden.io/en/articles/10583721-introducing-monad-on-magic-eden-a-beginner-s-guide">Magic Eden Monad Guide</a><br>
+        - Faucet: <a href="https://testnet.monad.xyz/faucet">Monad Faucet</a></p>
+        <p><strong>Step-by-Step Setup:</strong></p>
+        <ol>
+            <li>Open MetaMask and click on the network dropdown at the top.</li>
+            <li>Select "Add Network" > "Add a network manually".</li>
+            <li>Enter the following details:
+                <ul>
+                    <li><strong>Network Name:</strong> Monad Testnet</li>
+                    <li><strong>New RPC URL:</strong> https://testnet-rpc.monad.xyz</li>
+                    <li><strong>Chain ID:</strong> 10143</li>
+                    <li><strong>Currency Symbol:</strong> MON</li>
+                    <li><strong>Block Explorer URL:</strong> https://testnet.monadexplorer.com</li>
+                </ul>
+            </li>
+            <li>Click "Save".</li>
+            <li>Switch to the network and request testnet $MON from the faucet.</li>
+        </ol>
+        <p>For visual steps, check the <a href="https://docs.monad.xyz/guides/add-monad-to-wallet/metamask">official Monad docs</a> which include screenshots of the process (e.g., adding custom network, entering RPC details, saving, and verifying assets).</p>
+
+        <!-- Why EmpowerTours -->
+        <details>
+            <summary><b>🌟 Why EmpowerTours?</b></summary>
+            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <ul>
+                    <li><strong>Journal Climbs 🗒️:</strong> Log ascents with photos, GPS, notes – earn 5 $TOURS per entry!</li>
+                    <li><strong>Build & Buy Routes 🪨:</strong> Create/share custom climbs (10 $TOURS cost to contract) or purchase (10 $TOURS to creator).</li>
+                    <li><strong>Tournaments 🏆:</strong> Compete for $TOURS pots – entry fees build the prize!</li>
+                    <li><strong>Web3 Incentives 💰:</strong> Transparent fees, on-chain events, Monad speed.</li>
+                    <li><strong>Community Vibes 👥:</strong> Telegram chat for tips, meets, collabs.</li>
+                </ul>
+            </div>
+        </details>
+
+        <!-- Technologies & Stack -->
+        <h2>🔧 Technologies & Stack</h2>
+        <div class="tech-stack">
+            <img src="https://img.shields.io/badge/Python-3.12-blue?style=flat-square&logo=python" alt="Python">
+            <img src="https://img.shields.io/badge/FastAPI-0.100-green?style=flat-square&logo=fastapi" alt="FastAPI">
+            <img src="https://img.shields.io/badge/Web3.py-6.0-orange?style=flat-square&logo=ethereum" alt="Web3.py">
+            <img src="https://img.shields.io/badge/PostgreSQL-15-blue?style=flat-square&logo=postgresql" alt="PostgreSQL">
+            <img src="https://img.shields.io/badge/Solidity-0.8-black?style=flat-square&logo=solidity" alt="Solidity">
+            <img src="https://img.shields.io/badge/Telegram-Bot_API-cyan?style=flat-square&logo=telegram" alt="Telegram">
+        </div>
+        <p><strong>Contract Addresses (Monad Testnet):</strong></p>
+        <ul>
+            <li><strong>EmpowerTours:</strong> <code>0xB69D011496B7d7a5e5B3D0021dBF4468b0050AB6</code></li>
+            <li><strong>$TOURS Token:</strong> <code>0x2Da15A8B55BE310A7AB8EB0010506AB30CD6CBcf</code></li>
+            <li><strong>Owner Wallet:</strong> <code>0x5fE8373C839948bFCB707A8a8A75A16E2634A725</code> (90% fees for dev/ops)</li>
+            <li><strong>Legacy Wallet:</strong> <code>0x3de6FCEECd5d05363D80A77963Edd3787c96E593</code> (10% fees for maintenance)</li>
+            <li><strong>RPC:</strong> <a href="https://testnet-rpc.monad.xyz">https://testnet-rpc.monad.xyz</a></li>
+            <li><strong>Explorer:</strong> <a href="https://testnet.monadexplorer.com">https://testnet.monadexplorer.com</a></li>
+        </ul>
+
+        <!-- How It Works -->
+        <h2>📖 How It Works</h2>
+        <details>
+            <summary><b>🧑‍💻 User Journey (Interactive Flow)</b></summary>
+            <ol class="gradient-list">
+                <li>/start – Welcome & join chat 🏞️</li>
+                <li>/connectwallet – Link MetaMask (Chain ID 10143)</li>
+                <li>/createprofile – Sign tx (1 $MON fee, earn 1 $TOURS)</li>
+                <li>Explore: /journal, /buildaclimb, /purchaseclimb...</li>
+                <li>Tournaments: Create/Join/End for $TOURS pots</li>
+            </ol>
+        </details>
+        <details>
+            <summary><b>🔗 Backend & Blockchain Flow</b></summary>
+            <ul>
+                <li><strong>Bot:</strong> Processes commands, builds unsigned tx.</li>
+                <li><strong>API:</strong> Handles wallet/tx submission.</li>
+                <li><strong>DB:</strong> Sessions, pendings (expires 30min).</li>
+                <li><strong>Monitoring:</strong> Events polled every 30s; notifies chat/users.</li>
+                <li><strong>Fees in Tournaments:</strong> 100% of entry fees ($TOURS) go to pot; on end, 5% fee to legacy wallet (maintenance), 95% to winner.</li>
+            </ul>
+        </details>
+
+        <!-- Commands & Usage -->
+        <h2>📋 Commands & Usage</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Command</th>
+                    <th>Description</th>
+                    <th>Cost/Reward</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>/start</td>
+                    <td>Welcome message</td>
+                    <td>Free</td>
+                </tr>
+                <tr>
+                    <td>/tutorial</td>
+                    <td>Setup guide</td>
+                    <td>Free</td>
+                </tr>
+                <tr>
+                    <td>/connectwallet</td>
+                    <td>Link wallet</td>
+                    <td>Free</td>
+                </tr>
+                <tr>
+                    <td>/createprofile</td>
+                    <td>Create profile</td>
+                    <td>1 $MON (earn 1 $TOURS)</td>
+                </tr>
+                <tr>
+                    <td>/buyTours &lt;amount&gt;</td>
+                    <td>Buy $TOURS</td>
+                    <td>1 $MON per $TOURS</td>
+                </tr>
+                <tr>
+                    <td>/sendTours &lt;recipient&gt; &lt;amount&gt;</td>
+                    <td>Send $TOURS</td>
+                    <td>Gas only</td>
+                </tr>
+                <tr>
+                    <td>/journal &lt;entry&gt;</td>
+                    <td>Log climb</td>
+                    <td>Earn 5 $TOURS</td>
+                </tr>
+                <tr>
+                    <td>/comment &lt;id&gt; &lt;comment&gt;</td>
+                    <td>Comment on journal</td>
+                    <td>0.1 $MON</td>
+                </tr>
+                <tr>
+                    <td>/buildaclimb &lt;name&gt; &lt;difficulty&gt;</td>
+                    <td>Create route</td>
+                    <td>10 $TOURS (to contract)</td>
+                </tr>
+                <tr>
+                    <td>/purchaseclimb &lt;id&gt;</td>
+                    <td>Buy route</td>
+                    <td>10 $TOURS (to creator)</td>
+                </tr>
+                <tr>
+                    <td>/findaclimb</td>
+                    <td>List climbs</td>
+                    <td>Free</td>
+                </tr>
+                <tr>
+                    <td>/viewclimb &lt;id&gt;</td>
+                    <td>Climb details</td>
+                    <td>Free</td>
+                </tr>
+                <tr>
+                    <td>/mypurchases</td>
+                    <td>Your purchases</td>
+                    <td>Free</td>
+                </tr>
+                <tr>
+                    <td>/journals</td>
+                    <td>List entries</td>
+                    <td>Free</td>
+                </tr>
+                <tr>
+                    <td>/viewjournal &lt;id&gt;</td>
+                    <td>Entry + comments</td>
+                    <td>Free</td>
+                </tr>
+                <tr>
+                    <td>/createtournament &lt;fee&gt;</td>
+                    <td>Start tournament</td>
+                    <td>Free (gas)</td>
+                </tr>
+                <tr>
+                    <td>/tournaments</td>
+                    <td>List tournaments</td>
+                    <td>Free</td>
+                </tr>
+                <tr>
+                    <td>/jointournament &lt;id&gt;</td>
+                    <td>Join</td>
+                    <td>Entry fee $TOURS (to pot)</td>
+                </tr>
+                <tr>
+                    <td>/endtournament &lt;id&gt; &lt;winner&gt;</td>
+                    <td>End (owner)</td>
+                    <td>Free; 95% pot to winner, 5% fee to legacy</td>
+                </tr>
+                <tr>
+                    <td>/balance</td>
+                    <td>Check balances</td>
+                    <td>Free</td>
+                </tr>
+                <tr>
+                    <td>/help</td>
+                    <td>Command list</td>
+                    <td>Free</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Costs, Fees & Transparency -->
+        <h2>💰 Costs, Fees & Transparency</h2>
+        <details>
+            <summary><b>📊 Fee Breakdown (All On-Chain)</b></summary>
+            <ul>
+                <li><strong>Profiles/Comments/Buy $TOURS:</strong> 90% to OWNER_ADDRESS (dev/ops), 10% to LEGACY_ADDRESS (maintenance).</li>
+                <li><strong>Build Climbs:</strong> 10 $TOURS to contract (for platform/rewards).</li>
+                <li><strong>Purchase Climbs:</strong> 100% (10 $TOURS) to creator.</li>
+                <li><strong>Tournaments:</strong> 100% entry fees ($TOURS) to pot; on end, 5% fee to legacy wallet (maintenance), 95% to winner.</li>
+                <li><strong>Rewards:</strong> From contract pool (prefunded).</li>
+                <li><strong>Gas:</strong> ~0.001-0.01 $MON/tx.</li>
+                <li><strong>Audit:</strong> Explorer links; events for all actions.</li>
+            </ul>
+        </details>
+        <details>
+            <summary><b>⚡ Response Times</b></summary>
+            <ul>
+                <li><strong>Commands:</strong> 1-5s</li>
+                <li><strong>Tx Confirm:</strong> 1-10s (Monad)</li>
+                <li><strong>Events:</strong> ~30s poll</li>
+                <li><strong>Overall:</strong> <10s typical</li>
+            </ul>
+        </details>
+
+        <!-- Future Features -->
+        <h2>🔮 Future Features</h2>
+        <ul>
+            <li><strong>3D World Map 🌍:</strong> Interactive 3D globe for climb locations – zoom, explore perspectives with Three.js.</li>
+            <li>Farcaster enhancements, NFTs, leaderboards, AR mobile app, mainnet.</li>
+        </ul>
+        <p>Open to angel investors – contact <a href="mailto:earvin.gallardo@csecsystems.com">Earvin Gallardo</a>.</p>
+
+        <!-- Risks & Disclaimer -->
+        <h2>⚠️ Risks & Disclaimer</h2>
+        <p>Testnet only. No liability for damages. Proprietary – see <a href="https://github.com/EmpowerTours/version1/blob/main/LICENSE">License</a>.</p>
+
+        <!-- License -->
+        <h2>License</h2>
+        <p>Earvin Gallardo owns the entity in its entirety, including all intellectual property rights. For licensing inquiries, investment opportunities, or permissions, contact <a href="mailto:earvin.gallardo@csecsystems.com">Earvin Gallardo</a> directly.<br>
+        See full license at <a href="https://github.com/EmpowerTours/version1/blob/main/LICENSE">LICENSE</a>.</p>
+        <p>© 2025 EmpowerTours. Built with xAI & Monad. Join the adventure! 🧗</p>
     </div>
 
     <!-- Google Translate Script -->
