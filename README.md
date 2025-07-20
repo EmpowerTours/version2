@@ -14,12 +14,20 @@
 <script type="text/javascript">
 function googleTranslateElementInit() {
   new google.translate.TranslateElement({
-    pageLanguage: 'en',  // Set to your default language (English here)
-    includedLanguages: 'es,fr,de,zh-CN,ar,pt,ru,ja,it,ko'  // Optional: Limit to specific languages (comma-separated ISO codes); remove for all ~100+ languages
+    pageLanguage: 'en',
+    includedLanguages: 'es,fr,de,zh-CN,ar,pt,ru,ja,it,ko',
+    layout: google.translate.TranslateElement.InlineLayout.SIMPLE
   }, 'google_translate_element');
 }
 </script>
 <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+<style>
+  .goog-te-banner-frame { display: none !important; }
+  .goog-te-gadget { font-size: 0px !important; }
+  .goog-te-combo { margin: 0px !important; }
+  .skiptranslate { display: none !important; }
+  body { top: 0px !important; }
+</style>
 
 ### 🚀 Quick Start
 Launch the bot: [@AI_RobotExpert_bot](https://t.me/AI_RobotExpert_bot)  
@@ -135,32 +143,32 @@ For visual steps, check the [official Monad docs](https://docs.monad.xyz/guides/
       <td>1 $MON (earn 1 $TOURS)</td>
     </tr>
     <tr style="background-color: #f9f9f9;">
-      <td>/buyTours &lt;amount&gt;</td>
+      <td>/buyTours <amount></td>
       <td>Buy $TOURS</td>
       <td>1 $MON per $TOURS</td>
     </tr>
     <tr>
-      <td>/sendTours &lt;recipient&gt; &lt;amount&gt;</td>
+      <td>/sendTours <recipient> <amount></td>
       <td>Send $TOURS</td>
       <td>Gas only</td>
     </tr>
     <tr style="background-color: #f9f9f9;">
-      <td>/journal &lt;entry&gt;</td>
+      <td>/journal <entry></td>
       <td>Log climb</td>
       <td>Earn 5 $TOURS</td>
     </tr>
     <tr>
-      <td>/comment &lt;id&gt; &lt;comment&gt;</td>
+      <td>/comment <id> <comment></td>
       <td>Comment on journal</td>
       <td>0.1 $MON</td>
     </tr>
     <tr style="background-color: #f9f9f9;">
-      <td>/buildaclimb &lt;name&gt; &lt;difficulty&gt;</td>
+      <td>/buildaclimb <name> <difficulty></td>
       <td>Create route</td>
       <td>10 $TOURS (to contract)</td>
     </tr>
     <tr>
-      <td>/purchaseclimb &lt;id&gt;</td>
+      <td>/purchaseclimb <id></td>
       <td>Buy route</td>
       <td>10 $TOURS (to creator)</td>
     </tr>
@@ -170,7 +178,7 @@ For visual steps, check the [official Monad docs](https://docs.monad.xyz/guides/
       <td>Free</td>
     </tr>
     <tr>
-      <td>/viewclimb &lt;id&gt;</td>
+      <td>/viewclimb <id></td>
       <td>Climb details</td>
       <td>Free</td>
     </tr>
@@ -185,12 +193,12 @@ For visual steps, check the [official Monad docs](https://docs.monad.xyz/guides/
       <td>Free</td>
     </tr>
     <tr style="background-color: #f9f9f9;">
-      <td>/viewjournal &lt;id&gt;</td>
+      <td>/viewjournal <id></td>
       <td>Entry + comments</td>
       <td>Free</td>
     </tr>
     <tr>
-      <td>/createtournament &lt;fee&gt;</td>
+      <td>/createtournament <fee></td>
       <td>Start tournament</td>
       <td>Free (gas)</td>
     </tr>
@@ -200,12 +208,12 @@ For visual steps, check the [official Monad docs](https://docs.monad.xyz/guides/
       <td>Free</td>
     </tr>
     <tr>
-      <td>/jointournament &lt;id&gt;</td>
+      <td>/jointournament <id></td>
       <td>Join</td>
       <td>Entry fee $TOURS (to pot)</td>
     </tr>
     <tr style="background-color: #f9f9f9;">
-      <td>/endtournament &lt;id&gt; &lt;winner&gt;</td>
+      <td>/endtournament <id> <winner></td>
       <td>End (owner)</td>
       <td>Free; 95% pot to winner, 5% fee to legacy</td>
     </tr>
