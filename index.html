@@ -14,16 +14,13 @@
             padding: 20px;
             color: #333;
             background-color: #f4f4f4;
-            background-image: url('https://raw.githubusercontent.com/EmpowerTours/version1/main/public/IMG_3466.jpg');
-            background-size: cover;
-            background-position: center bottom;
             padding-top: 80px; /* Space for sticky header */
         }
         .container {
             max-width: 800px;
             margin: 0 auto;
             text-align: center;
-            background-color: rgba(255, 255, 255, 0.9); /* Semi-transparent for readability */
+            background-color: rgba(255, 255, 255, 0.9);
             padding: 20px;
             border-radius: 10px;
         }
@@ -83,10 +80,13 @@
             color: #FF4500;
             cursor: pointer;
             padding: 5px 10px;
-            transition: transform 0.3s;
+            transition: transform 0.3s, background-color 0.3s;
         }
         .hamburger:hover {
+            background-color: #FFA500;
+            color: #fff;
             transform: scale(1.2);
+            border-radius: 5px;
         }
         .nav-menu {
             display: flex;
@@ -116,50 +116,20 @@
         #google_translate_element {
             display: inline-block;
         }
-        /* Wallet Connect */
-        button {
-            padding: 12px 24px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #28a745;
-            color: #000;
-            border: none;
-            border-radius: 5px;
-            margin: 10px;
-        }
-        button:hover {
-            background-color: #218838;
-        }
-        #status {
-            margin-top: 20px;
-            font-size: 18px;
-            color: #ff4;
-        }
-        #error {
-            color: #dc3545;
-            margin-top: 10px;
-        }
-        #txHash {
-            word-break: break-all;
-            margin-top: 10px;
-            font-size: 14px;
-        }
-        #instructions {
-            margin-top: 15px;
-            font-size: 16px;
-            color: #ff4;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-        }
         /* Balance Checker */
         .balance-checker {
             margin: 20px 0;
             text-align: center;
         }
         .balance-checker button {
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
             background-color: #FF4500;
             color: #fff;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
         }
         .balance-checker button:hover {
             background-color: #FFA500;
@@ -383,7 +353,6 @@
             <button class="hamburger" onclick="toggleMenu()">☰</button>
             <div class="nav-menu" id="nav-menu">
                 <div class="header-nav">
-                    <a href="#wallet-connect">Wallet Connect</a>
                     <a href="#quick-start">Quick Start</a>
                     <a href="#technologies">Technologies</a>
                     <a href="#commands">Commands</a>
@@ -396,34 +365,7 @@
     </div>
 
     <div class="container">
-        <!-- Wallet Connect Section -->
-        <h1 id="wallet-connect">EmpowerTours Wallet Connect</h1>
-        <button id="connectButton">Connect Wallet</button>
-        <div id="status">Please connect your wallet to Monad Testnet (chainId: 10143).</div>
-        <div id="instructions">On mobile, open this link in the MetaMask app's browser (Menu > Browser) to connect. If you see a chain ID mismatch, go to MetaMask Settings > Networks, remove all Monad Testnet entries, and reconnect. Network details: Chain ID: 10143, RPC: https://testnet-rpc.monad.xyz, Explorer: https://testnet.monadexplorer.com. After connecting, use /createprofile, /buildaclimb, or /buyTours in Telegram.</div>
-        <div id="error"></div>
-        <div id="txHash"></div>
-
-        <!-- Balance Checker -->
-        <div class="balance-checker">
-            <button onclick="checkBalance()">Check $MON/$TOURS Balance</button>
-            <p id="balance-result">Click to check your balance.</p>
-        </div>
-
-        <!-- Interactive Map -->
-        <h2>Climb Locations</h2>
-        <div class="map-container">
-            <svg viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet">
-                <rect x="0" y="0" width="1000" height="500" fill="#e0f7fa" />
-                <!-- Simplified world map outline -->
-                <path d="M100,100 C200,50 300,150 400,100 S600,50 700,100 900,150 900,300 800,400 600,400 400,350 300,400 200,350 100,300 Z" fill="#c8e6c9" stroke="#000" stroke-width="2" />
-                <!-- Climb markers (populated by JS) -->
-                <g id="climb-markers"></g>
-            </svg>
-            <div class="tooltip" id="tooltip"></div>
-        </div>
-
-        <!-- README Content -->
+        <!-- Header Section -->
         <img src="https://raw.githubusercontent.com/EmpowerTours/version1/main/public/IMG_3466.jpg" alt="EmpowerTours Logo" width="300" style="border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
         <h1>EmpowerTours</h1>
         <p>🧗 Web3-Powered Rock Climbing Adventures & Community – Conquer Peaks, Earn Tokens, Build Routes on Monad Blockchain!</p>
@@ -435,6 +377,25 @@
             <a href="https://t.me/empowertourschat"><img src="https://img.shields.io/badge/Chat-Join%20Now-green?style=for-the-badge&logo=telegram" alt="Community Chat"></a>
             <a href="LICENSE"><img src="https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge" alt="License"></a>
             <a href="mailto:earvin.gallardo@csecsystems.com"><img src="https://img.shields.io/badge/Invest-Open%20to%20Angels-yellow?style=for-the-badge&logo=bitcoin" alt="Open to Investors"></a>
+        </div>
+
+        <!-- Balance Checker (Simulated) -->
+        <div class="balance-checker">
+            <button onclick="checkBalance()">Check $MON/$TOURS Balance</button>
+            <p id="balance-result">Click to check your balance (simulated).</p>
+        </div>
+
+        <!-- Interactive Map -->
+        <h2>Climb Locations</h2>
+        <div class="map-container">
+            <svg viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet">
+                <rect x="0" y="0" width="1000" height="500" fill="#e0f7fa" />
+                <!-- Simplified world map outline -->
+                <path d="M100,100 C200,50 300,150 400,100 S600,50 700,100 900,150 900,300 800,400 600,400 400,350 300,400 200,350 100,300 Z" fill="#c8e6c9" stroke="#000" stroke-width="2" />
+                <!-- Climb markers -->
+                <g id="climb-markers"></g>
+            </svg>
+            <div class="tooltip" id="tooltip"></div>
         </div>
 
         <!-- Quick Start -->
@@ -693,235 +654,14 @@
     </div>
 
     <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
-    <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
     <script>
-        // Wallet Connect
-        const userId = new URLSearchParams(window.location.search).get('userId');
-        const apiBaseUrl = 'https://version1-production.up.railway.app';
-        const statusDiv = document.getElementById('status');
-        const errorDiv = document.getElementById('error');
-        const txHashDiv = document.getElementById('txHash');
-        let web3;
-        let provider;
-        let pollingInterval = null;
-        let connectedAccount = null;
-        const MONAD_TESTNET_CHAIN_ID = '0x27af'; // 10143 in hex
-        const MONAD_TESTNET_CHAIN_ID_DECIMAL = 10143;
-        const TOURS_TOKEN_ADDRESS = '0x2Da15A8B55BE310A7AB8EB0010506AB30CD6CBcf';
-        const TOURS_ABI = [
-            {
-                "constant": true,
-                "inputs": [{"name": "_owner", "type": "address"}],
-                "name": "balanceOf",
-                "outputs": [{"name": "balance", "type": "uint256"}],
-                "type": "function"
-            }
-        ];
-
-        async function initializeWeb3() {
-            try {
-                if (typeof Web3 === 'undefined') {
-                    throw new Error('Web3.js library failed to load. Please refresh the page.');
-                }
-                if (window.ethereum) {
-                    provider = window.ethereum;
-                    web3 = new Web3(provider);
-                } else if (window.WalletConnectProvider) {
-                    provider = new window.WalletConnectProvider({
-                        rpc: { 10143: 'https://testnet-rpc.monad.xyz' },
-                        chainId: 10143,
-                        qrcode: true
-                    });
-                    web3 = new Web3(provider);
-                } else {
-                    throw new Error('No wallet provider detected. Install MetaMask or use a Web3-compatible browser.');
-                }
-            } catch (error) {
-                errorDiv.textContent = `Error initializing Web3: ${error.message}. On mobile, open this link in MetaMask’s browser (Menu > Browser). On desktop, install MetaMask.`;
-                console.error('Web3 initialization error:', error);
-                statusDiv.textContent = 'Please connect your wallet to Monad Testnet (chainId: 10143).';
-                return false;
-            }
-            return true;
-        }
-
-        async function connectWallet() {
-            errorDiv.textContent = '';
-            statusDiv.textContent = 'Connecting...';
-            console.log('Attempting to connect wallet for userId:', userId);
-            if (!await initializeWeb3()) return;
-            try {
-                if (provider.isWalletConnect) {
-                    await provider.enable();
-                }
-                const chainId = await web3.eth.getChainId();
-                console.log('Current chain ID (decimal):', chainId);
-                if (Number(chainId) !== MONAD_TESTNET_CHAIN_ID_DECIMAL) {
-                    errorDiv.textContent = `Chain ID mismatch: expected 10143 (Monad Testnet), got ${chainId}. Please switch to Monad Testnet in MetaMask Settings > Networks.`;
-                    console.warn('Chain ID mismatch detected:', chainId);
-                    try {
-                        await provider.request({
-                            method: 'wallet_switchEthereumChain',
-                            params: [{ chainId: MONAD_TESTNET_CHAIN_ID }],
-                        });
-                    } catch (switchError) {
-                        if (switchError.code === 4902) {
-                            await provider.request({
-                                method: 'wallet_addEthereumChain',
-                                params: [{
-                                    chainId: MONAD_TESTNET_CHAIN_ID,
-                                    chainName: 'Monad Testnet',
-                                    rpcUrls: ['https://testnet-rpc.monad.xyz'],
-                                    nativeCurrency: { name: 'MON', symbol: 'MON', decimals: 18 },
-                                    blockExplorerUrls: ['https://testnet.monadexplorer.com']
-                                }],
-                            });
-                        } else {
-                            throw new Error(`Failed to switch chain: ${switchError.message}. Ensure Monad Testnet (chainId: 10143) is selected.`);
-                        }
-                    }
-                }
-                const accounts = await provider.request({ method: 'eth_requestAccounts' });
-                connectedAccount = accounts[0];
-                statusDiv.textContent = `Connected: ${connectedAccount.substring(0, 6)}... Use /createprofile, /buildaclimb, or /buyTours in Telegram to continue.`;
-                console.log('Connected account:', connectedAccount);
-                await submitWallet(connectedAccount);
-                startPolling();
-            } catch (error) {
-                errorDiv.textContent = `Error connecting wallet: ${error.message}. Ensure Monad Testnet (chainId: 10143) is selected. On mobile, use MetaMask’s browser (Menu > Browser).`;
-                console.error('Error connecting wallet:', error);
-                statusDiv.textContent = 'Please connect your wallet to Monad Testnet (chainId: 10143).';
-            }
-        }
-
-        async function submitWallet(account) {
-            try {
-                console.log('Submitting wallet for userId:', userId, 'address:', account);
-                const response = await fetch(`${apiBaseUrl}/submit_wallet`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId, walletAddress: account })
-                });
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-                }
-                statusDiv.textContent += ' Wallet submitted! Use /createprofile, /buildaclimb, or /buyTours in Telegram to continue.';
-                console.log('Wallet submitted successfully');
-            } catch (error) {
-                errorDiv.textContent = `Error submitting wallet: ${error.message}. Try again or contact support at https://t.me/empowertourschat.`;
-                console.error('Error submitting wallet:', error);
-            }
-        }
-
-        async function pollTransaction() {
-            if (!web3) {
-                errorDiv.textContent = 'Web3 provider not initialized. Please reconnect your wallet.';
-                console.error('Web3 not initialized');
-                stopPolling();
-                return;
-            }
-            try {
-                console.log('Polling transaction for userId:', userId);
-                const response = await fetch(`${apiBaseUrl}/get_transaction?userId=${userId}`);
-                if (response.status === 404) {
-                    statusDiv.textContent = 'No pending transaction. Initiate an action via Telegram (e.g., /buildaclimb).';
-                    console.log('No pending transaction found');
-                    stopPolling();
-                    return;
-                }
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-                }
-                const data = await response.json();
-                if (data.transaction) {
-                    stopPolling();
-                    statusDiv.textContent = 'Transaction ready! Waiting for wallet to sign...';
-                    console.log('Transaction data received:', data.transaction);
-                    try {
-                        const txResult = await web3.eth.sendTransaction(data.transaction);
-                        const txHash = txResult.transactionHash;
-                        statusDiv.textContent = `Transaction signed: ${txHash.substring(0, 6)}...`;
-                        txHashDiv.textContent = `Transaction Hash: ${txHash}`;
-                        console.log('Transaction signed, hash:', txHash);
-                        await submitTransaction(txHash);
-                        statusDiv.textContent = `Transaction submitted: ${txHash.substring(0, 6)}...`;
-                        console.log('Transaction submitted to server');
-                    } catch (error) {
-                        errorDiv.textContent = `Error signing transaction: ${error.message}. Check parameters or contact support at https://t.me/empowertourschat.`;
-                        console.error('Error signing transaction:', error);
-                    }
-                } else {
-                    statusDiv.textContent = 'Waiting for transaction...';
-                    console.log('No transaction data available yet');
-                }
-            } catch (error) {
-                errorDiv.textContent = `Error polling transaction: ${error.message}. Try refreshing the page or contact support at https://t.me/empowertourschat.`;
-                console.error('Error polling transaction:', error);
-            }
-        }
-
-        async function submitTransaction(txHash) {
-            try {
-                console.log('Submitting transaction hash:', txHash);
-                const response = await fetch(`${apiBaseUrl}/submit_tx`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId, txHash })
-                });
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-                }
-                console.log('Transaction hash submitted successfully');
-            } catch (error) {
-                errorDiv.textContent = `Error submitting transaction: ${error.message}. Please send the transaction hash to the Telegram bot manually.`;
-                console.error('Error submitting transaction:', error);
-            }
-        }
-
-        async function checkBalance() {
-            const resultElement = document.getElementById('balance-result');
-            if (!web3 || !connectedAccount) {
-                resultElement.textContent = 'Please connect your wallet first.';
-                return;
-            }
-            try {
-                // Fetch $MON balance
-                const monBalance = await web3.eth.getBalance(connectedAccount);
-                const monBalanceEther = web3.utils.fromWei(monBalance, 'ether');
-                // Fetch $TOURS balance
-                const toursContract = new web3.eth.Contract(TOURS_ABI, TOURS_TOKEN_ADDRESS);
-                const toursBalance = await toursContract.methods.balanceOf(connectedAccount).call();
-                const toursBalanceEther = web3.utils.fromWei(toursBalance, 'ether');
-                resultElement.textContent = `Balance: ${parseFloat(monBalanceEther).toFixed(2)} $MON, ${parseFloat(toursBalanceEther).toFixed(2)} $TOURS`;
-            } catch (error) {
-                resultElement.textContent = `Error checking balance: ${error.message}`;
-                console.error('Error checking balance:', error);
-            }
-        }
-
-        function startPolling() {
-            if (!pollingInterval) {
-                console.log('Starting transaction polling');
-                pollingInterval = setInterval(pollTransaction, 3000);
-            }
-        }
-
-        function stopPolling() {
-            if (pollingInterval) {
-                console.log('Stopping transaction polling');
-                clearInterval(pollingInterval);
-                pollingInterval = null;
-            }
-        }
-
         // Hamburger Menu Toggle
         function toggleMenu() {
             const navMenu = document.getElementById('nav-menu');
             navMenu.classList.toggle('active');
         }
 
-        // Smooth Scrolling and Map Interaction
+        // Smooth Scrolling
         document.querySelectorAll('.header-nav a').forEach(anchor => {
             anchor.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -952,51 +692,48 @@
             }
         });
 
+        // Simulated Balance Checker
+        function checkBalance() {
+            const resultElement = document.getElementById('balance-result');
+            const monBalance = (Math.random() * 100).toFixed(2);
+            const toursBalance = (Math.random() * 1000).toFixed(2);
+            resultElement.textContent = `Balance: ${monBalance} $MON, ${toursBalance} $TOURS (simulated)`;
+        }
+
         // Interactive Map
-        async function loadClimbLocations() {
-            try {
-                const response = await fetch(`${apiBaseUrl}/find_climbs`);
-                const data = await response.json();
-                const climbs = data.climbs;
-                const markersGroup = document.getElementById('climb-markers');
-                const tooltip = document.getElementById('tooltip');
-                climbs.forEach(climb => {
-                    // Mock coordinates (since location is encrypted in backend)
-                    const x = Math.random() * 900 + 50; // Random position on SVG
-                    const y = Math.random() * 400 + 50;
-                    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    marker.setAttribute('cx', x);
-                    marker.setAttribute('cy', y);
-                    marker.setAttribute('r', 5);
-                    marker.setAttribute('class', 'climb-marker');
-                    marker.addEventListener('mouseover', () => {
-                        tooltip.style.display = 'block';
-                        tooltip.textContent = `${climb.title}: ${climb.desc} (${climb.price} $TOURS)`;
-                        tooltip.style.left = `${x}px`;
-                        tooltip.style.top = `${y - 20}px`;
-                    });
-                    marker.addEventListener('mouseout', () => {
-                        tooltip.style.display = 'none';
-                    });
-                    markersGroup.appendChild(marker);
+        function loadClimbLocations() {
+            // Mock climb data (since no backend is used)
+            const climbs = [
+                { id: 1, title: "Mountain Peak", desc: "Challenging climb in the Rockies", price: 10 },
+                { id: 2, title: "Desert Ridge", desc: "Moderate route in Arizona", price: 8 },
+                { id: 3, title: "Coastal Cliff", desc: "Scenic coastal climb", price: 12 }
+            ];
+            const markersGroup = document.getElementById('climb-markers');
+            const tooltip = document.getElementById('tooltip');
+            climbs.forEach(climb => {
+                const x = Math.random() * 900 + 50; // Random position on SVG
+                const y = Math.random() * 400 + 50;
+                const marker = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                marker.setAttribute('cx', x);
+                marker.setAttribute('cy', y);
+                marker.setAttribute('r', 5);
+                marker.setAttribute('class', 'climb-marker');
+                marker.addEventListener('mouseover', (e) => {
+                    tooltip.style.display = 'block';
+                    tooltip.textContent = `${climb.title}: ${climb.desc} (${climb.price} $TOURS)`;
+                    tooltip.style.left = `${e.clientX + 10}px`;
+                    tooltip.style.top = `${e.clientY - 20}px`;
                 });
-            } catch (error) {
-                console.error('Error loading climb locations:', error);
-            }
+                marker.addEventListener('mouseout', () => {
+                    tooltip.style.display = 'none';
+                });
+                markersGroup.appendChild(marker);
+            });
         }
 
         // Initialize
-        window.addEventListener('load', async () => {
-            if (userId) {
-                console.log('Page loaded, initializing Web3 for userId:', userId);
-                if (await initializeWeb3()) {
-                    startPolling();
-                    loadClimbLocations();
-                }
-            } else {
-                errorDiv.textContent = 'Missing userId in URL. Use the link provided by /connectwallet in Telegram.';
-                console.error('Missing userId in URL');
-            }
+        window.addEventListener('load', () => {
+            loadClimbLocations();
         });
 
         // Google Translate Script
