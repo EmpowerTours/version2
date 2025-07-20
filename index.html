@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EmpowerTours</title>
-    <link rel="icon" type="image/x-icon" href="/public/favicon.ico">
     <style>
         /* General page styling */
         body {
@@ -20,9 +19,6 @@
             max-width: 800px;
             margin: 0 auto;
             text-align: center;
-            background-color: rgba(255, 255, 255, 0.9);
-            padding: 20px;
-            border-radius: 10px;
         }
         h1 {
             color: #FF4500;
@@ -63,13 +59,9 @@
             text-decoration: none;
             font-weight: bold;
             font-size: 1em;
-            padding: 5px 10px;
-            transition: background-color 0.3s, color 0.3s;
         }
         .header-nav a:hover {
-            background-color: #FF4500;
-            color: #fff;
-            border-radius: 5px;
+            text-decoration: underline;
         }
         /* Hamburger Menu */
         .hamburger {
@@ -79,44 +71,13 @@
             border: none;
             color: #FF4500;
             cursor: pointer;
-            padding: 5px 10px;
-            transition: transform 0.3s, background-color 0.3s;
-            position: relative;
-            width: 30px;
-            height: 30px;
-        }
-        .hamburger:hover {
-            background-color: #FFA500;
-            color: #fff;
-            transform: scale(1.2);
-            border-radius: 5px;
-        }
-        .hamburger::before {
-            content: "☰";
-            display: block;
-            transition: content 0.3s;
-        }
-        .hamburger.active::before {
-            content: "✕";
+            padding: 0;
         }
         .nav-menu {
             display: flex;
         }
         .nav-menu.active {
             display: flex;
-            flex-direction: column;
-            width: 100%;
-            background-color: #fff;
-            position: absolute;
-            top: 60px;
-            left: 0;
-            padding: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transform: translateY(0);
-            transition: transform 0.3s ease-in-out;
-        }
-        .nav-menu:not(.active) {
-            transform: translateY(-100%);
         }
         /* Google Translate styling */
         .goog-te-banner-frame { display: none !important; }
@@ -126,29 +87,6 @@
         body { top: 0px !important; }
         #google_translate_element {
             display: inline-block;
-        }
-        /* Balance Checker */
-        .balance-checker {
-            margin: 20px 0;
-            text-align: center;
-        }
-        .balance-checker button {
-            padding: 12px 24px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #FF4500;
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            transition: background-color 0.3s;
-        }
-        .balance-checker button:hover {
-            background-color: #FFA500;
-        }
-        .balance-checker p {
-            font-size: 1em;
-            margin-top: 10px;
-            color: #333;
         }
         /* Badge styling */
         .badges {
@@ -223,11 +161,31 @@
         a:hover {
             text-decoration: underline;
         }
+        /* Balance checker */
+        .balance-checker {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .balance-checker button {
+            background-color: #FF4500;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .balance-checker button:hover {
+            background-color: #FFA500;
+        }
+        .balance-checker p {
+            font-size: 1em;
+            margin-top: 10px;
+        }
         /* Responsive Design Tweaks */
         @media (max-width: 1024px) {
             body {
                 padding: 10px;
-                padding-top: 60px; /* Reduced header height */
+                padding-top: 60px; /* Reduced header height with hamburger */
             }
             h1 {
                 font-size: 2em;
@@ -328,7 +286,7 @@
     <div class="header">
         <div style="display: flex; align-items: center; gap: 10px;">
             <img src="https://raw.githubusercontent.com/EmpowerTours/version1/main/public/IMG_3466.jpg" alt="EmpowerTours Logo">
-            <button class="hamburger" onclick="toggleMenu()"></button>
+            <button class="hamburger" onclick="toggleMenu()">☰</button>
             <div class="nav-menu" id="nav-menu">
                 <div class="header-nav">
                     <a href="#quick-start">Quick Start</a>
@@ -357,17 +315,17 @@
             <a href="mailto:earvin.gallardo@csecsystems.com"><img src="https://img.shields.io/badge/Invest-Open%20to%20Angels-yellow?style=for-the-badge&logo=bitcoin" alt="Open to Investors"></a>
         </div>
 
-        <!-- Balance Checker (Simulated) -->
-        <div class="balance-checker">
-            <button onclick="checkBalance()">Check $MON/$TOURS Balance</button>
-            <p id="balance-result">Click to check your balance (simulated).</p>
-        </div>
-
         <!-- Quick Start -->
         <h2 id="quick-start">🚀 Quick Start</h2>
         <p>Launch the bot: <a href="https://t.me/AI_RobotExpert_bot">@AI_RobotExpert_bot</a><br>
         Join the community: <a href="https://t.me/empowertourschat">@empowertourschat</a><br>
         Faucet $MON: <a href="https://testnet.monad.xyz/faucet">Monad Faucet</a></p>
+
+        <!-- Balance Checker Demo -->
+        <div class="balance-checker">
+            <button onclick="checkBalance()">Check $MON/$TOURS Balance</button>
+            <p id="balance-result">Click to check your balance (simulated).</p>
+        </div>
 
         <!-- Monad Testnet Setup -->
         <h2>Setting Up Monad Testnet on MetaMask</h2>
@@ -618,17 +576,27 @@
         <p>© 2025 EmpowerTours. Built with xAI & Monad. Join the adventure! 🧗</p>
     </div>
 
-    <!-- Scripts -->
+    <!-- Google Translate Script -->
+    <script type="text/javascript">
+        function googleTranslateElementInit() {
+            new google.translate.TranslateElement({
+                pageLanguage: 'en',
+                includedLanguages: 'es,fr,de,zh-CN,ar,pt,ru,ja,it,ko',
+                layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+            }, 'google_translate_element');
+        }
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+    <!-- Dynamic Features Script -->
     <script>
-        // Hamburger Menu Toggle
+        // Toggle hamburger menu
         function toggleMenu() {
             const navMenu = document.getElementById('nav-menu');
-            const hamburger = document.querySelector('.hamburger');
             navMenu.classList.toggle('active');
-            hamburger.classList.toggle('active');
         }
 
-        // Smooth Scrolling
+        // Smooth scrolling for navigation links
         document.querySelectorAll('.header-nav a').forEach(anchor => {
             anchor.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -636,39 +604,40 @@
                 const targetElement = document.getElementById(targetId);
                 if (targetElement) {
                     window.scrollTo({
-                        top: targetElement.offsetTop - 80,
+                        top: targetElement.offsetTop - 80, // Adjust for header height
                         behavior: 'smooth'
                     });
                 }
+                // Close menu on mobile after clicking a link
                 const navMenu = document.getElementById('nav-menu');
-                const hamburger = document.querySelector('.hamburger');
                 if (navMenu.classList.contains('active')) {
                     navMenu.classList.remove('active');
-                    hamburger.classList.remove('active');
                 }
             });
         });
 
-        // Collapsible Section Persistence
+        // Collapsible section persistence
         document.querySelectorAll('details').forEach(details => {
             const id = details.id;
             if (id) {
+                // Load saved state
                 const isOpen = localStorage.getItem(`details-${id}`) === 'true';
                 details.open = isOpen;
+                // Save state on toggle
                 details.addEventListener('toggle', () => {
                     localStorage.setItem(`details-${id}`, details.open);
                 });
             }
         });
 
-        // Simulated Balance Checker
+        // Simulated balance checker
         function checkBalance() {
             const resultElement = document.getElementById('balance-result');
+            // Simulated balance (replace with Web3.js call for real implementation)
             const monBalance = (Math.random() * 100).toFixed(2);
             const toursBalance = (Math.random() * 1000).toFixed(2);
             resultElement.textContent = `Balance: ${monBalance} $MON, ${toursBalance} $TOURS (simulated)`;
         }
     </script>
-    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 </body>
 </html>
