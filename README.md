@@ -246,6 +246,6 @@ Testnet only. No liability for damages. Proprietary – see License.
 ## License
 
 Earvin Gallardo owns the entity in its entirety, including all intellectual property rights. For licensing inquiries, investment opportunities, or permissions, contact Earvin Gallardo directly.
-See full license at [LICENSE](https://github.com/EmpowerTours/version1/blob/main/LICENSE)
+See full license at [LICENSE](https://github.com/EmpowerTours/version1/blob/main/LI$ENCE)
 
 © 2025 EmpowerTours. Built with xAI & Monad. Join the adventure! 🧗
