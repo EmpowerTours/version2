@@ -6,7 +6,7 @@
   [![Monad Testnet](https://img.shields.io/badge/Blockchain-Monad%20Testnet-orange?style=for-the-badge&logo=ethereum)](https://monad.xyz)
   [![Telegram Bot](https://img.shields.io/badge/Telegram-Bot-blue?style=for-the-badge&logo=telegram)](https://t.me/AI_RobotExpert_bot)
   [![Community Chat](https://img.shields.io/badge/Chat-Join%20Now-green?style=for-the-badge&logo=telegram)](https://t.me/empowertourschat)
-  [![License](https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge)](LICEN$E)
+  [![License](https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge)](LI$ENSE)
   [![Open to Investors](https://img.shields.io/badge/Invest-Open%20to%20Angels-yellow?style=for-the-badge&logo=bitcoin)](mailto:earvin.gallardo@csecsystems.com)
 
 </div>
